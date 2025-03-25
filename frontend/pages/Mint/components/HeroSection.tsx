@@ -56,7 +56,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   };
 
   return (
-    <section className="hero-container flex flex-col md:flex-row gap-6 px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300">
+    <section className="hero-container flex flex-col md:flex-row gap-4 md:gap-6 px-3 md:px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-3 md:p-4 rounded-lg border-2 border-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300">
       <div className="w-full md:basis-2/5 relative">
         <Image
           src={collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Paper}
@@ -65,7 +65,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <Button 
-            className="h-16 md:h-auto text-lg px-8 py-6 border-2 border-black" 
+            className="h-12 md:h-16 text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-black" 
             variant="secondary"
             onClick={() => toast({ title: "Coming Soon", description: "The drawing feature will be available soon!" })}
           >
@@ -73,7 +73,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           </Button>
         </div>
       </div>
-      <div className="basis-3/5 flex flex-col gap-4">
+      <div className="basis-full md:basis-3/5 flex flex-col gap-3 md:gap-4">
         <h1 className="title-md">{collection?.collection_name ?? config.defaultCollection?.name}</h1>
         <Socials />
         <p className="body-sm">{collection?.description ?? config.defaultCollection?.description}</p>
@@ -81,10 +81,10 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         <Card className="shadow-[0_4px_15px_rgb(0,0,0,0.1)] hover:shadow-[0_12px_24px_rgb(0,0,0,0.15)] hover:-translate-y-1 transition-all duration-300">
           <CardContent
             fullPadding
-            className="flex flex-col md:flex-row gap-4 md:justify-between items-start md:items-center flex-wrap"
+            className="flex flex-col md:flex-row gap-3 md:gap-4 md:justify-between items-start md:items-center flex-wrap p-3 md:p-4"
           >
-            <form onSubmit={mintNft} className="flex flex-col md:flex-row gap-4 w-full">
-              <Button className="h-16 md:h-auto w-full" type="submit">
+            <form onSubmit={mintNft} className="flex flex-col md:flex-row gap-3 md:gap-4 w-full">
+              <Button className="h-12 md:h-16 w-full text-base md:text-lg" type="submit">
                 Mint my Page
               </Button>
               {!!mintFee && (
@@ -94,21 +94,21 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           </CardContent>
         </Card>
         
-        <div className="flex flex-col gap-4 mt-2">
-          <p className="body-sm text-secondary-text">Unleash your imagination and become part of something extraordinary! Every stroke, every word you create becomes an eternal masterpiece in our digital gallery. Your story matters - let's make history together! ✨</p>
+        <div className="flex flex-col gap-3 md:gap-4 mt-1 md:mt-2">
+          <p className="body-sm text-secondary-text">{config.defaultCollection?.subDescription}</p>
         </div>
 
-        <div className="flex gap-x-2 items-center flex-wrap justify-between">
+        <div className="flex flex-col md:flex-row gap-2 md:gap-x-2 items-start md:items-center flex-wrap justify-between">
           <p className="whitespace-nowrap body-sm-semibold">Collection Address</p>
 
-          <div className="flex gap-x-2">
+          <div className="flex flex-wrap gap-2">
             <AddressButton address={collection?.collection_id ?? ""} />
             <a
-              className={buttonVariants({ variant: "link" })}
+              className={buttonVariants({ variant: "link", className: "text-sm md:text-base" })}
               target="_blank"
               href={`https://explorer.aptoslabs.com/account/${collection?.collection_id}?network=${NETWORK}`}
             >
-              View on Explorer <Image src={ExternalLink} />
+              View on Explorer <Image src={ExternalLink} className="w-4 h-4 md:w-5 md:h-5" />
             </a>
           </div>
         </div>

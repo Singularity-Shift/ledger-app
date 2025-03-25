@@ -114,69 +114,105 @@ module.exports = {
         // Component Regular Text Styles
         ".body-sm": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.16"),
-          lineHeight: theme("lineHeight.28"),
+          fontSize: theme("fontSize.14"),
+          lineHeight: theme("lineHeight.24"),
           fontWeight: theme("fontWeight.regular"),
+          "@screen md": {
+            fontSize: theme("fontSize.16"),
+            lineHeight: theme("lineHeight.28"),
+          },
         },
         ".body-md": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.18"),
-          lineHeight: theme("lineHeight.28"),
+          fontSize: theme("fontSize.16"),
+          lineHeight: theme("lineHeight.26"),
           fontWeight: theme("fontWeight.regular"),
+          "@screen md": {
+            fontSize: theme("fontSize.18"),
+            lineHeight: theme("lineHeight.28"),
+          },
         },
 
         // Component Semibold Text Styles
         ".body-sm-semibold": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.16"),
-          lineHeight: theme("lineHeight.28"),
+          fontSize: theme("fontSize.14"),
+          lineHeight: theme("lineHeight.24"),
           fontWeight: theme("fontWeight.semibold"),
+          "@screen md": {
+            fontSize: theme("fontSize.16"),
+            lineHeight: theme("lineHeight.28"),
+          },
         },
         ".body-md-semibold": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.18"),
-          lineHeight: theme("lineHeight.28"),
+          fontSize: theme("fontSize.16"),
+          lineHeight: theme("lineHeight.26"),
           fontWeight: theme("fontWeight.semibold"),
+          "@screen md": {
+            fontSize: theme("fontSize.18"),
+            lineHeight: theme("lineHeight.28"),
+          },
         },
 
         // Label Text Styles
         ".label-sm": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.14"),
-          lineHeight: theme("lineHeight.24"),
+          fontSize: theme("fontSize.12"),
+          lineHeight: theme("lineHeight.20"),
           color: theme("colors.secondary.text"),
+          "@screen md": {
+            fontSize: theme("fontSize.14"),
+            lineHeight: theme("lineHeight.24"),
+          },
         },
 
         // Title Text Styles
         ".title-md": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.48"),
-          lineHeight: theme("lineHeight.48"),
+          fontSize: theme("fontSize.30"),
+          lineHeight: theme("lineHeight.36"),
           fontWeight: theme("fontWeight.bold"),
           letterSpacing: "-1.2%",
+          "@screen md": {
+            fontSize: theme("fontSize.48"),
+            lineHeight: theme("lineHeight.48"),
+          },
         },
 
         // Heading Text Styles
         ".heading-sm": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.24"),
-          lineHeight: theme("lineHeight.32"),
+          fontSize: theme("fontSize.20"),
+          lineHeight: theme("lineHeight.28"),
           fontWeight: theme("fontWeight.semibold"),
           letterSpacing: "-0.6%",
+          "@screen md": {
+            fontSize: theme("fontSize.24"),
+            lineHeight: theme("lineHeight.32"),
+          },
         },
         ".heading-md": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: theme("fontSize.30"),
-          lineHeight: theme("lineHeight.36"),
+          fontSize: theme("fontSize.24"),
+          lineHeight: theme("lineHeight.32"),
           fontWeight: theme("fontWeight.semibold"),
+          "@screen md": {
+            fontSize: theme("fontSize.30"),
+            lineHeight: theme("lineHeight.36"),
+          },
         },
 
         // Display Text Styles
         ".display": {
           fontFamily: theme("fontFamily.inter"),
-          fontSize: "32px",
-          lineHeight: "52px",
+          fontSize: "24px",
+          lineHeight: "36px",
           fontWeight: theme("fontWeight.bold"),
+          "@screen md": {
+            fontSize: "32px",
+            lineHeight: "52px",
+          },
         },
       });
     }),
