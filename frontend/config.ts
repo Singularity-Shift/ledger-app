@@ -1,56 +1,47 @@
-import Placeholder1 from "@/assets/placeholders/bear-1.png";
+import Paper from "@/assets/placeholders/paper.jpg";
 import Placeholder2 from "@/assets/placeholders/bear-2.png";
 import Placeholder3 from "@/assets/placeholders/bear-3.png";
-import { COLLECTION_ADDRESS } from "./constants";
+import SShiftLogo from "@/assets/placeholders/sshift-logo.png";
+import { COLLECTION_ADDRESS, SOCIAL_X, SOCIAL_DISCORD, SOCIAL_TELEGRAM, SOCIAL_HOMEPAGE } from "./constants";
 
 export const config: Config = {
   collection_id: COLLECTION_ADDRESS,
 
   // Removing one or all of these socials will remove them from the page
   socials: {
-    twitter: "https://twitter.com",
-    discord: "https://discord.com",
-    homepage: "#",
+    twitter: SOCIAL_X,
+    discord: SOCIAL_DISCORD,
+    homepage: SOCIAL_HOMEPAGE,
+    telegram: SOCIAL_TELEGRAM,
   },
 
   defaultCollection: {
-    name: "Lorem Ipsum",
-    description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris congue convallis augue in pharetra.",
-    image: Placeholder1,
+    name: "Pages from the 📒",
+    description: "Draw. Write, Mint. Grow the Collection. Join our ever-growing community of digital artists, dreamers, and storytellers. Each NFT begins with a blank page—then becomes a permanent entry in the ledger of human expression.",
+    image: Paper,
   },
 
   ourStory: {
-    title: "Our Story",
-    subTitle: "Proin lorem",
+    title: "Community Canvas",
+    subTitle: "Create Together",
     description:
-      "Phasellus pellentesque malesuada pretium. Vestibulum sed justo at velit rhoncus finibus nec quis urna. Aenean rutrum congue tincidunt. Praesent id urna quis risus sodales feugiat vitae quis orci. Proin tincidunt eu nisi quis sollicitudin. Nulla facilisis eget tellus quis fermentum. Nunc vel neque at erat dictum tempus. Aliquam in mollis lacus, non fringilla lacus. Nunc blandit iaculis ante vitae pulvinar.",
-    discordLink: "https://discord.com",
-    images: [Placeholder1, Placeholder2, Placeholder3],
+      "This is a community-driven NFT collection where every piece is hand-drawn by members like you. Express yourself, create art that matters to you, and become part of our collective digital gallery.",
+    discordLink: SOCIAL_DISCORD,
+    images: [Paper, Placeholder2, Placeholder3],
   },
 
   ourTeam: {
-    title: "Our Team",
+    title: "Created By",
     members: [
       {
-        name: "Mepoti",
-        role: "Aliquip Esse",
-        img: Placeholder1,
-        socials: {
-          twitter: "https://twitter.com",
-        },
+        name: "Singularity Shift Ltd",
+        role: "Creator",
+        img: SShiftLogo
       },
       {
-        name: "Zucker",
-        role: "Sunt Duis",
-        img: Placeholder2,
-      },
-      {
-        name: "SimonT",
-        role: "Ullamco Tempor",
-        img: Placeholder3,
-        socials: {
-          twitter: "https://twitter.com",
-        },
+        name: "SpielCrypto",
+        role: "Creator",
+        img: Placeholder2
       },
     ],
   },
@@ -60,24 +51,22 @@ export const config: Config = {
 
     questions: [
       {
-        title: "Id Quis Mollit Est",
+        title: "What is Community Canvas?",
         description:
-          "Exercitation tempor id ex aute duis laboris dolore est elit fugiat consequat exercitation ullamco. Labore sint laborum anim sunt labore commodo proident adipisicing minim eu duis velit. Est ipsum nisi labore ullamco velit laborum qui in. Fugiat cillum tempor proident occaecat do ipsum Lorem eu labore duis do ex anim. Ullamco incididunt irure officia ex reprehenderit. Voluptate tempor reprehenderit elit exercitation consequat labore ipsum duis reprehenderit. Ex qui aliqua ex aute sunt.",
+          "Community Canvas is a user-generated NFT collection where members can draw their own artwork and mint it as an NFT for a fee in 📒. Each piece becomes part of our ever-growing community gallery.",
       },
       {
-        title: "Magna Nostrud Eu Nostrud Occaecat",
+        title: "How do I create my own artwork?",
         description:
-          "Et aute duis culpa anim sint pariatur ipsum et irure aliquip eu velit. Aliquip Lorem nostrud adipisicing deserunt sit ut aliqua enim amet velit fugiat cillum quis ut. Tempor consequat adipisicing laborum ut ipsum ut elit ad amet qui Lorem ea commodo culpa. Commodo adipisicing sit sint aute deserunt. Proident enim proident labore. Aliquip minim aliqua proident mollit fugiat ipsum qui duis deserunt ea duis. Deserunt anim incididunt irure commodo sint adipisicing magna dolor excepteur.",
+          "Once the drawing feature is launched, you'll be able to use our built-in drawing tool to create your artwork. Connect your wallet, create your masterpiece, and mint it to join the collection.",
       },
       {
-        title: "In Amet Mollit Tempor Dolor Consequat Commodo",
+        title: "How much does it cost to mint?",
         description:
-          "Fugiat fugiat dolor id aute labore esse incididunt. Reprehenderit nostrud ad elit enim occaecat. Sunt non ex veniam officia dolore deserunt consequat. Excepteur voluptate cillum fugiat reprehenderit consequat eu eu amet dolor enim tempor.",
+          "Minting your artwork costs a small fee paid in 📒. This fee helps maintain the platform and ensures the quality of the collection.",
       },
     ],
   },
-
-  nftBanner: [Placeholder1, Placeholder2, Placeholder3],
 };
 
 export interface Config {
@@ -87,6 +76,7 @@ export interface Config {
     twitter?: string;
     discord?: string;
     homepage?: string;
+    telegram?: string;
   };
 
   defaultCollection?: {
@@ -115,8 +105,6 @@ export interface Config {
       description: string;
     }>;
   };
-
-  nftBanner?: Array<string>;
 }
 
 export interface ConfigTeamMember {

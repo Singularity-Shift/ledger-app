@@ -10,11 +10,11 @@ export const OurStorySection: React.FC<OurStorySectionProps> = () => {
   if (!config.ourStory) return null;
 
   return (
-    <section className="our-story-container px-4 flex flex-col md:flex-row gap-6 max-w-screen-xl mx-auto w-full items-center">
+    <section className="our-story-container px-4 flex flex-col md:flex-row gap-6 max-w-screen-xl mx-auto w-full items-center bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-lg">
       <div className="basis-3/5">
         <p className="label-sm">{config.ourStory.subTitle}</p>
-        <p className="heading-md">{config.ourStory.title}</p>
-        <p className="body-sm pt-2">{config.ourStory.description}</p>
+        <h2 className="heading-md">An Ever-Growing Community Ledger</h2>
+        <p className="body-sm pt-2">Every page you mint is an indelible contribution to a living, breathing digital tapestry. Express yourself, share your vision, and permanently record your creative legacy. Every minted page is a unique part of our collective story, preserved forever on-chain, minted proudly with 📒 tokens. Join our vibrant community and make your mark today!</p>
         {config.socials?.discord && (
           <a
             href={config.socials.discord}
@@ -24,13 +24,13 @@ export const OurStorySection: React.FC<OurStorySectionProps> = () => {
               className: "mt-4",
             })}
           >
-            Join Our Discord
+            Join Our Community
           </a>
         )}
       </div>
 
       {config.ourStory.images && config.ourStory.images?.length > 0 && (
-        <TriImageBanner images={config.ourStory.images} className="basis-2/5" />
+        <TriImageBanner className="basis-2/5" />
       )}
     </section>
   );

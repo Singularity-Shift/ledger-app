@@ -8,6 +8,7 @@ import { config } from "@/config";
 import Twitter from "@/assets/icons/twitter.svg";
 import Link from "@/assets/icons/link.svg";
 import Discord from "@/assets/icons/discord.svg";
+import Telegram from "@/assets/icons/telegram.svg";
 
 export const Socials: FC = () => {
   if (!config.socials) return null;
@@ -44,6 +45,17 @@ export const Socials: FC = () => {
             className={buttonVariants({ variant: "icon", size: "icon" })}
           >
             <Image src={Link} className="dark:invert" />
+          </a>
+        </li>
+      )}
+      {config.socials.telegram && (
+        <li>
+          <a
+            target="_blank"
+            href={config.socials.telegram}
+            className={buttonVariants({ variant: "icon", size: "icon" })}
+          >
+            <Image src={Telegram} className="dark:invert" />
           </a>
         </li>
       )}

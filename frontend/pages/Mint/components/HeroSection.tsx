@@ -4,23 +4,19 @@ import { FC, FormEvent, useState } from "react";
 // Internal assets
 import Copy from "@/assets/icons/copy.svg";
 import ExternalLink from "@/assets/icons/external-link.svg";
-import Placeholder1 from "@/assets/placeholders/bear-1.png";
+import Paper from "@/assets/placeholders/paper.jpg";
 // Internal utils
 import { aptosClient } from "@/utils/aptosClient";
-import { clampNumber } from "@/utils/clampNumber";
 import { truncateAddress } from "@/utils/truncateAddress";
 // Internal hooks
 import { useGetCollectionData } from "@/hooks/useGetCollectionData";
-import { useGetMaxSupply } from "@/hooks/useGetMaxSupply";
 import { useGetMintFee } from "@/hooks/useGetMintFee";
 import { useGetAccountBalance } from "@/hooks/useGetAccountBalance";
 // Internal components
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Image } from "@/components/ui/image";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { Progress } from "@/components/ui/progress";
 import { Socials } from "@/pages/Mint/components/Socials";
 // Internal constants
 import { NETWORK } from "@/constants";
@@ -37,9 +33,8 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const queryClient = useQueryClient();
   const { account, signAndSubmitTransaction } = useWallet();
   const { data: accountBalance } = useGetAccountBalance(account?.address);
-  const [nftCount, setNftCount] = useState(1);
 
-  const { collection, totalMinted = 0 } = data ?? {};
+  const { collection } = data ?? {};
 
   const mintNft = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,20 +49,30 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
     }
 
     const response = await signAndSubmitTransaction(
-      mintNFT({ collectionId: collection.collection_id, amount: nftCount }),
+      mintNFT({ collectionId: collection.collection_id, amount: 1 }),
     );
     await aptosClient().waitForTransaction({ transactionHash: response.hash });
     queryClient.invalidateQueries();
-    setNftCount(1);
   };
 
   return (
-    <section className="hero-container flex flex-col md:flex-row gap-6 px-4 max-w-screen-xl mx-auto w-full">
-      <Image
-        src={collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Placeholder1}
-        rounded
-        className="w-full md:basis-2/5 aspect-square object-cover self-center"
-      />
+    <section className="hero-container flex flex-col md:flex-row gap-6 px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-lg">
+      <div className="w-full md:basis-2/5 relative">
+        <Image
+          src={collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Paper}
+          rounded
+          className="w-full aspect-square object-cover self-center filter brightness-50"
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Button 
+            className="h-16 md:h-auto text-lg px-8 py-6 border-2 border-black" 
+            variant="secondary"
+            onClick={() => toast({ title: "Coming Soon", description: "The drawing feature will be available soon!" })}
+          >
+            Tear a page from the 📒
+          </Button>
+        </div>
+      </div>
       <div className="basis-3/5 flex flex-col gap-4">
         <h1 className="title-md">{collection?.collection_name ?? config.defaultCollection?.name}</h1>
         <Socials />
@@ -78,24 +83,21 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             fullPadding
             className="flex flex-col md:flex-row gap-4 md:justify-between items-start md:items-center flex-wrap"
           >
-            <form onSubmit={mintNft} className="flex flex-col md:flex-row gap-4 w-full md:basis-1/4">
-              <Input
-                type="number"
-                value={nftCount}
-                onChange={(e) => setNftCount(parseInt(e.currentTarget.value, 10))}
-                className="min-w-14"
-              />
-              <Button className="h-16 md:h-auto" type="submit">
-                Mint
+            <form onSubmit={mintNft} className="flex flex-col md:flex-row gap-4 w-full">
+              <Button className="h-16 md:h-auto w-full" type="submit">
+                Mint my Page
               </Button>
               {!!mintFee && (
                 <span className="whitespace-nowrap text-secondary-text body-sm self-center">{mintFee} APT</span>
               )}
             </form>
-
-            <MintedMeter totalMinted={totalMinted} />
           </CardContent>
         </Card>
+        
+        <div className="flex flex-col gap-4 mt-2">
+          <p className="body-sm-semibold">Join our ever-growing 📒 of record</p>
+          <p className="body-sm text-secondary-text">Each NFT begins with a blank page—then becomes a permanent entry in the ledger of human expression.</p>
+        </div>
 
         <div className="flex gap-x-2 items-center flex-wrap justify-between">
           <p className="whitespace-nowrap body-sm-semibold">Collection Address</p>
@@ -113,19 +115,6 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         </div>
       </div>
     </section>
-  );
-};
-
-const MintedMeter: FC<{ totalMinted: number }> = ({ totalMinted }) => {
-  const { data: maxSupply = 0 } = useGetMaxSupply();
-
-  return (
-    <div className="flex flex-col gap-2 w-full md:basis-1/2">
-      <p className="label-sm text-secondary-text">
-        {clampNumber(totalMinted)} / {clampNumber(maxSupply)} Minted
-      </p>
-      <Progress value={(totalMinted / maxSupply) * 100} className="h-2" />
-    </div>
   );
 };
 

@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useEffect } from "react";
 
-import { BannerSection } from "@/pages/Mint/components/BannerSection";
 import { HeroSection } from "@/pages/Mint/components/HeroSection";
 import { StatsSection } from "@/pages/Mint/components/StatsSection";
 import { OurStorySection } from "@/pages/Mint/components/OurStorySection";
@@ -27,32 +26,31 @@ export function Mint() {
 
   if (isLoading) {
     return (
-      <div className="text-center p-8">
+      <div className="text-center p-8 bg-white bg-opacity-90 rounded-lg">
         <h1 className="title-md">Loading...</h1>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="min-h-screen">
       <Header />
-      <div style={{ overflow: "hidden" }} className="overflow-hidden">
+      <div className="overflow-hidden">
         <main className="flex flex-col gap-10 md:gap-16 mt-6">
           <ConnectWalletAlert />
           <HeroSection />
           <StatsSection />
           <OurStorySection />
           <HowToMintSection />
-          <BannerSection />
           <OurTeamSection />
           <FAQSection />
         </main>
 
-        <footer className="footer-container px-4 pb-6 w-full max-w-screen-xl mx-auto mt-6 md:mt-16 flex items-center justify-between">
+        <footer className="footer-container px-4 pb-6 w-full max-w-screen-xl mx-auto mt-6 md:mt-16 flex items-center justify-between bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-lg">
           <p>{data?.collection.collection_name}</p>
           <Socials />
         </footer>
       </div>
-    </>
+    </div>
   );
 }

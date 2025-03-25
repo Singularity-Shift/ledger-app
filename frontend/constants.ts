@@ -7,3 +7,9 @@ export const MODULE_NAME = "unmanaged_launchpad";
 export const COLLECTION_ADDRESS = import.meta.env.VITE_COLLECTION_ADDRESS;
 export const IS_DEV = Boolean(import.meta.env.DEV);
 export const OCTA = 100000000;
+
+// Social media links
+export const SOCIAL_X = import.meta.env.VITE_SOCIAL_X;
+export const SOCIAL_DISCORD = import.meta.env.VITE_SOCIAL_DISCORD;
+export const SOCIAL_TELEGRAM = import.meta.env.VITE_SOCIAL_TELEGRAM;
+export const SOCIAL_HOMEPAGE = import.meta.env.VITE_SOCIAL_HOMEPAGE;
