@@ -1,7 +1,7 @@
 // Internal components
 import { Image } from "@/components/ui/image";
 // Internal assets
-import Paper from "@/assets/placeholders/paper.jpg";
+import Paper from "@/assets/placeholders/paper-example.png";
 
 export function TriImageBanner({ className }: { className?: string }) {
   return (

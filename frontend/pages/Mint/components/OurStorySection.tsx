@@ -10,7 +10,7 @@ export const OurStorySection: React.FC<OurStorySectionProps> = () => {
   if (!config.ourStory) return null;
 
   return (
-    <section className="our-story-container px-4 flex flex-col md:flex-row gap-6 max-w-screen-xl mx-auto w-full items-center bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-lg">
+    <section className="our-story-container px-4 flex flex-col md:flex-row gap-6 max-w-screen-xl mx-auto w-full items-center bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300">
       <div className="basis-3/5">
         <p className="label-sm">{config.ourStory.subTitle}</p>
         <h2 className="heading-md">An Ever-Growing Community Ledger</h2>

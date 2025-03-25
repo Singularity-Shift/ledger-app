@@ -12,7 +12,7 @@ export const StatsSection: React.FC<StatsSectionProps> = () => {
   const { totalMinted = 0, uniqueHolders = 0 } = data ?? {};
 
   return (
-    <section className="stats-container px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-lg">
+    <section className="stats-container px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300">
       <ul className="flex flex-col md:flex-row gap-6">
         {[
           { title: "📒 Collection Size", value: totalMinted },

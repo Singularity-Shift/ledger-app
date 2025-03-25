@@ -1,7 +1,8 @@
-import Paper from "@/assets/placeholders/paper.jpg";
+import Paper from "@/assets/placeholders/paper.png";
 import Placeholder2 from "@/assets/placeholders/bear-2.png";
 import Placeholder3 from "@/assets/placeholders/bear-3.png";
 import SShiftLogo from "@/assets/placeholders/sshift-logo.png";
+import SpielLogo from "@/assets/placeholders/spiel-logo.png";
 import { COLLECTION_ADDRESS, SOCIAL_X, SOCIAL_DISCORD, SOCIAL_TELEGRAM, SOCIAL_HOMEPAGE } from "./constants";
 
 export const config: Config = {
@@ -17,17 +18,29 @@ export const config: Config = {
 
   defaultCollection: {
     name: "Pages from the 📒",
-    description: "Draw. Write, Mint. Grow the Collection. Join our ever-growing community of digital artists, dreamers, and storytellers. Each NFT begins with a blank page—then becomes a permanent entry in the ledger of human expression.",
+    description: "Draw, Write, Mint. Grow the Collection. Join our ever-growing community of digital artists, dreamers, and storytellers. Each NFT begins with a blank page—then becomes a permanent entry in the ledger of human expression.",
     image: Paper,
+    subDescription: "Your creativity knows no bounds! Every blank page is a canvas waiting for your unique story, your vision, your moment to shine in our digital gallery. Let's create something amazing together! ✨"
   },
 
   ourStory: {
-    title: "Community Canvas",
+    title: "An Ever-Growing Community Ledger",
     subTitle: "Create Together",
     description:
-      "This is a community-driven NFT collection where every piece is hand-drawn by members like you. Express yourself, create art that matters to you, and become part of our collective digital gallery.",
+      "Every page you mint is an indelible contribution to a living, breathing digital tapestry. Express yourself, share your vision, and permanently record your creative legacy. Every minted page is a unique part of our collective story, preserved forever on-chain, minted proudly with 📒 tokens. Join our vibrant community and make your mark today!",
     discordLink: SOCIAL_DISCORD,
     images: [Paper, Placeholder2, Placeholder3],
+  },
+
+  howToMint: {
+    title: "How to Create & Mint",
+    steps: [
+      "Connect Your Wallet",
+      "Tear a page from ledger",
+      "Draw, Write, or Doodle",
+      "Confirm 📒 payment",
+      "Receive your NFT"
+    ]
   },
 
   ourTeam: {
@@ -41,19 +54,18 @@ export const config: Config = {
       {
         name: "SpielCrypto",
         role: "Creator",
-        img: Placeholder2
+        img: SpielLogo
       },
     ],
   },
 
   faqs: {
-    title: "F.A.Q.",
-
+    title: "How to Create & Mint",
     questions: [
       {
-        title: "What is Community Canvas?",
+        title: "What is Ledger Fun App 📒?",
         description:
-          "Community Canvas is a user-generated NFT collection where members can draw their own artwork and mint it as an NFT for a fee in 📒. Each piece becomes part of our ever-growing community gallery.",
+          "Ledger Fun App 📒 is a user-generated NFT platform where members can draw, doodle or write content to a page of the ledger and mint it as an NFT for a fee in 📒 token. Each piece becomes part of our ever-growing community NFT collection.",
       },
       {
         title: "How do I create my own artwork?",
@@ -63,7 +75,7 @@ export const config: Config = {
       {
         title: "How much does it cost to mint?",
         description:
-          "Minting your artwork costs a small fee paid in 📒. This fee helps maintain the platform and ensures the quality of the collection.",
+          "Minting your artwork costs a small fee paid in 📒 token. This fee helps maintain the platform and ensures the quality of human service.",
       },
     ],
   },
@@ -83,6 +95,7 @@ export interface Config {
     name: string;
     description: string;
     image: string;
+    subDescription?: string;
   };
 
   ourTeam?: {
@@ -96,6 +109,11 @@ export interface Config {
     description: string;
     discordLink: string;
     images?: Array<string>;
+  };
+
+  howToMint?: {
+    title: string;
+    steps: string[];
   };
 
   faqs?: {

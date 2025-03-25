@@ -4,7 +4,7 @@ import { FC, FormEvent, useState } from "react";
 // Internal assets
 import Copy from "@/assets/icons/copy.svg";
 import ExternalLink from "@/assets/icons/external-link.svg";
-import Paper from "@/assets/placeholders/paper.jpg";
+import Paper from "@/assets/placeholders/paper.png";
 // Internal utils
 import { aptosClient } from "@/utils/aptosClient";
 import { truncateAddress } from "@/utils/truncateAddress";
@@ -56,7 +56,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   };
 
   return (
-    <section className="hero-container flex flex-col md:flex-row gap-6 px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-lg">
+    <section className="hero-container flex flex-col md:flex-row gap-6 px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-4 rounded-lg border-2 border-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300">
       <div className="w-full md:basis-2/5 relative">
         <Image
           src={collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Paper}
@@ -78,7 +78,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         <Socials />
         <p className="body-sm">{collection?.description ?? config.defaultCollection?.description}</p>
 
-        <Card>
+        <Card className="shadow-[0_4px_15px_rgb(0,0,0,0.1)] hover:shadow-[0_12px_24px_rgb(0,0,0,0.15)] hover:-translate-y-1 transition-all duration-300">
           <CardContent
             fullPadding
             className="flex flex-col md:flex-row gap-4 md:justify-between items-start md:items-center flex-wrap"
@@ -95,8 +95,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         </Card>
         
         <div className="flex flex-col gap-4 mt-2">
-          <p className="body-sm-semibold">Join our ever-growing 📒 of record</p>
-          <p className="body-sm text-secondary-text">Each NFT begins with a blank page—then becomes a permanent entry in the ledger of human expression.</p>
+          <p className="body-sm text-secondary-text">Unleash your imagination and become part of something extraordinary! Every stroke, every word you create becomes an eternal masterpiece in our digital gallery. Your story matters - let's make history together! ✨</p>
         </div>
 
         <div className="flex gap-x-2 items-center flex-wrap justify-between">
