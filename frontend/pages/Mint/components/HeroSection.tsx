@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Image } from "@/components/ui/image";
 import { toast } from "@/components/ui/use-toast";
 import { Socials } from "@/pages/Mint/components/Socials";
+import { PencilSketchPortal } from "@/components/PencilSketchPortal";
 // Internal constants
 import { NETWORK } from "@/constants";
 // Internal config
@@ -33,6 +34,8 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const queryClient = useQueryClient();
   const { account, signAndSubmitTransaction } = useWallet();
   const { data: accountBalance } = useGetAccountBalance(account?.address);
+  const [showSketchPortal, setShowSketchPortal] = useState(false);
+  const [drawnImage, setDrawnImage] = useState<string | null>(null);
 
   const { collection } = data ?? {};
 
@@ -55,22 +58,28 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
     queryClient.invalidateQueries();
   };
 
+  const handleSketchSubmit = (imageBlob: string) => {
+    setDrawnImage(imageBlob);
+  };
+
   return (
     <section className="hero-container flex flex-col md:flex-row gap-4 md:gap-6 px-3 md:px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-3 md:p-4 rounded-lg border-2 border-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300">
       <div className="w-full md:basis-2/5 relative">
         <Image
-          src={collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Paper}
+          src={drawnImage || (collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Paper)}
           rounded
-          className="w-full aspect-square object-cover self-center filter brightness-50"
+          className={`w-full aspect-square object-cover self-center ${!drawnImage ? 'filter brightness-50' : ''}`}
         />
         <div className="absolute inset-0 flex items-center justify-center">
-          <Button 
-            className="h-12 md:h-16 text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-black" 
-            variant="secondary"
-            onClick={() => toast({ title: "Coming Soon", description: "The drawing feature will be available soon!" })}
-          >
-            Tear a page from the 📒
-          </Button>
+          {!drawnImage && (
+            <Button 
+              className="h-12 md:h-16 text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-black" 
+              variant="secondary"
+              onClick={() => setShowSketchPortal(true)}
+            >
+              Tear a page from the 📒
+            </Button>
+          )}
         </div>
       </div>
       <div className="basis-full md:basis-3/5 flex flex-col gap-3 md:gap-4">
@@ -84,7 +93,11 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             className="flex flex-col md:flex-row gap-3 md:gap-4 md:justify-between items-start md:items-center flex-wrap p-3 md:p-4"
           >
             <form onSubmit={mintNft} className="flex flex-col md:flex-row gap-3 md:gap-4 w-full">
-              <Button className="h-12 md:h-16 w-full text-base md:text-lg" type="submit">
+              <Button 
+                className="h-12 md:h-16 w-full text-base md:text-lg" 
+                type="submit"
+                disabled={!drawnImage}
+              >
                 Mint my Page
               </Button>
               {!!mintFee && (
@@ -113,6 +126,12 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           </div>
         </div>
       </div>
+      
+      <PencilSketchPortal 
+        isOpen={showSketchPortal} 
+        onClose={() => setShowSketchPortal(false)} 
+        onSubmit={handleSketchSubmit}
+      />
     </section>
   );
 };
