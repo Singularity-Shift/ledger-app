@@ -112,13 +112,25 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             className="flex flex-col md:flex-row gap-3 md:gap-4 md:justify-between items-start md:items-center flex-wrap p-3 md:p-4"
           >
             <form onSubmit={mintNft} className="flex flex-col md:flex-row gap-3 md:gap-4 w-full">
-              <Button 
-                className="h-12 md:h-16 w-full text-base md:text-lg" 
-                type="submit"
-                disabled={!drawnImage}
-              >
-                Mint my Page
-              </Button>
+              <div className="flex gap-2 w-full">
+                <Button 
+                  className="h-12 md:h-16 flex-1 text-base md:text-lg" 
+                  type="submit"
+                  disabled={!drawnImage}
+                >
+                  Mint my Page
+                </Button>
+                {drawnImage && (
+                  <Button 
+                    className="h-12 md:h-16 text-base md:text-lg" 
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setDrawnImage(null)}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
               {!!mintFee && (
                 <span className="whitespace-nowrap text-secondary-text body-sm self-center">{mintFee} APT</span>
               )}
