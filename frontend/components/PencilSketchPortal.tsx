@@ -44,6 +44,10 @@ const COLORS = [
   { name: 'Brown', value: '#A52A2A' },
   { name: 'Pink', value: '#FFC0CB' },
   { name: 'Violet', value: '#8F00FF' },
+  { name: 'Navy', value: '#000080' },
+  { name: 'Forest', value: '#228B22' },
+  { name: 'Maroon', value: '#800000' },
+  { name: 'Gold', value: '#FFD700' }
 ];
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
@@ -51,8 +55,9 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [selectedGrade, setSelectedGrade] = useState<PencilGrade>(PENCIL_GRADES[3]); // Default to HB
   const [baseColor, setBaseColor] = useState(COLORS[0].value); // Default to Graphite
   const [customColor, setCustomColor] = useState(COLORS[0].value);
+  const [isEraser, setIsEraser] = useState(false);
   const canvasRef = useRef<ReactSketchCanvasRef>(null);
-  const [canvasSize, setCanvasSize] = useState(800);
+  const [canvasSize, setCanvasSize] = useState(1000);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Calculate the actual stroke color based on the base color and opacity
@@ -75,6 +80,13 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${selectedGrade.opacity})`;
   }, [baseColor, selectedGrade.opacity]);
 
+  // Calculate the scaled stroke width based on canvas size
+  const scaledStrokeWidth = useMemo(() => {
+    const baseSize = 1000; // Original canvas size
+    const scaleFactor = canvasSize / baseSize;
+    return strokeWidth * scaleFactor;
+  }, [strokeWidth, canvasSize]);
+
   // Adjust canvas size based on available width
   useEffect(() => {
     if (isOpen && containerRef.current) {
@@ -82,8 +94,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         for (const entry of entries) {
           // Get the available width, minus some padding
           const availableWidth = entry.contentRect.width - 40;
-          // Make sure we don't make it too large
-          const size = Math.min(availableWidth, 800);
+          // Make sure we don't make it too large, but maintain aspect ratio
+          const size = Math.min(availableWidth, 1000);
           setCanvasSize(size);
         }
       });
@@ -168,14 +180,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           }}>
             <ReactSketchCanvas
               ref={canvasRef}
-              strokeWidth={strokeWidth}
-              strokeColor={strokeColor}
+              strokeWidth={scaledStrokeWidth}
+              strokeColor={isEraser ? '#ffffff' : strokeColor}
               width={`${canvasSize}`}
               height={`${canvasSize}`}
               backgroundImage={Paper}
               exportWithBackgroundImage={false}
               preserveBackgroundImageAspectRatio="none"
               canvasColor="transparent"
+              eraserWidth={scaledStrokeWidth}
               style={{
                 position: 'absolute',
                 top: 0,
@@ -189,6 +202,35 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         
         <div className="p-3 bg-gray-100 border-t border-gray-200">
           <div className="flex flex-wrap items-center gap-4 mb-3">
+            {/* Draw/Erase Toggle */}
+            <div>
+              <label className="text-sm block mb-1">Mode:</label>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setIsEraser(false)}
+                  className={`px-3 py-1 text-sm border ${
+                    !isEraser 
+                      ? 'bg-gray-800 text-white' 
+                      : 'bg-white'
+                  } hover:bg-gray-100 transition-colors`}
+                  title="Draw mode"
+                >
+                  ✏️ Draw
+                </button>
+                <button
+                  onClick={() => setIsEraser(true)}
+                  className={`px-3 py-1 text-sm border ${
+                    isEraser 
+                      ? 'bg-gray-800 text-white' 
+                      : 'bg-white'
+                  } hover:bg-gray-100 transition-colors`}
+                  title="Eraser mode"
+                >
+                  ⚪ Erase
+                </button>
+              </div>
+            </div>
+            
             {/* Pencil Grade Selector */}
             <div>
               <label className="text-sm block mb-1">Pencil Grade: <span className="font-semibold">{selectedGrade.label}</span></label>
@@ -216,11 +258,11 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               <input
                 type="range"
                 min="0.5"
-                max="5"
+                max="8"
                 step="0.1"
                 value={strokeWidth}
                 onChange={(e) => setStrokeWidth(Number(e.target.value))}
-                className="w-24"
+                className="w-40"
               />
             </div>
             
@@ -253,12 +295,20 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                   title={color.name}
                 />
               ))}
-              <div className="flex items-center ml-2">
+              <div className="relative w-8 h-8">
+                <button
+                  className={`w-8 h-8 rounded-full border-2 ${
+                    !COLORS.find(c => c.value === baseColor)
+                      ? 'border-black ring-2 ring-offset-1 ring-gray-400'
+                      : 'border-gray-300'
+                  } bg-gradient-to-br from-red-500 via-green-500 to-blue-500`}
+                  title="Custom color"
+                />
                 <input
                   type="color"
                   value={customColor}
                   onChange={handleCustomColorChange}
-                  className="w-8 h-8 cursor-pointer rounded-full"
+                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   title="Custom color"
                 />
               </div>
