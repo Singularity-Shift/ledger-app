@@ -65,12 +65,31 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   return (
     <section className="hero-container flex flex-col md:flex-row gap-4 md:gap-6 px-3 md:px-4 max-w-screen-xl mx-auto w-full bg-white bg-opacity-90 backdrop-blur-sm p-3 md:p-4 rounded-lg border-2 border-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300">
       <div className="w-full md:basis-2/5 relative">
-        <Image
-          src={drawnImage || (collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Paper)}
-          rounded
-          className={`w-full aspect-square object-cover self-center ${!drawnImage ? 'filter brightness-50' : ''}`}
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative w-full aspect-square">
+          {/* Paper background (always consistent) */}
+          <Image
+            src={Paper}
+            rounded
+            className={`w-full h-full object-cover absolute inset-0 ${!drawnImage ? 'filter brightness-50' : ''}`}
+          />
+          {/* Drawing overlay (if exists) */}
+          {drawnImage && (
+            <Image
+              src={drawnImage}
+              rounded
+              className="w-full h-full object-contain absolute inset-0 z-10"
+            />
+          )}
+          {/* Fallback to collection image if no drawing */}
+          {!drawnImage && collection?.cdn_asset_uris && (
+            <Image
+              src={collection?.cdn_asset_uris.cdn_image_uri ?? collection?.cdn_asset_uris.cdn_animation_uri ?? Paper}
+              rounded
+              className="w-full h-full object-cover absolute inset-0 filter brightness-50"
+            />
+          )}
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center z-20">
           {!drawnImage && (
             <Button 
               className="h-12 md:h-16 text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-black" 

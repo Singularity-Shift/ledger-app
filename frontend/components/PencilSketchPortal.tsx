@@ -154,24 +154,35 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         </div>
         
         <div className="flex-1 overflow-auto py-4 flex justify-center" style={{ 
-          maxHeight: 'calc(90vh - 120px)'
+          maxHeight: 'calc(90vh - 120px)',
+          width: '100%'
         }}>
           <div style={{
             width: `${canvasSize}px`,
             height: `${canvasSize}px`,
             border: '1px solid black',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            borderRadius: '4px'
+            borderRadius: '4px',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
             <ReactSketchCanvas
               ref={canvasRef}
               strokeWidth={strokeWidth}
               strokeColor={strokeColor}
-              width={`${canvasSize}px`}
-              height={`${canvasSize}px`}
+              width={`${canvasSize}`}
+              height={`${canvasSize}`}
               backgroundImage={Paper}
-              exportWithBackgroundImage={true}
-              style={{ width: '100%', height: '100%' }}
+              exportWithBackgroundImage={false}
+              preserveBackgroundImageAspectRatio="none"
+              canvasColor="transparent"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%'
+              }}
             />
           </div>
         </div>
