@@ -1,0 +1,17 @@
+[package]
+name = "ledge_minter"
+version = "1.0.0"
+authors = []
+
+[addresses]
+ledge_addr = "0x02033b72957c2f0b66cf5be479a2aa098d5bf18c36477907eba8be39435f2811"
+minter = "0x3c41ff6b5845e0094e19888cba63773591be9de59cafa9e582386f6af15dd490"
+sshift_gpt = "0x02033b72957c2f0b66cf5be479a2aa098d5bf18c36477907eba8be39435f2811"
+
+[dependencies]
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", rev = "mainnet", subdir = "aptos-move/framework/aptos-framework" }
+AptosTokenObjects = { git = "https://github.com/aptos-labs/aptos-core.git", rev = "mainnet", subdir = "aptos-move/framework/aptos-token-objects" }
+TokenMinter = { git = "https://github.com/aptos-labs/token-minter.git", rev = "main", subdir = "token-minter" }
+sshift_gpt = { git = "https://github.com/CryptoAutistic80/sshift-gpt-app", rev = "master", subdir = "contracts/sshift_gpt/aptos"}
+
+[dev-dependencies]
