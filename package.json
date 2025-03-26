@@ -13,8 +13,9 @@
     "fmt": "npm run _fmt -- --write"
   },
   "dependencies": {
-    "@aptos-labs/ts-sdk": "^1.22.1",
+    "@aptos-labs/ts-sdk": "^1.37.1",
     "@aptos-labs/wallet-adapter-react": "^3.5.0",
+    "@mizuwallet-sdk/core": "^1.4.0",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-aspect-ratio": "^1.0.3",
@@ -29,14 +30,20 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-tooltip": "^1.0.7",
     "@tanstack/react-query": "^5.40.1",
+    "@telegram-apps/bridge": "^2.4.0",
+    "@wallet-standard/core": "^1.1.0",
+    "aptos": "^1.21.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "graphql": "^16.10.0",
+    "graphql-request": "^7.1.2",
     "lucide-react": "^0.383.0",
     "react": "^18.2.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.23.1",
+    "react-sketch-canvas": "^6.2.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7"
   },
@@ -57,14 +64,14 @@
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "postcss": "^8.4.38",
+    "prettier": "^3.3.2",
     "stream-browserify": "^3.0.0",
     "tailwindcss": "^3.4.3",
     "tree-kill": "1.2.2",
     "typescript": "^5.2.2",
+    "vercel": "^35.2.4",
     "vite": "^5.2.0",
     "vite-plugin-node-polyfills": "^0.21.0",
-    "vite-plugin-notifier": "^0.1.5",
-    "prettier": "^3.3.2",
-    "vercel": "^35.2.4"
+    "vite-plugin-notifier": "^0.1.5"
   }
 }
