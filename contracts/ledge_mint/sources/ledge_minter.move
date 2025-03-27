@@ -18,7 +18,6 @@ module ledge_addr::message_minter {
 
     use minter::token_components;
 
-    use minter::mint_stage;
     use minter::collection_components;
     use sshift_gpt::fees;
     use sshift_gpt::subscription;
@@ -26,19 +25,21 @@ module ledge_addr::message_minter {
     /// Only admin can update mint fee collector
     const EONLY_ADMIN_CAN_UPDATE_MINT_FEE_COLLECTOR: u64 = 1;
     /// Only admin or creator can create collection
-    const EONLY_ADMIN_OR_CREATOR_CAN_CREATE_COLLECTION: u64 = 2;
+    const EONLY_ADMIN_CAN_CREATE_COLLECTION: u64 = 2;
     /// Only admin can update mint enabled
     const EONLY_ADMIN_CAN_UPDATE_MINT_ENABLED: u64 = 3;
     /// Mint is disabled
     const EMINT_IS_DISABLED: u64 = 4;
     /// Invalid collection URI
     const EINVALID_COLLECTION_URI: u64 = 5;
+    /// Invalid collection URI
+    const EINVALID_NFT_URI: u64 = 6;
     /// Invalid emojicoin
-    const EINVALID_EMOJICOIN: u64 = 6;
+    const EINVALID_EMOJICOIN: u64 = 7;
     /// Resource account not exists
-    const ERESOURCE_ACCOUNT_NOT_FOUND: u64 = 7;
+    const ERESOURCE_ACCOUNT_NOT_FOUND: u64 = 8;
     /// Not enough balance
-    const ENOT_ENOUGH_BALANCE: u64 = 8;
+    const ENOT_ENOUGH_BALANCE: u64 = 9;
 
     /// Default to mint 0 amount to creator when creating collection
     const DEFAULT_PRE_MINT_AMOUNT: u64 = 0;
@@ -95,7 +96,7 @@ module ledge_addr::message_minter {
 
     /// Global per contract
     struct Config has key {
-        emojicoin_fee_addr: address,
+        emojicoin_fee_addr: Option<address>,
         mint_fee_amount: u64
     }
 
@@ -103,6 +104,11 @@ module ledge_addr::message_minter {
     /// If you deploy the module under your own account, sender is your account's signer
     fun init_module(sender: &signer) {
         move_to(sender, Registry { collection_objects: vector::empty() });
+
+        move_to(
+            sender,
+            Config { emojicoin_fee_addr: option::none(), mint_fee_amount: 0 }
+        )
     }
 
     public entry fun set_config<Emojicoin>(
@@ -116,7 +122,7 @@ module ledge_addr::message_minter {
 
         let config = borrow_global_mut<Config>(@ledge_addr);
 
-        config.emojicoin_fee_addr = emojicoin;
+        config.emojicoin_fee_addr = option::some(emojicoin);
         config.mint_fee_amount = mint_amount_fees;
     }
 
@@ -143,7 +149,7 @@ module ledge_addr::message_minter {
         let sender_addr = signer::address_of(sender);
         assert!(
             is_admin(sender_addr),
-            EONLY_ADMIN_OR_CREATOR_CAN_CREATE_COLLECTION
+            EONLY_ADMIN_CAN_CREATE_COLLECTION
         );
 
         let resource_account_exists = fees::resource_account_exists();
@@ -223,6 +229,7 @@ module ledge_addr::message_minter {
         sender: &signer, collection_obj: Object<Collection>, nft_metadata_uri: String
     ) acquires CollectionConfig, CollectionOwnerObjConfig, Config {
         let sender_addr = signer::address_of(sender);
+
         let collection_config =
             borrow_global<CollectionConfig>(object::object_address(&collection_obj));
 
@@ -236,11 +243,37 @@ module ledge_addr::message_minter {
 
         let next_nft_id = *option::borrow(&collection::count(collection_obj)) + 1;
 
+        let uri_len = string::length(&nft_metadata_uri);
+        let nft_json_suffix = string_utils::format1(&b"{}.json", next_nft_id);
+        let suffix_len = string::length(&nft_json_suffix);
+
+        assert!(
+            uri_len >= suffix_len
+                && string::sub_string(&nft_metadata_uri, uri_len - suffix_len, uri_len)
+                    == nft_json_suffix,
+            EINVALID_NFT_URI
+        );
+
         let config = borrow_global<Config>(@ledge_addr);
 
-        pay_for_mint<Emojicoin>(
-            sender, config.mint_fee_amount, config.emojicoin_fee_addr
-        );
+        let has_subscription =
+            if (subscription::has_subscription_active(sender_addr)) {
+                let (_start_time, _end_time, _upgrades, trial_version) =
+                    subscription::get_plan(sender_addr);
+
+                !trial_version
+            } else { false };
+
+        let fee =
+            if (has_subscription) {
+                config.mint_fee_amount / 2
+            } else {
+                config.mint_fee_amount
+            };
+
+        let emojicoin = option::borrow(&config.emojicoin_fee_addr);
+
+        pay_for_mint<Emojicoin>(sender, fee, *emojicoin);
 
         let nft_obj_constructor_ref =
             &token::create(
@@ -340,10 +373,12 @@ module ledge_addr::message_minter {
         }
     }
 
-    // ================================= Uint Tests ================================== //
-
     #[test_only]
-    public fun init_module_for_test(sender: &signer) {
-        init_module(sender);
+    public fun initialize_for_test(sender: &signer) {
+        move_to(sender, Registry { collection_objects: vector::empty() });
+        move_to(
+            sender,
+            Config { emojicoin_fee_addr: option::none(), mint_fee_amount: 0 }
+        )
     }
 }
