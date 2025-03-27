@@ -8,7 +8,7 @@ import Paper from '@/assets/placeholders/paper.png';
 interface PencilSketchPortalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit?: (imageBlob: string) => void;
+  onSubmit?: (imageBlob: string, drawingTime: number) => void;
 }
 
 // Pencil grades with opacity levels
@@ -19,14 +19,26 @@ type PencilGrade = {
 };
 
 const PENCIL_GRADES: PencilGrade[] = [
+  { label: '9H', opacity: 0.03, description: 'Hardest, faintest' },
+  { label: '8H', opacity: 0.05, description: 'Ultra hard, extremely light' },
+  { label: '7H', opacity: 0.07, description: 'Very very hard, very faint' },
   { label: '6H', opacity: 0.1, description: 'Extra hard, very light' },
+  { label: '5H', opacity: 0.12, description: 'Very hard, light' },
   { label: '4H', opacity: 0.15, description: 'Hard, light' },
+  { label: '3H', opacity: 0.2, description: 'Medium hard, light' },
   { label: '2H', opacity: 0.25, description: 'Medium hard' },
+  { label: 'H', opacity: 0.3, description: 'Hard' },
+  { label: 'F', opacity: 0.35, description: 'Fine, between H and HB' },
   { label: 'HB', opacity: 0.4, description: 'Medium, balanced' },
   { label: 'B', opacity: 0.55, description: 'Soft' },
-  { label: '2B', opacity: 0.7, description: 'Softer, darker' },
-  { label: '4B', opacity: 0.85, description: 'Very soft, dark' },
-  { label: '6B', opacity: 1, description: 'Extra soft, darkest' },
+  { label: '2B', opacity: 0.65, description: 'Softer, darker' },
+  { label: '3B', opacity: 0.75, description: 'Very soft' },
+  { label: '4B', opacity: 0.8, description: 'Very soft, dark' },
+  { label: '5B', opacity: 0.85, description: 'Extra soft' },
+  { label: '6B', opacity: 0.9, description: 'Extra soft, very dark' },
+  { label: '7B', opacity: 0.95, description: 'Ultra soft, very dark' },
+  { label: '8B', opacity: 0.97, description: 'Ultra soft, darkest' },
+  { label: '9B', opacity: 1, description: 'Softest, maximum darkness' }
 ];
 
 // Predefined colors
@@ -56,7 +68,11 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [baseColor, setBaseColor] = useState(COLORS[0].value); // Default to Graphite
   const [customColor, setCustomColor] = useState(COLORS[0].value);
   const [isEraser, setIsEraser] = useState(false);
+  const [isErasing, setIsErasing] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [elapsedTime, setElapsedTime] = useState(0);
   const canvasRef = useRef<ReactSketchCanvasRef>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(1000);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -87,15 +103,27 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     return strokeWidth * scaleFactor;
   }, [strokeWidth, canvasSize]);
 
-  // Adjust canvas size based on available width
+  // Adjust canvas size based on available height and width
   useEffect(() => {
     if (isOpen && containerRef.current) {
       const resizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
-          // Get the available width, minus some padding
-          const availableWidth = entry.contentRect.width - 40;
-          // Make sure we don't make it too large, but maintain aspect ratio
-          const size = Math.min(availableWidth, 1000);
+          // Get the container dimensions
+          const containerHeight = entry.contentRect.height;
+          const containerWidth = entry.contentRect.width;
+          
+          // Calculate available space for canvas (accounting for controls)
+          const controlsHeight = 300; // Approximate height of controls
+          const availableHeight = Math.max(containerHeight - controlsHeight, 300);
+          const availableWidth = Math.max(containerWidth - 40, 300); // 40px for padding
+          
+          // Calculate the reduction factor based on screen size
+          // Use less reduction for mobile (smaller screens)
+          const isMobile = containerWidth < 768; // Standard mobile breakpoint
+          const reductionFactor = isMobile ? 0.98 : 0.90;
+          
+          // Use the smaller of width or height to maintain square aspect ratio
+          const size = Math.min(availableWidth, availableHeight, 1000) * reductionFactor;
           setCanvasSize(size);
         }
       });
@@ -114,6 +142,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   const handleUndo = () => {
     canvasRef.current?.undo();
+  };
+
+  const handleRedo = () => {
+    canvasRef.current?.redo();
   };
 
   const handleSave = async () => {
@@ -136,7 +168,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     try {
       if (canvasRef.current && onSubmit) {
         const data = await canvasRef.current.exportImage('png');
-        onSubmit(data);
+        onSubmit(data, elapsedTime);
         toast({ title: "Success", description: "Your drawing has been submitted!" });
         onClose();
       }
@@ -156,90 +188,222 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     return foundColor ? foundColor.name : "Custom";
   };
 
+  const formatTime = (totalSeconds: number): string => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes === 0) {
+      return `${seconds}s`;
+    }
+    return `${minutes}m ${seconds}s`;
+  };
+
+  // Simple counter from when portal opens
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isOpen) {
+      setElapsedTime(0); // Reset timer when portal opens
+      interval = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isOpen]);
+
+  // Toggle eraser mode
+  useEffect(() => {
+    if (canvasRef.current) {
+      if (isEraser) {
+        canvasRef.current.eraseMode(true);
+      } else {
+        canvasRef.current.eraseMode(false);
+      }
+    }
+  }, [isEraser]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isEraser) {
+      setIsErasing(true);
+      const rect = canvasContainerRef.current?.getBoundingClientRect();
+      if (rect) {
+        setCursorPosition({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
+      }
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isEraser && isErasing) {
+      const rect = canvasContainerRef.current?.getBoundingClientRect();
+      if (rect) {
+        setCursorPosition({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
+      }
+    }
+  };
+
+  const handlePointerUp = () => {
+    setIsErasing(false);
+  };
+
+  const pencilCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z'%3E%3C/path%3E%3C/svg%3E") 0 24, auto`;
+
+  const eraserCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.48 3.52a3.2 3.2 0 0 0-4.53 0L3.52 15.95a3.2 3.2 0 0 0 0 4.53l4.53-4.53 8.47-8.47 4.53-4.53a3.2 3.2 0 0 0 0-4.53z'%3E%3C/path%3E%3C/svg%3E") 0 24, auto`;
+
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
-      <div ref={containerRef} className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col">
-        <div className="p-3 bg-gray-100 border-b border-gray-200">
-          <h2 className="text-xl font-semibold">Sketch Your Page</h2>
+    <div 
+      className="fixed inset-0 bg-black/60 flex justify-center items-center z-50"
+    >
+      <div ref={containerRef} className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col h-[90vh]">
+        <div className="p-2 bg-gray-100 border-b border-gray-200">
+          <h2 className="text-lg font-semibold">Sketch Your Page</h2>
         </div>
         
-        <div className="flex-1 overflow-auto py-4 flex justify-center" style={{ 
-          maxHeight: 'calc(90vh - 120px)',
-          width: '100%'
-        }}>
-          <div style={{
-            width: `${canvasSize}px`,
-            height: `${canvasSize}px`,
-            border: '1px solid black',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            borderRadius: '4px',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <ReactSketchCanvas
-              ref={canvasRef}
-              strokeWidth={scaledStrokeWidth}
-              strokeColor={isEraser ? '#ffffff' : strokeColor}
-              width={`${canvasSize}`}
-              height={`${canvasSize}`}
-              backgroundImage={Paper}
-              exportWithBackgroundImage={false}
-              preserveBackgroundImageAspectRatio="none"
-              canvasColor="transparent"
-              eraserWidth={scaledStrokeWidth}
+        <div className="flex-1 p-4 flex justify-center items-center overflow-hidden bg-gray-50">
+          <div className="bg-white p-4 md:p-8 rounded-lg shadow-sm">
+            <div 
+              ref={canvasContainerRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%'
+                width: `${canvasSize}px`,
+                height: `${canvasSize}px`,
+                border: '2px solid black',
+                borderRadius: '4px',
+                position: 'relative',
+                overflow: 'hidden'
               }}
-            />
+            >
+              <ReactSketchCanvas
+                ref={canvasRef}
+                strokeWidth={scaledStrokeWidth}
+                strokeColor={strokeColor}
+                width={`${canvasSize}`}
+                height={`${canvasSize}`}
+                backgroundImage={Paper}
+                exportWithBackgroundImage={false}
+                preserveBackgroundImageAspectRatio="none"
+                canvasColor="transparent"
+                eraserWidth={scaledStrokeWidth}
+                allowOnlyPointerType="all"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%'
+                }}
+              />
+              {isEraser && isErasing && (
+                <div 
+                  className="pointer-events-none absolute"
+                  style={{
+                    width: `${scaledStrokeWidth * 2}px`,
+                    height: `${scaledStrokeWidth * 2}px`,
+                    border: '2px solid rgba(0, 0, 0, 0.8)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    borderRadius: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    left: cursorPosition.x,
+                    top: cursorPosition.y,
+                    zIndex: 100,
+                    pointerEvents: 'none'
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
         
-        <div className="p-3 bg-gray-100 border-t border-gray-200">
-          <div className="flex flex-wrap items-center gap-4 mb-3">
-            {/* Draw/Erase Toggle */}
-            <div>
-              <label className="text-sm block mb-1">Mode:</label>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setIsEraser(false)}
-                  className={`px-3 py-1 text-sm border ${
-                    !isEraser 
-                      ? 'bg-gray-800 text-white' 
-                      : 'bg-white'
-                  } hover:bg-gray-100 transition-colors`}
-                  title="Draw mode"
-                >
-                  ✏️ Draw
-                </button>
-                <button
-                  onClick={() => setIsEraser(true)}
-                  className={`px-3 py-1 text-sm border ${
-                    isEraser 
-                      ? 'bg-gray-800 text-white' 
-                      : 'bg-white'
-                  } hover:bg-gray-100 transition-colors`}
-                  title="Eraser mode"
-                >
-                  ⚪ Erase
-                </button>
+        <div className="p-2 bg-gray-100 border-t border-gray-200">
+          <div className="max-w-[500px] mx-auto space-y-2">
+            {/* Top Row - Mode and Time */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Draw/Erase Toggle */}
+              <div>
+                <label className="text-xs font-medium mb-1 block">Mode:</label>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setIsEraser(false)}
+                    className={`flex-1 px-2 py-1 text-sm border rounded-l ${
+                      !isEraser 
+                        ? 'bg-gray-800 text-white' 
+                        : 'bg-white'
+                    } hover:bg-gray-100 transition-colors`}
+                  >
+                    ✏️ Draw
+                  </button>
+                  <button
+                    onClick={() => setIsEraser(true)}
+                    className={`flex-1 px-2 py-1 text-sm border rounded-r ${
+                      isEraser 
+                        ? 'bg-gray-800 text-white' 
+                        : 'bg-white'
+                    } hover:bg-gray-100 transition-colors`}
+                  >
+                    ⚪ Erase
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawing Time Display */}
+              <div>
+                <label className="text-xs font-medium mb-1 block">Time:</label>
+                <div className="px-3 py-1 text-sm border rounded bg-white text-center font-medium">
+                  {formatTime(elapsedTime)}
+                </div>
               </div>
             </div>
-            
+
+            {/* Middle Row - Color and Size */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Selected Color Display */}
+              <div>
+                <label className="text-xs font-medium mb-1 block">Selected Color:</label>
+                <div className="flex items-center gap-2 px-3 py-1 border rounded bg-white">
+                  <div 
+                    className="w-5 h-5 rounded-full border border-gray-300"
+                    style={{ backgroundColor: baseColor }}
+                  />
+                  <span className="text-sm">{getCurrentColorName()}</span>
+                </div>
+              </div>
+
+              {/* Pencil Size */}
+              <div>
+                <label className="text-xs font-medium mb-1 block">Size: {strokeWidth}px</label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="16"
+                  step="0.5"
+                  value={strokeWidth}
+                  onChange={(e) => setStrokeWidth(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
             {/* Pencil Grade Selector */}
             <div>
-              <label className="text-sm block mb-1">Pencil Grade: <span className="font-semibold">{selectedGrade.label}</span></label>
-              <div className="flex gap-1">
+              <label className="text-xs font-medium mb-1 block">Pencil Grade:</label>
+              <div className="flex flex-wrap gap-1">
                 {PENCIL_GRADES.map((grade) => (
                   <button
                     key={grade.label}
                     onClick={() => setSelectedGrade(grade)}
-                    className={`px-2 py-1 text-xs border ${
+                    className={`px-2 py-0.5 text-xs border rounded ${
                       selectedGrade.label === grade.label 
                         ? 'bg-gray-800 text-white' 
                         : 'bg-white'
@@ -252,99 +416,85 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               </div>
             </div>
             
-            {/* Pencil Size Selector */}
+            {/* Color Palette */}
             <div>
-              <label className="text-sm block mb-1">Size: {strokeWidth}px</label>
-              <input
-                type="range"
-                min="0.5"
-                max="8"
-                step="0.1"
-                value={strokeWidth}
-                onChange={(e) => setStrokeWidth(Number(e.target.value))}
-                className="w-40"
-              />
+              <label className="text-xs font-medium mb-1 block">Color Palette:</label>
+              <div className="grid grid-cols-9 gap-1">
+                {COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => setBaseColor(color.value)}
+                    className={`w-6 h-6 rounded-full border ${
+                      baseColor === color.value 
+                        ? 'border-black ring-1 ring-offset-1 ring-gray-400' 
+                        : 'border-gray-300'
+                    } transition-all duration-150 hover:scale-110`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                  />
+                ))}
+                <div className="relative w-6 h-6">
+                  <button
+                    className={`w-6 h-6 rounded-full border ${
+                      !COLORS.find(c => c.value === baseColor)
+                        ? 'border-black ring-1 ring-offset-1 ring-gray-400'
+                        : 'border-gray-300'
+                    } bg-gradient-to-br from-red-500 via-green-500 to-blue-500 transition-all duration-150 hover:scale-110`}
+                    title="Custom color"
+                  />
+                  <input
+                    type="color"
+                    value={customColor}
+                    onChange={handleCustomColorChange}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  />
+                </div>
+              </div>
             </div>
             
-            {/* Current Color */}
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-8 h-8 rounded-full border-2 border-black"
-                style={{ backgroundColor: baseColor }}
-              />
-              <div className="text-sm">
-                <div>Color: <span className="font-semibold">{getCurrentColorName()}</span></div>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-1">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleUndo}
+                className="min-w-[60px]"
+              >
+                Undo
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleRedo}
+                className="min-w-[60px]"
+              >
+                Redo
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleClear}
+                className="min-w-[60px]"
+              >
+                Clear
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleSubmit}
+                className="min-w-[60px]"
+              >
+                Submit
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={onClose}
+                className="min-w-[60px]"
+              >
+                Close
+              </Button>
             </div>
-          </div>
-          
-          {/* Simplified Color Palette */}
-          <div className="mb-3">
-            <label className="text-sm block mb-1">Colors:</label>
-            <div className="flex flex-wrap gap-2 items-center">
-              {COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() => setBaseColor(color.value)}
-                  className={`w-8 h-8 rounded-full border-2 ${
-                    baseColor === color.value 
-                      ? 'border-black ring-2 ring-offset-1 ring-gray-400' 
-                      : 'border-gray-300'
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
-              ))}
-              <div className="relative w-8 h-8">
-                <button
-                  className={`w-8 h-8 rounded-full border-2 ${
-                    !COLORS.find(c => c.value === baseColor)
-                      ? 'border-black ring-2 ring-offset-1 ring-gray-400'
-                      : 'border-gray-300'
-                  } bg-gradient-to-br from-red-500 via-green-500 to-blue-500`}
-                  title="Custom color"
-                />
-                <input
-                  type="color"
-                  value={customColor}
-                  onChange={handleCustomColorChange}
-                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                  title="Custom color"
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleUndo}
-            >
-              Undo
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleClear}
-            >
-              Clear
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleSubmit}
-            >
-              Submit
-            </Button>
-            <Button 
-              variant="default" 
-              size="sm" 
-              onClick={onClose}
-            >
-              Close
-            </Button>
           </div>
         </div>
       </div>
