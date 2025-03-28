@@ -5,11 +5,49 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import Paper from '@/assets/placeholders/paper.png';
 
+// Google Fonts
+const GOOGLE_FONTS = [
+  'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 
+  'Source Sans Pro', 'Slabo 27px', 'Raleway', 'PT Sans', 'Roboto Condensed',
+  'Merriweather', 'Ubuntu', 'Roboto Slab', 'Playfair Display', 'Lora',
+  'PT Serif', 'Nunito', 'Titillium Web', 'Rubik', 'Fira Sans',
+  'Noto Sans', 'Crimson Text', 'Work Sans', 'Quicksand', 'Karla'
+];
+
 interface PencilSketchPortalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit?: (imageBlob: string, drawingTime: number) => void;
 }
+
+// Text Element interface
+interface TextElement {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  fontSize: number;
+  fontFamily: string;
+  isDragging: boolean;
+  isResizing: boolean;
+  isHovered: boolean;
+  isSelected: boolean;
+  resizeHandle: ResizeHandle | null;
+  touchStartTime?: number;
+}
+
+type ResizeHandle = 
+  | 'top-left' 
+  | 'top-right' 
+  | 'bottom-left' 
+  | 'bottom-right'
+  | 'top'
+  | 'right'
+  | 'bottom'
+  | 'left';
 
 // Pencil grades with opacity levels
 type PencilGrade = {
@@ -76,6 +114,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [canvasSize, setCanvasSize] = useState(1000);
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Text tool states
+  const [isTextMode, setIsTextMode] = useState(false);
+  const [textElements, setTextElements] = useState<TextElement[]>([]);
+  const [textInput, setTextInput] = useState('');
+  const [textColor, setTextColor] = useState('#000000');
+  const [textSize, setTextSize] = useState(24);
+  const [selectedFont, setSelectedFont] = useState('Roboto');
+  const [activeTextId, setActiveTextId] = useState<string | null>(null);
+  
   // Calculate the actual stroke color based on the base color and opacity
   const strokeColor = useMemo(() => {
     // Convert hex to RGB
@@ -138,6 +185,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   const handleClear = () => {
     canvasRef.current?.clearCanvas();
+    setTextElements([]);
   };
 
   const handleUndo = () => {
@@ -151,12 +199,79 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const handleSave = async () => {
     try {
       if (canvasRef.current) {
+        // Get the canvas data
         const data = await canvasRef.current.exportImage('png');
-        const link = document.createElement('a');
-        link.href = data;
-        link.download = 'my-ledger-page.png';
-        link.click();
-        toast({ title: "Success", description: "Your drawing has been saved!" });
+        
+        // If there are any text elements, we need to render them onto the image
+        if (textElements.length > 0) {
+          // Create a temp canvas to draw everything
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          const img = new Image();
+          
+          // Set up promise to handle async loading
+          const renderResult = new Promise<string>((resolve, reject) => {
+            if (!tempCtx) {
+              reject('Failed to get canvas context');
+              return;
+            }
+            
+            img.onload = () => {
+              // Set canvas size
+              tempCanvas.width = img.width;
+              tempCanvas.height = img.height;
+              
+              // Draw the sketch
+              tempCtx.drawImage(img, 0, 0);
+              
+              // Calculate scale factor based on original canvas size vs export size
+              const scaleFactor = img.width / canvasSize;
+              
+              // Draw all text elements
+              textElements.forEach(element => {
+                // Set text properties
+                tempCtx.font = `${element.fontSize * scaleFactor}px "${element.fontFamily}", sans-serif`;
+                tempCtx.fillStyle = element.color;
+                tempCtx.textAlign = 'center';
+                tempCtx.textBaseline = 'middle';
+                
+                // Draw text at scaled position
+                tempCtx.fillText(
+                  element.text, 
+                  element.x * scaleFactor, 
+                  element.y * scaleFactor
+                );
+              });
+              
+              // Get the combined image data
+              const combinedImageData = tempCanvas.toDataURL('image/png');
+              resolve(combinedImageData);
+            };
+            
+            img.onerror = () => {
+              reject('Failed to load image');
+            };
+            
+            // Load the sketch image
+            img.src = data;
+          });
+          
+          // Wait for rendering to complete and download
+          const finalImageData = await renderResult;
+          
+          const link = document.createElement('a');
+          link.href = finalImageData;
+          link.download = 'my-ledger-page.png';
+          link.click();
+          toast({ title: "Success", description: "Your drawing has been saved!" });
+        } else {
+          // If no text, just save the original canvas data
+          const link = document.createElement('a');
+          link.href = data;
+          link.download = 'my-ledger-page.png';
+          link.click();
+          toast({ title: "Success", description: "Your drawing has been saved!" });
+        }
       }
     } catch (error) {
       console.error('Error saving drawing:', error);
@@ -167,8 +282,71 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const handleSubmit = async () => {
     try {
       if (canvasRef.current && onSubmit) {
+        // Get the canvas data
         const data = await canvasRef.current.exportImage('png');
-        onSubmit(data, elapsedTime);
+        
+        // If there are any text elements, we need to render them onto the image
+        if (textElements.length > 0) {
+          // Create a temp canvas to draw everything
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          const img = new Image();
+          
+          // Set up promise to handle async loading
+          const renderResult = new Promise<string>((resolve, reject) => {
+            if (!tempCtx) {
+              reject('Failed to get canvas context');
+              return;
+            }
+            
+            img.onload = () => {
+              // Set canvas size
+              tempCanvas.width = img.width;
+              tempCanvas.height = img.height;
+              
+              // Draw the sketch
+              tempCtx.drawImage(img, 0, 0);
+              
+              // Calculate scale factor based on original canvas size vs export size
+              const scaleFactor = img.width / canvasSize;
+              
+              // Draw all text elements
+              textElements.forEach(element => {
+                // Set text properties
+                tempCtx.font = `${element.fontSize * scaleFactor}px "${element.fontFamily}", sans-serif`;
+                tempCtx.fillStyle = element.color;
+                tempCtx.textAlign = 'center';
+                tempCtx.textBaseline = 'middle';
+                
+                // Draw text at scaled position
+                tempCtx.fillText(
+                  element.text, 
+                  element.x * scaleFactor, 
+                  element.y * scaleFactor
+                );
+              });
+              
+              // Get the combined image data
+              const combinedImageData = tempCanvas.toDataURL('image/png');
+              resolve(combinedImageData);
+            };
+            
+            img.onerror = () => {
+              reject('Failed to load image');
+            };
+            
+            // Load the sketch image
+            img.src = data;
+          });
+          
+          // Wait for rendering to complete and submit
+          const finalImageData = await renderResult;
+          onSubmit(finalImageData, elapsedTime);
+        } else {
+          // If no text, just submit the original canvas data
+          onSubmit(data, elapsedTime);
+        }
+        
         toast({ title: "Success", description: "Your drawing has been submitted!" });
         onClose();
       }
@@ -196,6 +374,451 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
     return `${minutes}m ${seconds}s`;
   };
+  
+  // Helper to measure text dimensions consistently
+  const measureTextDimensions = (
+    text: string, 
+    fontFamily: string, 
+    fontSize: number, 
+    maxWidth?: number
+  ): { width: number, height: number } => {
+    const padding = 10; // Padding for the text box
+    
+    // Create a temporary span to measure text
+    const tempSpan = document.createElement('span');
+    tempSpan.style.fontFamily = `"${fontFamily}", sans-serif`;
+    tempSpan.style.fontSize = `${fontSize}px`;
+    tempSpan.style.position = 'absolute';
+    tempSpan.style.left = '-9999px';
+    tempSpan.style.visibility = 'hidden';
+    tempSpan.style.whiteSpace = 'pre-wrap';
+    tempSpan.style.display = 'inline-block';
+    tempSpan.style.textAlign = 'center';
+    tempSpan.style.padding = '4px';
+    tempSpan.style.lineHeight = '1.2';
+    
+    // Set width constraint if provided
+    if (maxWidth) {
+      tempSpan.style.width = `${maxWidth - (padding * 2)}px`;
+    }
+    
+    tempSpan.textContent = text;
+    document.body.appendChild(tempSpan);
+    
+    // Get dimensions with padding
+    const width = tempSpan.offsetWidth + (padding * 2);
+    const height = tempSpan.offsetHeight + (padding * 2);
+    
+    document.body.removeChild(tempSpan);
+    
+    return { width, height };
+  };
+  
+  // Text Tool Functions
+  const addTextElement = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isTextMode || !textInput.trim()) return;
+    
+    const rect = canvasContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Calculate text dimensions using helper
+    const { width, height } = measureTextDimensions(
+      textInput,
+      selectedFont,
+      textSize
+    );
+    
+    const newText: TextElement = {
+      id: `text-${Date.now()}`,
+      text: textInput,
+      x,
+      y,
+      width,
+      height,
+      color: textColor,
+      fontSize: textSize,
+      fontFamily: selectedFont,
+      isDragging: false,
+      isResizing: false,
+      isHovered: false,
+      isSelected: false,
+      resizeHandle: null
+    };
+    
+    setTextElements(prev => [...prev, newText]);
+    setTextInput(''); // Reset text input
+    setIsTextMode(false); // Exit text mode after placing
+  };
+  
+  const startDraggingText = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveTextId(id);
+    
+    setTextElements(prev => 
+      prev.map(item => 
+        item.id === id 
+          ? { ...item, isDragging: true, isResizing: false, resizeHandle: null }
+          : item
+      )
+    );
+  };
+  
+  const startResizingText = (id: string, handle: ResizeHandle, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveTextId(id);
+    
+    setTextElements(prev => 
+      prev.map(item => 
+        item.id === id 
+          ? { ...item, isDragging: false, isResizing: true, resizeHandle: handle }
+          : item
+      )
+    );
+  };
+  
+  const stopDraggingText = () => {
+    setTextElements(prev => 
+      prev.map(item => 
+        (item.isDragging || item.isResizing)
+          ? { ...item, isDragging: false, isResizing: false, resizeHandle: null }
+          : item
+      )
+    );
+    setActiveTextId(null);
+  };
+  
+  const moveText = (e: React.MouseEvent) => {
+    if (!activeTextId) return;
+    
+    const rect = canvasContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setTextElements(prev => 
+      prev.map(item => {
+        if (item.id !== activeTextId) return item;
+        
+        if (item.isDragging) {
+          // Just move without resizing
+          return { ...item, x, y };
+        } else if (item.isResizing && item.resizeHandle) {
+          // Resize based on the handle being dragged
+          const newSize = { ...item };
+          
+          // Get original dimensions
+          const origWidth = item.width;
+          const origHeight = item.height;
+          const origX = item.x;
+          const origY = item.y;
+          
+          // Calculate font scale to maintain aspect ratio when resizing corners
+          const aspectRatio = origWidth / origHeight;
+          
+          switch (item.resizeHandle) {
+            case 'right':
+              newSize.width = Math.max(20, x - (origX - origWidth / 2));
+              break;
+            case 'left':
+              const newRightEdge = origX + origWidth / 2;
+              newSize.width = Math.max(20, newRightEdge - x);
+              newSize.x = newRightEdge - newSize.width / 2;
+              break;
+            case 'bottom':
+              newSize.height = Math.max(20, y - (origY - origHeight / 2));
+              break;
+            case 'top':
+              const newBottomEdge = origY + origHeight / 2;
+              newSize.height = Math.max(20, newBottomEdge - y);
+              newSize.y = newBottomEdge - newSize.height / 2;
+              break;
+            case 'bottom-right':
+              newSize.width = Math.max(20, x - (origX - origWidth / 2));
+              newSize.height = Math.max(20, y - (origY - origHeight / 2));
+              break;
+            case 'bottom-left':
+              const newBottomRightX = origX + origWidth / 2;
+              newSize.width = Math.max(20, newBottomRightX - x);
+              newSize.x = newBottomRightX - newSize.width / 2;
+              newSize.height = Math.max(20, y - (origY - origHeight / 2));
+              break;
+            case 'top-right':
+              newSize.width = Math.max(20, x - (origX - origWidth / 2));
+              const newBottomEdgeTopRight = origY + origHeight / 2;
+              newSize.height = Math.max(20, newBottomEdgeTopRight - y);
+              newSize.y = newBottomEdgeTopRight - newSize.height / 2;
+              break;
+            case 'top-left':
+              const newTopRightX = origX + origWidth / 2;
+              const newBottomEdgeTopLeft = origY + origHeight / 2;
+              newSize.width = Math.max(20, newTopRightX - x);
+              newSize.x = newTopRightX - newSize.width / 2;
+              newSize.height = Math.max(20, newBottomEdgeTopLeft - y);
+              newSize.y = newBottomEdgeTopLeft - newSize.height / 2;
+              break;
+          }
+          
+          // Calculate new font size and round to nearest 0.5 for better display
+          const rawFontSize = item.fontSize * scaleFactor;
+          newSize.fontSize = Math.max(10, Math.round(rawFontSize * 2) / 2);
+          
+          // Automatic height adjustment based on content
+          if (item.resizeHandle === 'left' || item.resizeHandle === 'right' ||
+              item.resizeHandle.includes('top') || item.resizeHandle.includes('bottom')) {
+            // Measure text with the new width constraint
+            const { height: textHeight } = measureTextDimensions(
+              newSize.text,
+              newSize.fontFamily,
+              newSize.fontSize,
+              newSize.width
+            );
+            
+            // For width-only adjustments, set the height directly
+            if (item.resizeHandle === 'left' || item.resizeHandle === 'right') {
+              newSize.height = textHeight;
+            } 
+            // For height adjustments, ensure we don't go below the minimum height needed
+            else {
+              newSize.height = Math.max(newSize.height, textHeight);
+            }
+          }
+          
+          return newSize;
+        }
+        
+        return item;
+      })
+    );
+  };
+  
+  const deleteTextElement = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTextElements(prev => prev.filter(item => item.id !== id));
+  };
+  
+  const handleTextHoverEnter = (id: string) => {
+    setTextElements(prev => 
+      prev.map(item => 
+        item.id === id 
+          ? { ...item, isHovered: true }
+          : item
+      )
+    );
+  };
+  
+  const handleTextHoverLeave = (id: string) => {
+    setTextElements(prev => 
+      prev.map(item => 
+        item.id === id && !item.isDragging && !item.isResizing && !item.isSelected
+          ? { ...item, isHovered: false }
+          : item
+      )
+    );
+  };
+  
+  // Handle text selection
+  const selectTextElement = (id: string) => {
+    setActiveTextId(id);
+    
+    setTextElements(prev => 
+      prev.map(item => 
+        item.id === id 
+          ? { ...item, isSelected: true }
+          : { ...item, isSelected: false }
+      )
+    );
+  };
+  
+  // Handle double click/tap on text element
+  const handleTextDoubleClick = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    selectTextElement(id);
+  };
+  
+  // Handle touch start for long press detection
+  const handleTouchStart = (id: string, e: React.TouchEvent) => {
+    // Prevent default to avoid scroll/zoom on mobile
+    if (e.touches.length === 1) {
+      e.preventDefault();
+    }
+    
+    // Record touch start time for long press detection
+    setTextElements(prev => 
+      prev.map(item => 
+        item.id === id 
+          ? { ...item, touchStartTime: Date.now() }
+          : item
+      )
+    );
+  };
+  
+  // Handle touch end to detect long press
+  const handleTouchEnd = (id: string, e: React.TouchEvent) => {
+    e.preventDefault();
+    
+    // Find the element
+    const element = textElements.find(item => item.id === id);
+    if (!element || !element.touchStartTime) return;
+    
+    // Check if this was a long press (more than 500ms)
+    const touchDuration = Date.now() - element.touchStartTime;
+    
+    if (touchDuration > 500) {
+      // Long press detected
+      selectTextElement(id);
+    } else {
+      // Short tap - start dragging if already selected
+      if (element.isSelected) {
+        startDraggingText(id, e as unknown as React.MouseEvent);
+      }
+    }
+    
+    // Clear touch start time
+    setTextElements(prev => 
+      prev.map(item => 
+        item.id === id 
+          ? { ...item, touchStartTime: undefined }
+          : item
+      )
+    );
+  };
+  
+  // Handle touch move to allow for dragging and resizing
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!activeTextId) return;
+    
+    const rect = canvasContainerRef.current?.getBoundingClientRect();
+    if (!rect || !e.touches[0]) return;
+    
+    const x = e.touches[0].clientX - rect.left;
+    const y = e.touches[0].clientY - rect.top;
+    
+    // Use the same moveText logic but with touch coordinates
+    setTextElements(prev => 
+      prev.map(item => {
+        if (item.id !== activeTextId) return item;
+        
+        if (item.isDragging) {
+          return { ...item, x, y };
+        } else if (item.isResizing && item.resizeHandle) {
+          // Use the same resize logic as in moveText
+          const newSize = { ...item };
+          
+          // Get original dimensions
+          const origWidth = item.width;
+          const origHeight = item.height;
+          const origX = item.x;
+          const origY = item.y;
+          
+          switch (item.resizeHandle) {
+            case 'right':
+              newSize.width = Math.max(20, x - (origX - origWidth / 2));
+              break;
+            case 'left':
+              const newRightEdge = origX + origWidth / 2;
+              newSize.width = Math.max(20, newRightEdge - x);
+              newSize.x = newRightEdge - newSize.width / 2;
+              break;
+            case 'bottom':
+              newSize.height = Math.max(20, y - (origY - origHeight / 2));
+              break;
+            case 'top':
+              const newBottomEdge = origY + origHeight / 2;
+              newSize.height = Math.max(20, newBottomEdge - y);
+              newSize.y = newBottomEdge - newSize.height / 2;
+              break;
+            case 'bottom-right':
+              newSize.width = Math.max(20, x - (origX - origWidth / 2));
+              newSize.height = Math.max(20, y - (origY - origHeight / 2));
+              break;
+            case 'bottom-left':
+              const newBottomRightX = origX + origWidth / 2;
+              newSize.width = Math.max(20, newBottomRightX - x);
+              newSize.x = newBottomRightX - newSize.width / 2;
+              newSize.height = Math.max(20, y - (origY - origHeight / 2));
+              break;
+            case 'top-right':
+              newSize.width = Math.max(20, x - (origX - origWidth / 2));
+              const newBottomEdgeTopRight = origY + origHeight / 2;
+              newSize.height = Math.max(20, newBottomEdgeTopRight - y);
+              newSize.y = newBottomEdgeTopRight - newSize.height / 2;
+              break;
+            case 'top-left':
+              const newTopRightX = origX + origWidth / 2;
+              const newBottomEdgeTopLeft = origY + origHeight / 2;
+              newSize.width = Math.max(20, newTopRightX - x);
+              newSize.x = newTopRightX - newSize.width / 2;
+              newSize.height = Math.max(20, newBottomEdgeTopLeft - y);
+              newSize.y = newBottomEdgeTopLeft - newSize.height / 2;
+              break;
+          }
+          
+          // Calculate font size proportionally to the change in width
+          const scaleFactorWidth = newSize.width / origWidth;
+          const scaleFactorHeight = newSize.height / origHeight;
+          
+          // Use the average scale for diagonal resizing 
+          // or the appropriate dimension for edge resizing
+          const scaleFactor = item.resizeHandle.includes('-') 
+            ? (scaleFactorWidth + scaleFactorHeight) / 2
+            : (item.resizeHandle === 'left' || item.resizeHandle === 'right') 
+              ? scaleFactorWidth 
+              : scaleFactorHeight;
+              
+          // Calculate new font size and round to nearest 0.5 for better display
+          const rawFontSize = item.fontSize * scaleFactor;
+          newSize.fontSize = Math.max(10, Math.round(rawFontSize * 2) / 2);
+          
+          // Automatic height adjustment based on content
+          if (item.resizeHandle === 'left' || item.resizeHandle === 'right' ||
+              item.resizeHandle.includes('top') || item.resizeHandle.includes('bottom')) {
+            // Measure text with the new width constraint
+            const { height: textHeight } = measureTextDimensions(
+              newSize.text,
+              newSize.fontFamily,
+              newSize.fontSize,
+              newSize.width
+            );
+            
+            // For width-only adjustments, set the height directly
+            if (item.resizeHandle === 'left' || item.resizeHandle === 'right') {
+              newSize.height = textHeight;
+            } 
+            // For height adjustments, ensure we don't go below the minimum height needed
+            else {
+              newSize.height = Math.max(newSize.height, textHeight);
+            }
+          }
+          
+          return newSize;
+        }
+        
+        return item;
+      })
+    );
+  };
+  
+  // Function to clear selection when clicking outside
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // Only call addTextElement if we're in text mode
+    if (isTextMode) {
+      addTextElement(e);
+    } else {
+      // Clear selection when clicking outside text elements
+      setActiveTextId(null);
+      setTextElements(prev => 
+        prev.map(item => ({ 
+          ...item, 
+          isSelected: false, 
+          isHovered: false 
+        }))
+      );
+    }
+  };
 
   // Simple counter from when portal opens
   useEffect(() => {
@@ -210,6 +833,34 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       if (interval) {
         clearInterval(interval);
       }
+    };
+  }, [isOpen]);
+
+  // Load Google Fonts
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    // Create a link element for the fonts
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?${GOOGLE_FONTS.map(font => `family=${font.replace(' ', '+')}`).join('&')}&display=swap`;
+    link.rel = 'stylesheet';
+    
+    // Add to head
+    document.head.appendChild(link);
+    
+    // Cleanup
+    return () => {
+      document.head.removeChild(link);
+      // Reset all text element states when the portal closes
+      setTextElements(prev => 
+        prev.map(item => ({
+          ...item,
+          isDragging: false,
+          isResizing: false,
+          isHovered: false,
+          resizeHandle: null
+        }))
+      );
     };
   }, [isOpen]);
 
@@ -276,13 +927,18 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
+              onClick={handleCanvasClick}
+              onMouseMove={moveText}
+              onMouseUp={stopDraggingText}
+              onTouchMove={handleTouchMove}
               style={{
                 width: `${canvasSize}px`,
                 height: `${canvasSize}px`,
                 border: '2px solid black',
                 borderRadius: '4px',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                cursor: isTextMode ? 'text' : (isEraser ? eraserCursor : pencilCursor)
               }}
             >
               <ReactSketchCanvas
@@ -302,7 +958,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                   top: 0,
                   left: 0,
                   width: '100%',
-                  height: '100%'
+                  height: '100%',
+                  pointerEvents: isTextMode ? 'none' : 'auto'
                 }}
               />
               {isEraser && isErasing && (
@@ -322,6 +979,170 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                   }}
                 />
               )}
+              
+              {/* Text Elements */}
+              {textElements.map((textElement) => (
+                <div
+                  key={textElement.id}
+                  className="absolute select-none"
+                  style={{
+                    left: textElement.x,
+                    top: textElement.y,
+                    transform: 'translate(-50%, -50%)',
+                    width: `${textElement.width}px`,
+                    height: `${textElement.height}px`,
+                    userSelect: 'none',
+                    position: 'absolute',
+                    boxSizing: 'border-box',
+                    borderRadius: '2px',
+                    backgroundColor: (textElement.isSelected || textElement.isHovered) ? 'rgba(220,220,255,0.2)' : 'transparent',
+                    border: (textElement.isSelected || textElement.isHovered) ? '1px dashed blue' : 'none',
+                    zIndex: 200,
+                    cursor: textElement.isDragging ? 'move' : 'default',
+                    overflow: 'hidden'
+                  }}
+                  onMouseDown={(e) => startDraggingText(textElement.id, e)}
+                  onMouseEnter={() => handleTextHoverEnter(textElement.id)}
+                  onMouseLeave={() => handleTextHoverLeave(textElement.id)}
+                  onDoubleClick={(e) => handleTextDoubleClick(textElement.id, e)}
+                  onTouchStart={(e) => handleTouchStart(textElement.id, e)}
+                  onTouchEnd={(e) => handleTouchEnd(textElement.id, e)}
+                  onTouchMove={handleTouchMove}
+                >
+                  <div 
+                    style={{
+                      color: textElement.color,
+                      fontSize: `${textElement.fontSize}px`,
+                      fontFamily: `"${textElement.fontFamily}", sans-serif`,
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      overflow: 'hidden',
+                      lineHeight: '1.2',
+                      padding: '4px',
+                      boxSizing: 'border-box',
+                      textShadow: (textElement.isSelected || textElement.isHovered) ? '0 0 5px rgba(0,0,255,0.2)' : 'none',
+                    }}
+                  >
+                    {textElement.text}
+                  </div>
+
+                  {/* Resize handles - show for active or hovered element */}
+                  {(textElement.isSelected || textElement.isHovered) && (
+                    <>
+                      {/* Corner resize handles */}
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-nwse-resize -top-1.5 -left-1.5 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'top-left', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'top-left', e as unknown as React.MouseEvent);
+                        }}
+                      />
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-nesw-resize -top-1.5 -right-1.5 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'top-right', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'top-right', e as unknown as React.MouseEvent);
+                        }}
+                      />
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-nesw-resize -bottom-1.5 -left-1.5 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'bottom-left', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'bottom-left', e as unknown as React.MouseEvent);
+                        }}
+                      />
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-nwse-resize -bottom-1.5 -right-1.5 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'bottom-right', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'bottom-right', e as unknown as React.MouseEvent);
+                        }}
+                      />
+
+                      {/* Edge resize handles */}
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-ns-resize -top-1.5 left-1/2 -translate-x-1/2 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'top', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'top', e as unknown as React.MouseEvent);
+                        }}
+                      />
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-ew-resize top-1/2 -right-1.5 -translate-y-1/2 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'right', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'right', e as unknown as React.MouseEvent);
+                        }}
+                      />
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-ns-resize -bottom-1.5 left-1/2 -translate-x-1/2 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'bottom', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'bottom', e as unknown as React.MouseEvent);
+                        }}
+                      />
+                      <div 
+                        className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-ew-resize top-1/2 -left-1.5 -translate-y-1/2 border border-white"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'left', e);
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation();
+                          startResizingText(textElement.id, 'left', e as unknown as React.MouseEvent);
+                        }}
+                      />
+
+                      {/* Delete button */}
+                      <button
+                        className="absolute -top-6 -right-6 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                        onClick={(e) => deleteTextElement(textElement.id, e)}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          deleteTextElement(textElement.id, e as unknown as React.MouseEvent);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -329,15 +1150,18 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         <div className="p-2 bg-gray-100 border-t border-gray-200">
           <div className="max-w-[500px] mx-auto space-y-2">
             {/* Top Row - Mode and Time */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* Draw/Erase Toggle */}
-              <div>
+            <div className="grid grid-cols-3 gap-2">
+              {/* Draw/Erase/Text Toggle */}
+              <div className="col-span-2">
                 <label className="text-xs font-medium mb-1 block">Mode:</label>
                 <div className="flex gap-1">
                   <button
-                    onClick={() => setIsEraser(false)}
+                    onClick={() => {
+                      setIsEraser(false);
+                      setIsTextMode(false);
+                    }}
                     className={`flex-1 px-2 py-1 text-sm border rounded-l ${
-                      !isEraser 
+                      !isEraser && !isTextMode
                         ? 'bg-gray-800 text-white' 
                         : 'bg-white'
                     } hover:bg-gray-100 transition-colors`}
@@ -345,14 +1169,30 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                     ✏️ Draw
                   </button>
                   <button
-                    onClick={() => setIsEraser(true)}
-                    className={`flex-1 px-2 py-1 text-sm border rounded-r ${
+                    onClick={() => {
+                      setIsEraser(true);
+                      setIsTextMode(false);
+                    }}
+                    className={`flex-1 px-2 py-1 text-sm border ${
                       isEraser 
                         ? 'bg-gray-800 text-white' 
                         : 'bg-white'
                     } hover:bg-gray-100 transition-colors`}
                   >
                     ⚪ Erase
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEraser(false);
+                      setIsTextMode(true);
+                    }}
+                    className={`flex-1 px-2 py-1 text-sm border rounded-r ${
+                      isTextMode 
+                        ? 'bg-gray-800 text-white' 
+                        : 'bg-white'
+                    } hover:bg-gray-100 transition-colors`}
+                  >
+                    🔤 Text
                   </button>
                 </div>
               </div>
@@ -366,91 +1206,164 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               </div>
             </div>
 
-            {/* Middle Row - Color and Size */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* Selected Color Display */}
-              <div>
-                <label className="text-xs font-medium mb-1 block">Selected Color:</label>
-                <div className="flex items-center gap-2 px-3 py-1 border rounded bg-white">
-                  <div 
-                    className="w-5 h-5 rounded-full border border-gray-300"
-                    style={{ backgroundColor: baseColor }}
-                  />
-                  <span className="text-sm">{getCurrentColorName()}</span>
+            {/* Text Controls - Show only in text mode */}
+            {isTextMode && (
+              <div className="p-2 border rounded bg-white">
+                <div className="grid grid-cols-1 gap-2">
+                  {/* Text Input */}
+                  <div>
+                    <label className="text-xs font-medium mb-1 block">Text:</label>
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="Enter text..."
+                      className="w-full px-3 py-1 border rounded text-sm"
+                    />
+                  </div>
+                  
+                  {/* Text Properties - Font family, size, color */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Font Family */}
+                    <div>
+                      <label className="text-xs font-medium mb-1 block">Font:</label>
+                      <select
+                        value={selectedFont}
+                        onChange={(e) => setSelectedFont(e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      >
+                        {GOOGLE_FONTS.map((font) => (
+                          <option key={font} value={font}>{font}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    {/* Font Size */}
+                    <div>
+                      <label className="text-xs font-medium mb-1 block">Size: {textSize}px</label>
+                      <input
+                        type="range"
+                        min="12"
+                        max="72"
+                        value={textSize}
+                        onChange={(e) => setTextSize(Number(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    {/* Text Color */}
+                    <div>
+                      <label className="text-xs font-medium mb-1 block">Color:</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          className="w-8 h-8 p-0 border rounded"
+                        />
+                        <span className="text-xs overflow-hidden text-ellipsis">{textColor}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-sm text-gray-600 mt-1">
+                    Click on canvas to place text. Click to select, double-tap or long press on mobile. Use handles to resize.
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Pencil Size */}
-              <div>
-                <label className="text-xs font-medium mb-1 block">Size: {strokeWidth}px</label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="16"
-                  step="0.5"
-                  value={strokeWidth}
-                  onChange={(e) => setStrokeWidth(Number(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-            </div>
+            {/* Middle Row - Color and Size - Show only in drawing mode */}
+            {(!isTextMode) && (
+              <div className="grid grid-cols-2 gap-2">
+                {/* Selected Color Display */}
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Selected Color:</label>
+                  <div className="flex items-center gap-2 px-3 py-1 border rounded bg-white">
+                    <div 
+                      className="w-5 h-5 rounded-full border border-gray-300"
+                      style={{ backgroundColor: baseColor }}
+                    />
+                    <span className="text-sm">{getCurrentColorName()}</span>
+                  </div>
+                </div>
 
-            {/* Pencil Grade Selector */}
-            <div>
-              <label className="text-xs font-medium mb-1 block">Pencil Grade:</label>
-              <div className="flex flex-wrap gap-1">
-                {PENCIL_GRADES.map((grade) => (
-                  <button
-                    key={grade.label}
-                    onClick={() => setSelectedGrade(grade)}
-                    className={`px-2 py-0.5 text-xs border rounded ${
-                      selectedGrade.label === grade.label 
-                        ? 'bg-gray-800 text-white' 
-                        : 'bg-white'
-                    } hover:bg-gray-100 transition-colors`}
-                    title={grade.description}
-                  >
-                    {grade.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {/* Color Palette */}
-            <div>
-              <label className="text-xs font-medium mb-1 block">Color Palette:</label>
-              <div className="grid grid-cols-9 gap-1">
-                {COLORS.map((color) => (
-                  <button
-                    key={color.value}
-                    onClick={() => setBaseColor(color.value)}
-                    className={`w-6 h-6 rounded-full border ${
-                      baseColor === color.value 
-                        ? 'border-black ring-1 ring-offset-1 ring-gray-400' 
-                        : 'border-gray-300'
-                    } transition-all duration-150 hover:scale-110`}
-                    style={{ backgroundColor: color.value }}
-                    title={color.name}
-                  />
-                ))}
-                <div className="relative w-6 h-6">
-                  <button
-                    className={`w-6 h-6 rounded-full border ${
-                      !COLORS.find(c => c.value === baseColor)
-                        ? 'border-black ring-1 ring-offset-1 ring-gray-400'
-                        : 'border-gray-300'
-                    } bg-gradient-to-br from-red-500 via-green-500 to-blue-500 transition-all duration-150 hover:scale-110`}
-                    title="Custom color"
-                  />
+                {/* Pencil Size */}
+                <div>
+                  <label className="text-xs font-medium mb-1 block">Size: {strokeWidth}px</label>
                   <input
-                    type="color"
-                    value={customColor}
-                    onChange={handleCustomColorChange}
-                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    type="range"
+                    min="0.5"
+                    max="16"
+                    step="0.5"
+                    value={strokeWidth}
+                    onChange={(e) => setStrokeWidth(Number(e.target.value))}
+                    className="w-full"
                   />
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Pencil Grade Selector - Show only in drawing mode */}
+            {(!isTextMode && !isEraser) && (
+              <div>
+                <label className="text-xs font-medium mb-1 block">Pencil Grade:</label>
+                <div className="flex flex-wrap gap-1">
+                  {PENCIL_GRADES.map((grade) => (
+                    <button
+                      key={grade.label}
+                      onClick={() => setSelectedGrade(grade)}
+                      className={`px-2 py-0.5 text-xs border rounded ${
+                        selectedGrade.label === grade.label 
+                          ? 'bg-gray-800 text-white' 
+                          : 'bg-white'
+                      } hover:bg-gray-100 transition-colors`}
+                      title={grade.description}
+                    >
+                      {grade.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Color Palette - Show only in drawing mode */}
+            {(!isTextMode && !isEraser) && (
+              <div>
+                <label className="text-xs font-medium mb-1 block">Color Palette:</label>
+                <div className="grid grid-cols-9 gap-1">
+                  {COLORS.map((color) => (
+                    <button
+                      key={color.value}
+                      onClick={() => setBaseColor(color.value)}
+                      className={`w-6 h-6 rounded-full border ${
+                        baseColor === color.value 
+                          ? 'border-black ring-1 ring-offset-1 ring-gray-400' 
+                          : 'border-gray-300'
+                      } transition-all duration-150 hover:scale-110`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                  <div className="relative w-6 h-6">
+                    <button
+                      className={`w-6 h-6 rounded-full border ${
+                        !COLORS.find(c => c.value === baseColor)
+                          ? 'border-black ring-1 ring-offset-1 ring-gray-400'
+                          : 'border-gray-300'
+                      } bg-gradient-to-br from-red-500 via-green-500 to-blue-500 transition-all duration-150 hover:scale-110`}
+                      title="Custom color"
+                    />
+                    <input
+                      type="color"
+                      value={customColor}
+                      onChange={handleCustomColorChange}
+                      className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Action Buttons */}
             <div className="flex justify-end gap-1">
@@ -501,4 +1414,4 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     </div>,
     document.body
   );
-}; 
+};
