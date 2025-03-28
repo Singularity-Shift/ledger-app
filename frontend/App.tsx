@@ -1,6 +1,7 @@
 import { Outlet, RouterProvider, createBrowserRouter } from "react-router-dom";
 
 import { Mint } from "@/pages/Mint";
+import { Admin } from "@/pages/Admin";
 
 function Layout() {
   return (
@@ -17,6 +18,10 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <Mint />,
+      },
+      {
+        path: "/admin",
+        element: <Admin />,
       },
     ],
   },
