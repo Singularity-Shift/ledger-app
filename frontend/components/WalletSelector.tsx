@@ -12,7 +12,7 @@ import {
   useWallet,
 } from "@aptos-labs/wallet-adapter-react";
 import { useLocation } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ChevronDown, Copy, LogOut, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Copy, LogOut, User, Wallet } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,10 @@ export function WalletSelector() {
   return connected ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button>{account?.ansName || truncateAddress(account?.address) || "Unknown"}</Button>
+        <Button className="h-8 w-8 p-0 sm:w-auto sm:h-10 sm:px-4">
+          <User className="h-4 w-4 sm:hidden" />
+          <span className="hidden sm:inline">{account?.ansName || truncateAddress(account?.address) || "Unknown"}</span>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={copyAddress} className="gap-2">
@@ -74,7 +77,10 @@ export function WalletSelector() {
   ) : (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
-        <Button>Connect a Wallet</Button>
+        <Button className="h-8 w-8 p-0 sm:w-auto sm:h-10 sm:px-4">
+          <Wallet className="h-4 w-4 sm:hidden" />
+          <span className="hidden sm:inline">Connect a Wallet</span>
+        </Button>
       </DialogTrigger>
       <ConnectWalletDialog close={closeDialog} />
     </Dialog>

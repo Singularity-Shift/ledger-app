@@ -118,9 +118,25 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           const availableWidth = Math.max(containerWidth - 40, 300); // 40px for padding
           
           // Calculate the reduction factor based on screen size
-          // Use less reduction for mobile (smaller screens)
-          const isMobile = containerWidth < 768; // Standard mobile breakpoint
-          const reductionFactor = isMobile ? 0.98 : 0.90;
+          const isMobile = window.innerWidth <= 768; // Standard mobile breakpoint
+          
+          // Apply additional size reduction for very small devices (Galaxy S8 size)
+          let reductionFactor = isMobile ? 0.98 : 0.90;
+          
+          // Get actual window dimensions
+          const windowWidth = window.innerWidth;
+          const windowHeight = window.innerHeight;
+          
+          // Further reduce size for smaller devices based on window dimensions
+          // Galaxy S8+ is 360×740
+          if (windowHeight <= 800 || windowWidth <= 400) {
+            reductionFactor = isMobile ? 0.85 : 0.80;
+            
+            // For extra small devices like Galaxy S8, use even smaller factor
+            if (windowWidth <= 360) {
+              reductionFactor = 0.75;
+            }
+          }
           
           // Use the smaller of width or height to maintain square aspect ratio
           const size = Math.min(availableWidth, availableHeight, 1000) * reductionFactor;
