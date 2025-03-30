@@ -1,13 +1,11 @@
-import { config } from "@/config";
-import { useGetCollectionData } from "@/hooks/useGetCollectionData";
-import { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { WalletSelector } from "./WalletSelector";
 import { Button } from "./ui/button";
+import { useAppManagement } from "@/contexts/AppManagement";
 
 export function Header() {
-  const { data } = useGetCollectionData();
   const location = useLocation();
+  const { isAdmin } = useAppManagement();
   const isAdminPage = location.pathname === "/admin";
 
   return (
@@ -17,11 +15,11 @@ export function Header() {
       </h1>
 
       <div className="flex gap-2 items-center flex-wrap">
-        <Button variant="outline" asChild>
-          <Link to={isAdminPage ? "/" : "/admin"}>
-            {isAdminPage ? "Mint" : "Admin"}
-          </Link>
-        </Button>
+        {isAdmin && (
+          <Button variant="outline" asChild>
+            <Link to={isAdminPage ? "/" : "/admin"}>{isAdminPage ? "Mint" : "Admin"}</Link>
+          </Button>
+        )}
         <WalletSelector />
       </div>
     </div>

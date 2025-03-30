@@ -1,12 +1,10 @@
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { FC, FormEvent, useState } from "react";
 // Internal assets
 import Copy from "@/assets/icons/copy.svg";
 import ExternalLink from "@/assets/icons/external-link.svg";
 import Paper from "@/assets/placeholders/paper.png";
 // Internal utils
-import { aptosClient } from "@/utils/aptosClient";
 import { truncateAddress } from "@/utils/truncateAddress";
 // Internal hooks
 import { useGetCollectionData } from "@/hooks/useGetCollectionData";
@@ -23,20 +21,16 @@ import { PencilSketchPortal } from "@/components/PencilSketchPortal";
 import { NETWORK } from "@/constants";
 // Internal config
 import { config } from "@/config";
-// Internal enrty functions
-import { mintNFT } from "@/entry-functions/mint_nft";
 
 interface HeroSectionProps {}
 
 export const HeroSection: React.FC<HeroSectionProps> = () => {
   const { data } = useGetCollectionData();
   const { data: mintFee = 0 } = useGetMintFee();
-  const queryClient = useQueryClient();
-  const { account, signAndSubmitTransaction } = useWallet();
+  const { account } = useWallet();
   const { data: accountBalance } = useGetAccountBalance(account?.address);
   const [showSketchPortal, setShowSketchPortal] = useState(false);
-  const [drawnImage, setDrawnImage] = useState<string | null>(null);
-  const [drawingTime, setDrawingTime] = useState<number | null>(null);
+  const [drawnImage, setDrawnImage] = useState<File | null>(null);
 
   const { collection } = data ?? {};
 
@@ -51,21 +45,10 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       toast({ variant: "destructive", title: "Error", description: "You do not have enough funds to mint" });
       return;
     }
-
-    const response = await signAndSubmitTransaction(
-      mintNFT({ 
-        collectionId: collection.collection_id, 
-        amount: 1,
-        drawingTimeSeconds: drawingTime || 0
-      }),
-    );
-    await aptosClient().waitForTransaction({ transactionHash: response.hash });
-    queryClient.invalidateQueries();
   };
 
-  const handleSketchSubmit = (imageBlob: string, time: number) => {
+  const handleSketchSubmit = (imageBlob: File) => {
     setDrawnImage(imageBlob);
-    setDrawingTime(time);
   };
 
   return (
@@ -76,15 +59,11 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           <Image
             src={Paper}
             rounded
-            className={`w-full h-full object-cover absolute inset-0 ${!drawnImage ? 'filter brightness-50' : ''}`}
+            className={`w-full h-full object-cover absolute inset-0 ${!drawnImage ? "filter brightness-50" : ""}`}
           />
           {/* Drawing overlay (if exists) */}
           {drawnImage && (
-            <Image
-              src={drawnImage}
-              rounded
-              className="w-full h-full object-contain absolute inset-0 z-10"
-            />
+            <Image src={drawnImage.name} rounded className="w-full h-full object-contain absolute inset-0 z-10" />
           )}
           {/* Fallback to collection image if no drawing */}
           {!drawnImage && collection?.cdn_asset_uris && (
@@ -97,8 +76,8 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         </div>
         <div className="absolute inset-0 flex items-center justify-center z-20">
           {!drawnImage && (
-            <Button 
-              className="h-12 md:h-16 text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-black" 
+            <Button
+              className="h-12 md:h-16 text-base md:text-lg px-6 md:px-8 py-4 md:py-6 border-2 border-black"
               variant="secondary"
               onClick={() => setShowSketchPortal(true)}
             >
@@ -119,16 +98,12 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           >
             <form onSubmit={mintNft} className="flex flex-col md:flex-row gap-3 md:gap-4 w-full">
               <div className="flex gap-2 w-full">
-                <Button 
-                  className="h-12 md:h-16 flex-1 text-base md:text-lg" 
-                  type="submit"
-                  disabled={!drawnImage}
-                >
+                <Button className="h-12 md:h-16 flex-1 text-base md:text-lg" type="submit" disabled={!drawnImage}>
                   Mint my Page
                 </Button>
                 {drawnImage && (
-                  <Button 
-                    className="h-12 md:h-16 text-base md:text-lg" 
+                  <Button
+                    className="h-12 md:h-16 text-base md:text-lg"
                     type="button"
                     variant="destructive"
                     onClick={() => setDrawnImage(null)}
@@ -143,7 +118,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             </form>
           </CardContent>
         </Card>
-        
+
         <div className="flex flex-col gap-3 md:gap-4 mt-1 md:mt-2">
           <p className="body-sm text-secondary-text">{config.defaultCollection?.subDescription}</p>
         </div>
@@ -163,10 +138,10 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           </div>
         </div>
       </div>
-      
-      <PencilSketchPortal 
-        isOpen={showSketchPortal} 
-        onClose={() => setShowSketchPortal(false)} 
+
+      <PencilSketchPortal
+        isOpen={showSketchPortal}
+        onClose={() => setShowSketchPortal(false)}
         onSubmit={handleSketchSubmit}
       />
     </section>

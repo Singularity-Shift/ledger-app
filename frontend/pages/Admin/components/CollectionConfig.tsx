@@ -1,12 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAbiClient } from "@/contexts/AbiProvider";
+import { useWalletClient } from "@thalalabs/surf/hooks";
+import { toast } from "@/components/ui/use-toast";
+import { convertAmountFromHumanReadableToOnChain } from "@/utils/helpers";
+import { convertAmountFromOnChainToHumanReadable } from "@aptos-labs/ts-sdk";
+import { uploadCollectionData } from "@/utils/assetsUploader";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { aptosClient } from "@/utils/aptosClient";
 
 interface CollectionConfigForm {
-  mintPrice: string;
   royaltyPercentage: string;
   metadata: {
     name: string;
@@ -16,9 +23,12 @@ interface CollectionConfigForm {
   };
 }
 
+interface MintPriceForm {
+  mintPrice: string;
+  coinAddress: string;
+}
 export function CollectionConfig() {
   const [formData, setFormData] = useState<CollectionConfigForm>({
-    mintPrice: "",
     royaltyPercentage: "",
     metadata: {
       name: "",
@@ -28,47 +38,135 @@ export function CollectionConfig() {
     },
   });
 
+  const [collectionImage, setCollectionImage] = useState<File>();
+
+  const [mintPriceData, setMintPriceData] = useState<MintPriceForm>({
+    mintPrice: "",
+    coinAddress: "",
+  });
+  const { ledgeABI, abi } = useAbiClient();
+  const { client } = useWalletClient();
+  const wallet = useWallet();
+  const aptos = aptosClient();
+
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCollectionImage(file);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name.includes(".")) {
       const [parent, child] = name.split(".");
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [parent]: {
-          ...prev[parent as keyof CollectionConfigForm],
+          ...(prev[parent as keyof CollectionConfigForm] as Record<string, string>),
           [child]: value,
         },
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
       }));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: Implement collection creation logic
-    console.log("Form submitted:", formData);
+  const handleMintPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setMintPriceData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const generateJson = () => {
+  const handleMintPriceSubmit = async () => {
+    try {
+      const tx = await client?.useABI(ledgeABI).set_config({
+        type_arguments: [mintPriceData.coinAddress],
+        arguments: [convertAmountFromHumanReadableToOnChain(parseFloat(mintPriceData.mintPrice), 8)],
+      });
+
+      toast({
+        title: "Mint price set",
+        description: (
+          <div>
+            <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
+              {tx?.hash}
+            </a>
+          </div>
+        ),
+        variant: "default",
+      });
+    } catch (error) {
+      toast({
+        title: "Error set mint price",
+        description: `Failed to set mint price: ${error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const createCollection = async () => {
     const jsonData = {
       ...formData.metadata,
+      image: "to_fill_after_upload",
       attributes: [],
     };
     const jsonString = JSON.stringify(jsonData, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "collection-metadata.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const collectionJsonFile = new File([jsonString], "collection.json", { type: "application/json" });
+
+    try {
+      const responseUrl = await uploadCollectionData(wallet, [collectionImage as File, collectionJsonFile], aptos);
+
+      const tx = await client?.useABI(ledgeABI).create_collection({
+        type_arguments: [],
+        arguments: [
+          responseUrl.collectionDescription,
+          responseUrl.collectionName,
+          responseUrl.projectUri,
+          formData.royaltyPercentage,
+        ],
+      });
+
+      toast({
+        title: "Collection created",
+        description: (
+          <div>
+            <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
+              {tx?.hash}
+            </a>
+          </div>
+        ),
+        variant: "default",
+      });
+    } catch (error) {
+      toast({
+        title: "Error creating collection",
+        description: `Failed to create collection: ${error}`,
+        variant: "destructive",
+      });
+    }
   };
+
+  useEffect(() => {
+    if (!abi) return;
+
+    void (async () => {
+      const mintConfig = await abi.useABI(ledgeABI).view.get_mint_settings({
+        typeArguments: [],
+        functionArguments: [],
+      });
+
+      setMintPriceData({
+        mintPrice: convertAmountFromOnChainToHumanReadable(parseFloat(mintConfig[1]), 8).toFixed(2),
+        coinAddress: mintConfig[0],
+      });
+    })();
+  }, [abi, ledgeABI]);
 
   return (
     <div className="space-y-8">
@@ -77,7 +175,8 @@ export function CollectionConfig() {
           <CardTitle className="heading-md">Collection Configuration</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6 mb-8">
+            <h3 className="heading-sm">Mint Price Configuration</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="mintPrice">Mint Price (📒)</Label>
@@ -86,13 +185,32 @@ export function CollectionConfig() {
                   name="mintPrice"
                   type="number"
                   step="0.01"
-                  value={formData.mintPrice}
-                  onChange={handleInputChange}
+                  value={mintPriceData.mintPrice}
+                  onChange={handleMintPriceChange}
                   placeholder="0.00"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="royaltyPercentage">Royalty Percentage (%)</Label>
+                <Label htmlFor="coinAddress">Coin Address</Label>
+                <Input
+                  id="coinAddress"
+                  name="coinAddress"
+                  type="text"
+                  value={mintPriceData.coinAddress}
+                  onChange={handleMintPriceChange}
+                  placeholder="Enter coin address"
+                />
+              </div>
+            </div>
+            <Button type="submit" onClick={handleMintPriceSubmit}>
+              Update Mint Price
+            </Button>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Royalty Percentage (%)</Label>
                 <Input
                   id="royaltyPercentage"
                   name="royaltyPercentage"
@@ -108,7 +226,7 @@ export function CollectionConfig() {
             <div className="space-y-4">
               <h3 className="heading-sm">Metadata Configuration</h3>
               <div className="space-y-2">
-                <Label htmlFor="metadata.name">Collection Name</Label>
+                <Label>Collection Name</Label>
                 <Input
                   id="metadata.name"
                   name="metadata.name"
@@ -118,7 +236,7 @@ export function CollectionConfig() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="metadata.description">Description</Label>
+                <Label>Description</Label>
                 <Textarea
                   id="metadata.description"
                   name="metadata.description"
@@ -129,17 +247,7 @@ export function CollectionConfig() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="metadata.image">Image URL</Label>
-                <Input
-                  id="metadata.image"
-                  name="metadata.image"
-                  value={formData.metadata.image}
-                  onChange={handleInputChange}
-                  placeholder="Enter image URL"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="metadata.external_url">External URL</Label>
+                <Label>External URL</Label>
                 <Input
                   id="metadata.external_url"
                   name="metadata.external_url"
@@ -148,17 +256,26 @@ export function CollectionConfig() {
                   placeholder="Enter external URL"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Upload image</Label>
+                <Input
+                  id="collectionImage"
+                  name="collectionImage"
+                  onChange={handleUploadImage}
+                  type="file"
+                  placeholder="Upload collection cover image"
+                />
+              </div>
             </div>
 
             <div className="flex gap-4">
-              <Button type="button" variant="outline" onClick={generateJson}>
-                Generate JSON
+              <Button type="submit" onClick={createCollection}>
+                Create Collection
               </Button>
-              <Button type="submit">Create Collection</Button>
             </div>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
-} 
+}

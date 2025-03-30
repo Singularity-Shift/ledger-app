@@ -95,7 +95,7 @@ module ledge_addr::message_minter {
     }
 
     /// Global per contract
-    struct Config has key {
+    struct Config has key, copy {
         emojicoin_fee_addr: Option<address>,
         mint_fee_amount: u64
     }
@@ -320,6 +320,16 @@ module ledge_addr::message_minter {
         let collection_addr = object::object_address(&collection_obj);
         let collection_config = borrow_global<CollectionConfig>(collection_addr);
         collection_config.mint_enabled
+    }
+
+    #[view]
+    /// get mint settings
+    public fun get_mint_settings(): (address, u64) acquires Config {
+        let config = borrow_global<Config>(@ledge_addr);
+
+        let coin = *option::borrow(&config.emojicoin_fee_addr);
+
+        (coin, config.mint_fee_amount)
     }
 
     // ================================= Helpers ================================= //
