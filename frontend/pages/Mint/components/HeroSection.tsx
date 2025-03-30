@@ -37,6 +37,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const [showSketchPortal, setShowSketchPortal] = useState(false);
   const [drawnImage, setDrawnImage] = useState<string | null>(null);
   const [drawingTime, setDrawingTime] = useState<number | null>(null);
+  const [usedTracing, setUsedTracing] = useState<boolean>(false);
 
   const { collection } = data ?? {};
 
@@ -56,16 +57,18 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       mintNFT({ 
         collectionId: collection.collection_id, 
         amount: 1,
-        drawingTimeSeconds: drawingTime || 0
+        drawingTimeSeconds: drawingTime || 0,
+        usedTracing: usedTracing
       }),
     );
     await aptosClient().waitForTransaction({ transactionHash: response.hash });
     queryClient.invalidateQueries();
   };
 
-  const handleSketchSubmit = (imageBlob: string, time: number) => {
+  const handleSketchSubmit = (imageBlob: string, time: number, tracingUsed: boolean = false) => {
     setDrawnImage(imageBlob);
     setDrawingTime(time);
+    setUsedTracing(tracingUsed);
   };
 
   return (
