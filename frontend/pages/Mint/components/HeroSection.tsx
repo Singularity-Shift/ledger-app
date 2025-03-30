@@ -38,6 +38,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const [drawnImage, setDrawnImage] = useState<string | null>(null);
   const [drawingTime, setDrawingTime] = useState<number | null>(null);
   const [usedTracing, setUsedTracing] = useState<boolean>(false);
+  const [securityToken, setSecurityToken] = useState<string | null>(null);
 
   const { collection } = data ?? {};
 
@@ -53,22 +54,64 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       return;
     }
 
-    const response = await signAndSubmitTransaction(
-      mintNFT({ 
-        collectionId: collection.collection_id, 
-        amount: 1,
-        drawingTimeSeconds: drawingTime || 0,
-        usedTracing: usedTracing
-      }),
-    );
-    await aptosClient().waitForTransaction({ transactionHash: response.hash });
-    queryClient.invalidateQueries();
+    if (!securityToken) {
+      toast({ 
+        variant: "destructive", 
+        title: "Security Error", 
+        description: "Drawing validation failed. Please create your drawing again." 
+      });
+      return;
+    }
+
+    try {
+      const tokenData = JSON.parse(atob(securityToken));
+      const currentTime = Date.now();
+      
+      if (currentTime - tokenData.currentTimestamp > 3600000) {
+        toast({ 
+          variant: "destructive", 
+          title: "Session Expired", 
+          description: "Your drawing session has expired. Please create your drawing again." 
+        });
+        setDrawnImage(null);
+        setSecurityToken(null);
+        return;
+      }
+
+      const response = await signAndSubmitTransaction(
+        mintNFT({ 
+          collectionId: collection.collection_id, 
+          amount: 1,
+          drawingTimeSeconds: drawingTime || 0,
+          usedTracing: usedTracing,
+          securityToken: securityToken
+        }),
+      );
+      await aptosClient().waitForTransaction({ transactionHash: response.hash });
+      queryClient.invalidateQueries();
+      
+      setSecurityToken(null);
+      
+    } catch (error) {
+      console.error("Error processing mint transaction:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Mint Error", 
+        description: "Failed to mint your drawing. Please try again." 
+      });
+    }
   };
 
-  const handleSketchSubmit = (imageBlob: string, time: number, tracingUsed: boolean = false) => {
+  const handleSketchSubmit = (
+    imageBlob: string, 
+    time: number, 
+    tracingUsed: boolean = false,
+    token: string
+  ) => {
     setDrawnImage(imageBlob);
     setDrawingTime(time);
     setUsedTracing(tracingUsed);
+    setSecurityToken(token);
   };
 
   return (

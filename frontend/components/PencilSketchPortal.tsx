@@ -9,7 +9,7 @@ import { useDrawingState } from '@/hooks/useDrawingState';
 interface PencilSketchPortalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit?: (imageBlob: string, drawingTime: number, usedTracing?: boolean) => void;
+  onSubmit?: (imageBlob: string, drawingTime: number, usedTracing?: boolean, securityToken: string) => void;
 }
 
 // Pencil grades with opacity levels
@@ -175,6 +175,24 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       };
     }
   }, [isOpen]);
+
+  // Add a security timestamp validation
+  // Track drawing start time for server validation
+  const [drawingStartTime] = useState<number>(Date.now());
+  
+  // Creation time is used for validation, not user-modifiable elapsed time
+  const getSecurityToken = useCallback(() => {
+    // Create a verification token that includes a hash of start time
+    // This is a simple implementation - a real one would use crypto
+    const verificationData = {
+      startTimestamp: drawingStartTime,
+      currentTimestamp: Date.now(),
+      sessionId: sessionStorage.getItem('ledgerDrawingSessionSecret') || 'unknown',
+      // Include a hash of the combined data
+      hash: btoa(`${drawingStartTime}:${sessionStorage.getItem('ledgerDrawingSessionSecret') || 'unknown'}`)
+    };
+    return btoa(JSON.stringify(verificationData));
+  }, [drawingStartTime]);
 
   // Restore state when the portal opens and state is loaded
   useEffect(() => {
@@ -349,13 +367,37 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     // saveCurrentState();
   };
 
-  // Modify handleSubmit to clear state (ensure isRestored reset)
+  // Modify handleSubmit to include server validation
   const handleSubmit = useCallback(async () => {
     try {
       if (canvasRef.current && onSubmit) {
         console.log("Submitting drawing...");
         const data = await canvasRef.current.exportImage('png');
-        onSubmit(data, elapsedTime, !!traceImage);
+        
+        // Calculate server-verifiable metrics
+        const actualElapsedSeconds = Math.floor((Date.now() - drawingStartTime) / 1000);
+        const reportedElapsedSeconds = elapsedTime;
+        
+        // Detect potential timer manipulation
+        if (actualElapsedSeconds < reportedElapsedSeconds * 0.5) {
+          console.warn("Potential timer manipulation detected!");
+          // Consider either using the actual time or showing a warning
+          toast({ 
+            variant: "destructive", 
+            title: "Submission Error", 
+            description: "Drawing time validation failed. Please try again." 
+          });
+          return;
+        }
+        
+        // Include security token with the submission
+        onSubmit(
+          data, 
+          elapsedTime, 
+          !!traceImage,
+          getSecurityToken() // Pass security token to verify legitimacy
+        );
+        
         toast({ title: "Success", description: "Your drawing has been submitted!" });
         clearDrawingState(); // Clear saved state on successful submit
         setIsRestored(false); // Reset restored flag so next open checks storage again
@@ -366,7 +408,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       console.error('Error submitting drawing:', error);
       toast({ variant: "destructive", title: "Error", description: "Failed to submit your drawing." });
     }
-  }, [onSubmit, elapsedTime, traceImage, clearDrawingState, onClose]);
+  }, [onSubmit, elapsedTime, traceImage, clearDrawingState, onClose, drawingStartTime, getSecurityToken]);
 
   const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomColor(e.target.value);
