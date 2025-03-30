@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import Paper from '@/assets/placeholders/paper.png';
+import { useDrawingState } from '@/hooks/useDrawingState';
 
 interface PencilSketchPortalProps {
   isOpen: boolean;
@@ -62,30 +63,42 @@ const COLORS = [
   { name: 'Gold', value: '#FFD700' }
 ];
 
+// Find PencilGrade by label
+const findGradeByLabel = (label: string): PencilGrade | undefined => {
+  return PENCIL_GRADES.find(grade => grade.label === label);
+};
+
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [strokeWidth, setStrokeWidth] = useState(2);
-  const [selectedGrade, setSelectedGrade] = useState<PencilGrade>(PENCIL_GRADES[3]); // Default to HB
-  const [baseColor, setBaseColor] = useState(COLORS[0].value); // Default to Graphite
-  const [customColor, setCustomColor] = useState(COLORS[0].value);
-  const [isEraser, setIsEraser] = useState(false);
+  const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
+  
+  // Use state values from the hook if available, otherwise use defaults
+  const [strokeWidth, setStrokeWidth] = useState(drawingState?.pencilConfig?.width ?? 2);
+  const [selectedGrade, setSelectedGrade] = useState<PencilGrade>(
+    (drawingState?.pencilConfig?.gradeLabel ? findGradeByLabel(drawingState.pencilConfig.gradeLabel) : undefined) ?? PENCIL_GRADES[3] // Default HB
+  );
+  const [baseColor, setBaseColor] = useState(drawingState?.pencilConfig?.color ?? COLORS[0].value); // Default Graphite
+  const [customColor, setCustomColor] = useState(drawingState?.pencilConfig?.color ?? COLORS[0].value);
+  const [isEraser, setIsEraser] = useState(drawingState?.pencilConfig?.isEraser ?? false);
   const [isErasing, setIsErasing] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(drawingState?.elapsedTime ?? 0);
   const canvasRef = useRef<ReactSketchCanvasRef>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(1000);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Tracing feature state
-  const [traceImage, setTraceImage] = useState<string | null>(null);
-  const [tracingActive, setTracingActive] = useState(false);
-  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [imageScale, setImageScale] = useState(1);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to hold the interval ID
+  const [isRestored, setIsRestored] = useState(false); // Flag to track if state was restored
+
+  // Tracing feature state - initialize from hook if available
+  const [traceImage, setTraceImage] = useState(drawingState?.traceImage ?? null);
+  const [tracingActive, setTracingActive] = useState(drawingState?.traceConfig?.active ?? false);
+  const [imagePosition, setImagePosition] = useState(drawingState?.traceConfig?.position ?? { x: 0, y: 0 });
+  const [imageScale, setImageScale] = useState(drawingState?.traceConfig?.scale ?? 1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isAdjustMode, setIsAdjustMode] = useState(false);
-  
+  const [isAdjustMode, setIsAdjustMode] = useState(false); // Adjust mode likely shouldn't persist
+
   // Calculate the actual stroke color based on the base color and opacity
   const strokeColor = useMemo(() => {
     // Convert hex to RGB
@@ -163,47 +176,197 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   }, [isOpen]);
 
-  const handleClear = () => {
-    canvasRef.current?.clearCanvas();
-  };
+  // Restore state when the portal opens and state is loaded
+  useEffect(() => {
+    // Only attempt restoration if the portal is open, state is loaded, drawingState exists,
+    // we haven't already restored in this session, and the canvas ref is available.
+    if (isOpen && isDrawingStateLoaded && drawingState && !isRestored && canvasRef.current) {
+       console.log("Attempting to restore drawing state...");
+       // Load drawing paths if they exist
+       if (drawingState.drawingPaths) {
+         try {
+           canvasRef.current.loadPaths(drawingState.drawingPaths);
+           console.log("Paths loaded successfully.");
+         } catch (error) {
+            console.error("Error loading drawing paths:", error);
+            toast({ variant: "destructive", title: "Restore Error", description: "Failed to load previous drawing paths." });
+            // Optionally clear broken state if loading paths fails consistently?
+            // clearDrawingState(); 
+         }
+       }
+       // Restore other states (tool settings, trace image, timer)
+       setStrokeWidth(drawingState.pencilConfig?.width ?? 2);
+       const restoredGrade = drawingState.pencilConfig?.gradeLabel ? findGradeByLabel(drawingState.pencilConfig.gradeLabel) : undefined;
+       setSelectedGrade(restoredGrade ?? PENCIL_GRADES[3]);
+       setBaseColor(drawingState.pencilConfig?.color ?? COLORS[0].value);
+       setCustomColor(drawingState.pencilConfig?.color ?? COLORS[0].value); // Set custom color picker too
+       setIsEraser(drawingState.pencilConfig?.isEraser ?? false);
+       setElapsedTime(drawingState.elapsedTime ?? 0);
+       setTraceImage(drawingState.traceImage ?? null);
+       setTracingActive(drawingState.traceConfig?.active ?? false);
+       setImagePosition(drawingState.traceConfig?.position ?? { x: 0, y: 0 });
+       setImageScale(drawingState.traceConfig?.scale ?? 1);
+
+       // Mark that state has been restored *after* attempting load
+       // This ensures this block only runs once per valid restoration scenario
+       setIsRestored(true); 
+       console.log("Drawing state restored.");
+       toast({ title: "Drawing Restored", description: "Your previous drawing progress has been loaded." });
+
+    } else if (isOpen && isDrawingStateLoaded && !drawingState && !isRestored) {
+      // Condition for: Portal is open, state is loaded, NO saved state exists, and we haven't initialized yet.
+      console.log("No saved state found, clearing canvas.");
+      canvasRef.current?.clearCanvas();
+      setElapsedTime(0); // Reset timer if no state
+      // Mark as 'restored' because we've handled the initial state (empty canvas).
+      // This prevents this block from running again if drawingState becomes null later.
+      setIsRestored(true); 
+
+    } else if (!isOpen) {
+        // Reset isRestored flag when portal closes, allowing restoration on next open
+        if (isRestored) { // Only log/reset if it was previously restored
+            setIsRestored(false);
+            console.log("Portal closed, reset isRestored flag.");
+        }
+    }
+    // Dependency array includes all values read/used inside the effect that can change.
+    // The !isRestored condition prevents re-execution logic despite drawingState changing.
+  }, [isOpen, isDrawingStateLoaded, isRestored, drawingState, clearDrawingState, toast]);
+
+  // Auto-save drawing state periodically and on drawing actions
+  const saveCurrentState = useCallback(async () => {
+    // Only save if the initial restoration attempt is complete
+    if (!isRestored || !canvasRef.current) { 
+        // console.log("Skipping save: Restoration not complete or canvas ref missing.");
+        return;
+    }
+    
+    console.log("Saving current state...");
+    try {
+        const paths = await canvasRef.current.exportPaths();
+        // We might not need the complex check anymore if isRestored handles the initial phase
+        // if (!isRestored && (!Array.isArray(paths) || paths.length === 0) && elapsedTime < 2) {
+        //      console.log("Skipping initial save of empty canvas");
+        //      return;
+        // }
+
+        saveDrawingState({
+            drawingPaths: paths,
+            elapsedTime: elapsedTime,
+            lastActiveTimestamp: Date.now(),
+            traceImage: traceImage,
+            traceConfig: {
+                active: tracingActive,
+                position: imagePosition,
+                scale: imageScale,
+            },
+            pencilConfig: {
+                color: baseColor,
+                width: strokeWidth,
+                gradeLabel: selectedGrade.label,
+                isEraser: isEraser,
+            },
+        });
+        console.log("State saved.");
+    } catch (error) {
+        console.error("Error exporting/saving drawing state:", error);
+        toast({ variant: "destructive", title: "Save Error", description: "Could not save drawing progress." });
+    }
+  }, [
+    isRestored, // Add isRestored dependency
+    elapsedTime, traceImage, tracingActive, imagePosition, imageScale,
+    baseColor, strokeWidth, selectedGrade, isEraser, saveDrawingState,
+    toast // Add toast as a dependency
+  ]);
+
+  // Save state on drawing/erasing actions (onPointerUp)
+  const handlePointerUp = useCallback(() => {
+    setIsErasing(false);
+    setIsDragging(false);
+    saveCurrentState(); // Save after drawing action completes
+  }, [saveCurrentState]);
+  
+  // Save state before the window unloads
+  useEffect(() => {
+    const handleBeforeUnload = (_event: BeforeUnloadEvent) => {
+      // Check if there's something potentially worth saving
+      if (isOpen && isRestored && canvasRef.current && elapsedTime > 0) { // Check isOpen and isRestored
+          console.log("beforeunload: Triggering saveCurrentState...");
+          saveCurrentState();
+          // Note: Asynchronous save might not complete before unload.
+          // Consider synchronous localStorage if critical, but it blocks the main thread.
+          
+          // Standard way to prompt user (currently disabled, but keep _event for potential future use)
+          // _event.preventDefault(); 
+          // _event.returnValue = ''; 
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Save when component unmounts only if it was open and restored.
+      if (isOpen && isRestored) { 
+          console.log("Unmount: Triggering saveCurrentState...");
+          saveCurrentState();
+      }
+    };
+  // TypeScript sometimes has issues inferring types in the dependency array
+  // explicitly list them to avoid the "implicitly has any type" warning
+  }, [
+    isOpen as boolean, 
+    isRestored as boolean, 
+    elapsedTime as number, 
+    saveCurrentState as () => Promise<void>
+  ]);
+
+  // Clear state handlers (add console logs, ensure isRestored reset)
+  const handleClear = useCallback(() => {
+    if (window.confirm("Are you sure you want to clear your drawing? This cannot be undone.")) {
+        console.log("Clearing canvas and state...");
+        canvasRef.current?.clearCanvas();
+        setTraceImage(null); 
+        setTracingActive(false);
+        setImagePosition({ x: 0, y: 0 });
+        setImageScale(1);
+        setElapsedTime(0); 
+        clearDrawingState(); 
+        setIsRestored(true); // Set to true because the 'restored' state is now empty canvas
+        console.log("State cleared.");
+        toast({ title: "Canvas Cleared", description: "Your drawing has been cleared." });
+    }
+  }, [clearDrawingState]);
 
   const handleUndo = () => {
     canvasRef.current?.undo();
+    // Consider saving state after undo/redo if needed, might be excessive
+    // saveCurrentState(); 
   };
 
   const handleRedo = () => {
     canvasRef.current?.redo();
+    // saveCurrentState();
   };
 
-  const handleSave = async () => {
-    try {
-      if (canvasRef.current) {
-        const data = await canvasRef.current.exportImage('png');
-        const link = document.createElement('a');
-        link.href = data;
-        link.download = 'my-ledger-page.png';
-        link.click();
-        toast({ title: "Success", description: "Your drawing has been saved!" });
-      }
-    } catch (error) {
-      console.error('Error saving drawing:', error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to save your drawing." });
-    }
-  };
-
-  const handleSubmit = async () => {
+  // Modify handleSubmit to clear state (ensure isRestored reset)
+  const handleSubmit = useCallback(async () => {
     try {
       if (canvasRef.current && onSubmit) {
+        console.log("Submitting drawing...");
         const data = await canvasRef.current.exportImage('png');
         onSubmit(data, elapsedTime, !!traceImage);
         toast({ title: "Success", description: "Your drawing has been submitted!" });
-        onClose();
+        clearDrawingState(); // Clear saved state on successful submit
+        setIsRestored(false); // Reset restored flag so next open checks storage again
+        console.log("Drawing submitted, state cleared.");
+        onClose(); // Close the portal
       }
     } catch (error) {
       console.error('Error submitting drawing:', error);
       toast({ variant: "destructive", title: "Error", description: "Failed to submit your drawing." });
     }
-  };
+  }, [onSubmit, elapsedTime, traceImage, clearDrawingState, onClose]);
 
   const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomColor(e.target.value);
@@ -224,21 +387,36 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     return `${minutes}m ${seconds}s`;
   };
 
-  // Simple counter from when portal opens
+  // Modify timer logic (remove automatic save via updateTimestamp)
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isOpen) {
-      setElapsedTime(0); // Reset timer when portal opens
-      interval = setInterval(() => {
+    if (isOpen && isRestored) { // Only start timer if open and restoration attempt is complete
+      console.log("Timer starting/resuming...");
+      timerIntervalRef.current = setInterval(() => {
         setElapsedTime(prev => prev + 1);
+        // updateTimestamp(); // REMOVED: No need to save state on every tick
       }, 1000);
+    } else {
+      // Clear interval if portal is closed or before restoration is done
+      if (timerIntervalRef.current) {
+        console.log("Timer pausing.");
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      // Save final state when closing portal (moved to unmount/beforeunload effect)
+      // if (isDrawingStateLoaded && isRestored) { 
+      //      saveCurrentState();
+      // }
     }
+
+    // Cleanup function
     return () => {
-      if (interval) {
-        clearInterval(interval);
+      if (timerIntervalRef.current) {
+        console.log("Timer cleanup.");
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, isRestored]); // Depend on isOpen and isRestored status
 
   // Toggle eraser mode
   useEffect(() => {
@@ -302,12 +480,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   };
 
-  const handlePointerUp = () => {
-    setIsErasing(false);
-    setIsDragging(false);
-  };
-
-  // Handle image selection for tracing
+  // Tracing image handlers (modify to save state)
   const handleTraceButtonClick = () => {
     fileInputRef.current?.click();
   };
@@ -318,11 +491,19 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          setTraceImage(event.target.result as string);
+          const imageResult = event.target.result as string;
+          setTraceImage(imageResult);
           setTracingActive(true);
           // Center the image initially
-          setImagePosition({ x: 0, y: 0 });
-          setImageScale(1);
+          const position = { x: 0, y: 0 };
+          const scale = 1;
+          setImagePosition(position);
+          setImageScale(scale);
+          // Save state after setting trace image
+          saveDrawingState({ 
+              traceImage: imageResult, 
+              traceConfig: { active: true, position, scale } 
+          }); 
           toast({ title: "Image Selected", description: "You can now trace over this image." });
         }
       };
@@ -330,28 +511,61 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   };
 
+  // --- Corrected Trace Config Handlers ---
   const handleToggleTracing = () => {
-    setTracingActive(!tracingActive);
+    const newActiveState = !tracingActive;
+    setTracingActive(newActiveState);
+    // Construct a complete traceConfig object using current state
+    saveDrawingState({ 
+      traceConfig: { 
+        active: newActiveState, 
+        position: imagePosition, // Use current position state
+        scale: imageScale // Use current scale state
+      } 
+    });
   };
 
   const handleScaleIncrease = () => {
-    setImageScale(prev => Math.min(prev + 0.1, 2));
+    const newScale = Math.min(imageScale + 0.1, 2);
+    setImageScale(newScale);
+    // Construct a complete traceConfig object using current state
+    saveDrawingState({ 
+      traceConfig: { 
+        active: tracingActive, // Use current active state
+        position: imagePosition, // Use current position state
+        scale: newScale 
+      } 
+    });
   };
 
   const handleScaleDecrease = () => {
-    setImageScale(prev => Math.max(prev - 0.1, 0.5));
+    const newScale = Math.max(imageScale - 0.1, 0.5);
+    setImageScale(newScale);
+    // Construct a complete traceConfig object using current state
+    saveDrawingState({ 
+      traceConfig: { 
+        active: tracingActive, // Use current active state
+        position: imagePosition, // Use current position state
+        scale: newScale 
+      } 
+    });
   };
+  // --- End Corrected Handlers ---
 
-  const handleToggleAdjustMode = () => {
+  // Adjust mode toggle - likely doesn't need saving, but position/scale changes while adjusting do
+   const handleToggleAdjustMode = () => {
     setIsAdjustMode(!isAdjustMode);
-    setIsEraser(false);
+    setIsEraser(false); // Ensure eraser is off when adjusting
+     // No save needed here, but saves happen on scale/drag interactions within adjust mode (handled by pointer move)
   };
 
   const pencilCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z'%3E%3C/path%3E%3C/svg%3E") 0 24, auto`;
 
   const eraserCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.48 3.52a3.2 3.2 0 0 0-4.53 0L3.52 15.95a3.2 3.2 0 0 0 0 4.53l4.53-4.53 8.47-8.47 4.53-4.53a3.2 3.2 0 0 0 0-4.53z'%3E%3C/path%3E%3C/svg%3E") 0 24, auto`;
 
-  if (!isOpen) return null;
+  if (!isOpen && !isDrawingStateLoaded) return null; // Don't render if not open unless loading state
+  // If state is loading, maybe show a loader? For now, just don't render if not open.
+  if (!isOpen) return null; 
 
   return createPortal(
     <div 
