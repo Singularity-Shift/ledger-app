@@ -24,6 +24,7 @@ import { aptosClient } from "@/utils/aptosClient";
 import { useWalletClient } from "@thalalabs/surf/hooks";
 import { useAbiClient } from "@/contexts/AbiProvider";
 import { convertAmountFromOnChainToHumanReadable } from "@aptos-labs/ts-sdk";
+import { Spinner } from "@/components/ui/spinner";
 
 // Time formatting utility
 const formatTimeToHMS = (seconds: number): string => {
@@ -48,6 +49,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const [securityToken, setSecurityToken] = useState<string | null>(null);
   const [mintFee, setMintFee] = useState<number>(0);
   const [coinMintFees, setCoinMintFees] = useState<string>("");
+  const [isMinting, setIsMinting] = useState<boolean>(false);
   const wallet = useWallet();
   const aptos = aptosClient();
   const { client } = useWalletClient();
@@ -70,6 +72,8 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       });
       return;
     }
+
+    setIsMinting(true);
 
     try {
       const tokenData = JSON.parse(atob(securityToken));
@@ -134,6 +138,8 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         title: "Mint Error",
         description: "Failed to mint your drawing. Please try again.",
       });
+    } finally {
+      setIsMinting(false);
     }
   };
 
@@ -237,9 +243,16 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
                 <Button
                   className="h-12 md:h-16 flex-1 text-base md:text-lg"
                   onClick={mintNFT}
-                  disabled={!drawnImage || !coinMintFees}
+                  disabled={!drawnImage || !coinMintFees || isMinting}
                 >
-                  Mint my Page
+                  {isMinting ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Spinner size="sm" />
+                      <span>Minting...</span>
+                    </div>
+                  ) : (
+                    "Mint my Page"
+                  )}
                 </Button>
                 {drawnImage && (
                   <Button
@@ -247,6 +260,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
                     type="button"
                     variant="destructive"
                     onClick={() => setDrawnImage(null)}
+                    disabled={isMinting}
                   >
                     Remove
                   </Button>
