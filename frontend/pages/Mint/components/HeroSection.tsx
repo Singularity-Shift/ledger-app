@@ -25,6 +25,15 @@ import { useWalletClient } from "@thalalabs/surf/hooks";
 import { useAbiClient } from "@/contexts/AbiProvider";
 import { convertAmountFromOnChainToHumanReadable } from "@aptos-labs/ts-sdk";
 
+// Time formatting utility
+const formatTimeToHMS = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  
+  return `${hours} hr ${minutes} min ${remainingSeconds} sec`;
+};
+
 interface HeroSectionProps {}
 
 export const HeroSection: React.FC<HeroSectionProps> = () => {
@@ -88,7 +97,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           },
           {
             trait_type: "Time taken drawing",
-            value: drawingTime,
+            value: drawingTime ? formatTimeToHMS(drawingTime) : "0 hr 0 min 0 sec",
           },
           {
             trait_type: "Traced from image",
