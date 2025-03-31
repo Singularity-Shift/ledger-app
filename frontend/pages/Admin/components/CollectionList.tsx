@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useGetAllCollections } from "@/hooks/useGetAllCollections";
 import { Collection } from "@/hooks/useGetCollectionData";
 import { Button } from "@/components/ui/button";
-import { ArrowDown, ArrowUp, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Search, Copy } from "lucide-react";
+import { truncateAddress } from "@aptos-labs/wallet-adapter-react";
 
 export function CollectionList() {
   const { data: collections = [], isLoading } = useGetAllCollections();
@@ -37,7 +38,7 @@ export function CollectionList() {
         (collection) =>
           collection.collection_name.toLowerCase().includes(query) ||
           collection.description.toLowerCase().includes(query) ||
-          collection.collection_id.toLowerCase().includes(query)
+          collection.collection_id.toLowerCase().includes(query),
       );
     }
 
@@ -48,9 +49,7 @@ export function CollectionList() {
         const bValue = b[sortField];
 
         if (typeof aValue === "string" && typeof bValue === "string") {
-          return sortDirection === "asc"
-            ? aValue.localeCompare(bValue)
-            : bValue.localeCompare(aValue);
+          return sortDirection === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
         }
 
         // Handle numeric values
@@ -128,14 +127,35 @@ export function CollectionList() {
                   {filteredAndSortedCollections.map((collection) => (
                     <TableRow key={collection.collection_id}>
                       <TableCell className="font-medium">{collection.collection_name}</TableCell>
+                      <TableCell className="max-w-xs truncate">{collection.description}</TableCell>
                       <TableCell className="max-w-xs truncate">
-                        {collection.description}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {collection.cdn_asset_uris?.cdn_image_uri || collection.uri}
+                        <a href={collection.cdn_asset_uris?.cdn_image_uri || collection.uri}>
+                          {collection.cdn_asset_uris?.cdn_image_uri || collection.uri}
+                        </a>
                       </TableCell>
                       <TableCell className="max-w-xs truncate font-mono text-xs">
-                        {collection.collection_id}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center gap-1 hover:bg-transparent"
+                          onClick={() => {
+                            navigator.clipboard.writeText(collection.collection_id);
+                            const button = document.getElementById(`copy-${collection.collection_id}`);
+                            if (button) {
+                              button.innerHTML =
+                                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                              setTimeout(() => {
+                                button.innerHTML =
+                                  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>';
+                              }, 2000);
+                            }
+                          }}
+                        >
+                          {truncateAddress(collection.collection_id)}
+                          <span id={`copy-${collection.collection_id}`}>
+                            <Copy className="w-4 h-4" />
+                          </span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -147,4 +167,4 @@ export function CollectionList() {
       </Card>
     </div>
   );
-} 
+}

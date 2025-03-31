@@ -12,6 +12,7 @@ import { convertAmountFromOnChainToHumanReadable } from "@aptos-labs/ts-sdk";
 import { uploadCollectionData } from "@/utils/assetsUploader";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { aptosClient } from "@/utils/aptosClient";
+import { COIN_TYPE } from "@/constants";
 
 interface CollectionConfigForm {
   royaltyPercentage: string;
@@ -25,7 +26,7 @@ interface CollectionConfigForm {
 
 interface MintPriceForm {
   mintPrice: string;
-  coinAddress: string;
+  coinType: string;
 }
 export function CollectionConfig() {
   const [formData, setFormData] = useState<CollectionConfigForm>({
@@ -42,7 +43,7 @@ export function CollectionConfig() {
 
   const [mintPriceData, setMintPriceData] = useState<MintPriceForm>({
     mintPrice: "",
-    coinAddress: "",
+    coinType: "",
   });
   const { ledgeABI, abi } = useAbiClient();
   const { client } = useWalletClient();
@@ -83,11 +84,31 @@ export function CollectionConfig() {
     }));
   };
 
+  const getDecimals = async (coinAddress: string): Promise<number> => {
+    const queryResponse = await aptos.queryIndexer<{ coin_infos: { decimals: number }[] }>({
+      query: {
+        query: `query LedgeQuery {
+          coin_infos(where: {
+            coin_type: {
+              _eq: "${coinAddress}${COIN_TYPE}"
+            }
+          }){
+            decimals
+          }
+        }`,
+      },
+    });
+
+    return queryResponse.coin_infos[0].decimals;
+  };
+
   const handleMintPriceSubmit = async () => {
     try {
+      const decimals = await getDecimals(mintPriceData.coinType);
+
       const tx = await client?.useABI(ledgeABI).set_config({
-        type_arguments: [mintPriceData.coinAddress],
-        arguments: [convertAmountFromHumanReadableToOnChain(parseFloat(mintPriceData.mintPrice), 8)],
+        type_arguments: [`${mintPriceData.coinType}${COIN_TYPE}`],
+        arguments: [convertAmountFromHumanReadableToOnChain(parseFloat(mintPriceData.mintPrice), decimals)],
       });
 
       toast({
@@ -161,9 +182,11 @@ export function CollectionConfig() {
         functionArguments: [],
       });
 
+      const decimals = await getDecimals(mintConfig[0]);
+
       setMintPriceData({
-        mintPrice: convertAmountFromOnChainToHumanReadable(parseFloat(mintConfig[1]), 8).toFixed(2),
-        coinAddress: mintConfig[0],
+        mintPrice: convertAmountFromOnChainToHumanReadable(parseFloat(mintConfig[1]), decimals).toFixed(2),
+        coinType: mintConfig[0],
       });
     })();
   }, [abi, ledgeABI]);
@@ -191,12 +214,12 @@ export function CollectionConfig() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="coinAddress">Coin Address</Label>
+                <Label htmlFor="coinType">Coin Address</Label>
                 <Input
-                  id="coinAddress"
-                  name="coinAddress"
+                  id="coinType"
+                  name="coinType"
                   type="text"
-                  value={mintPriceData.coinAddress}
+                  value={mintPriceData.coinType}
                   onChange={handleMintPriceChange}
                   placeholder="Enter coin address"
                 />

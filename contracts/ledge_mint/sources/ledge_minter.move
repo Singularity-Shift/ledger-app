@@ -265,9 +265,8 @@ module ledge_addr::message_minter {
             } else { false };
 
         let fee =
-            if (has_subscription) {
-                config.mint_fee_amount / 2
-            } else {
+            if (has_subscription) { 0 }
+            else {
                 config.mint_fee_amount
             };
 

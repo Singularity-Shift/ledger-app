@@ -11,7 +11,14 @@ import { useAbiClient } from "@/contexts/AbiProvider";
 interface PencilSketchPortalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit?: (file: File, drawingTime: number, usedTracing: boolean, securityToken: string) => void;
+  onSubmit?: (
+    file: File,
+    drawingTime: number,
+    drawPath: string,
+    id: string,
+    usedTracing: boolean,
+    securityToken: string,
+  ) => void;
 }
 
 // Pencil grades with opacity levels
@@ -419,6 +426,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         onSubmit(
           file,
           elapsedTime,
+          data,
+          id.toString(),
           !!traceImage,
           getSecurityToken(), // Pass security token to verify legitimacy
         );

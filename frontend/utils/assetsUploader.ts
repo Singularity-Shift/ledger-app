@@ -102,20 +102,16 @@ export const uploadCollectionData = async (
 
 export const updateMintData = async (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  id: number,
+  id: string,
   aptosWallet: WalletContextState,
-  fileList: FileList,
+  files: File[],
   aptos: Aptos,
 ): Promise<{
   imageUrl: string;
 }> => {
   // Convert FileList type into a File[] type
-  const files: File[] = [];
-  for (let i = 0; i < fileList.length; i++) {
-    files.push(fileList[i]);
-  }
 
-  const nftImageMetadatas = files.filter((file) => file.name.endsWith("json") && file.name !== "collection.json");
+  const nftImageMetadatas = files.filter((file) => file.name.endsWith("json"));
 
   if (nftImageMetadatas.length === 0) {
     throw new Error("Image metadata not found, please make sure you include the NFT json files");
