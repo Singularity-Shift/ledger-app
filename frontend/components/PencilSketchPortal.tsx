@@ -398,8 +398,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         // --- Merging Logic Start ---
 
         // 2. Create a temporary canvas
-        const tempCanvas = document.createElement('canvas');
-        const ctx = tempCanvas.getContext('2d');
+        const tempCanvas = document.createElement("canvas");
+        const ctx = tempCanvas.getContext("2d");
         if (!ctx) {
           throw new Error("Failed to get 2D context for merging");
         }
@@ -422,7 +422,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
         await Promise.all([
           loadImage(paperImg, Paper), // Use the imported Paper variable
-          loadImage(drawingImg, drawingDataUrl)
+          loadImage(drawingImg, drawingDataUrl),
         ]);
 
         // 5. Draw background image first
@@ -433,7 +433,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
         // 7. Export the merged canvas as a Blob
         const blob = await new Promise<Blob | null>((resolve) => {
-          tempCanvas.toBlob(resolve, 'image/png');
+          tempCanvas.toBlob(resolve, "image/png");
         });
 
         if (!blob) {
@@ -441,7 +441,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         }
 
         // --- Merging Logic End ---
-
 
         // Calculate server-verifiable metrics
         const actualElapsedSeconds = Math.floor((Date.now() - drawingStartTime) / 1000);
@@ -470,7 +469,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         const file = new File([blob], `${id}.png`, { type: "image/png" });
 
         // Get the Data URL for the merged image (if needed by onSubmit)
-        const mergedDataUrl = tempCanvas.toDataURL('image/png');
+        const mergedDataUrl = tempCanvas.toDataURL("image/png");
 
         // Include security token with the submission
         onSubmit(
@@ -490,9 +489,23 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       }
     } catch (error) {
       console.error("Error submitting drawing:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to submit your drawing: ${error instanceof Error ? error.message : String(error)}` });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to submit your drawing: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
-  }, [onSubmit, elapsedTime, traceImage, clearDrawingState, onClose, drawingStartTime, getSecurityToken, abi, canvasSize]); // Added canvasSize dependency
+  }, [
+    onSubmit,
+    elapsedTime,
+    traceImage,
+    clearDrawingState,
+    onClose,
+    drawingStartTime,
+    getSecurityToken,
+    abi,
+    canvasSize,
+  ]); // Added canvasSize dependency
 
   const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomColor(e.target.value);
