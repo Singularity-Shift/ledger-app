@@ -14,16 +14,16 @@ export function useGetAllCollections() {
     queryFn: async () => {
       try {
         // First get all collection objects from the registry
-        const registryResult = await aptosClient().view<[{ collection_objects: Array<string> }]>({
+        const registryResult = await aptosClient().view<{ inner: string }[][]>({
           payload: {
             function: `${MODULE_ADDRESS}::message_minter::get_registry`,
             typeArguments: [],
             functionArguments: [],
           },
         });
-        
-        const collectionIds = registryResult[0].collection_objects;
-        
+
+        const collectionIds = registryResult[0].map((c) => c.inner);
+
         if (collectionIds.length === 0) return [];
 
         // Then query the details for each collection
@@ -31,7 +31,11 @@ export function useGetAllCollections() {
           query: {
             query: `
             query AllCollectionsQuery {
-              current_collections_v2 {
+              current_collections_v2(where: {
+                collection_id: {
+                  _in: "${collectionIds}"
+                }
+              }) {
                 creator_address
                 collection_id
                 collection_name
@@ -55,4 +59,4 @@ export function useGetAllCollections() {
       }
     },
   });
-} 
+}
