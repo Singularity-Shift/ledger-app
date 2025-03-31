@@ -1,10 +1,12 @@
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { FC, FormEvent, useState } from "react";
 // Internal assets
 import Copy from "@/assets/icons/copy.svg";
 import ExternalLink from "@/assets/icons/external-link.svg";
 import Paper from "@/assets/placeholders/paper.png";
 // Internal utils
+import { aptosClient } from "@/utils/aptosClient";
 import { truncateAddress } from "@/utils/truncateAddress";
 // Internal hooks
 import { useGetCollectionData } from "@/hooks/useGetCollectionData";
@@ -21,22 +23,22 @@ import { PencilSketchPortal } from "@/components/PencilSketchPortal";
 import { NETWORK } from "@/constants";
 // Internal config
 import { config } from "@/config";
+// Internal enrty functions
+import { mintNFT } from "@/entry-functions/mint_nft";
 
 interface HeroSectionProps {}
 
 export const HeroSection: React.FC<HeroSectionProps> = () => {
   const { data } = useGetCollectionData();
   const { data: mintFee = 0 } = useGetMintFee();
-  const { account } = useWallet();
+  const queryClient = useQueryClient();
+  const { account, signAndSubmitTransaction } = useWallet();
   const { data: accountBalance } = useGetAccountBalance(account?.address);
   const [showSketchPortal, setShowSketchPortal] = useState(false);
-<<<<<<< HEAD
-  const [drawnImage, setDrawnImage] = useState<File | null>(null);
-=======
   const [drawnImage, setDrawnImage] = useState<string | null>(null);
   const [drawingTime, setDrawingTime] = useState<number | null>(null);
   const [usedTracing, setUsedTracing] = useState<boolean>(false);
->>>>>>> main
+  const [securityToken, setSecurityToken] = useState<string | null>(null);
 
   const { collection } = data ?? {};
 
@@ -51,30 +53,59 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       toast({ variant: "destructive", title: "Error", description: "You do not have enough funds to mint" });
       return;
     }
-<<<<<<< HEAD
+
+    if (!securityToken) {
+      toast({
+        variant: "destructive",
+        title: "Security Error",
+        description: "Drawing validation failed. Please create your drawing again.",
+      });
+      return;
+    }
+
+    try {
+      const tokenData = JSON.parse(atob(securityToken));
+      const currentTime = Date.now();
+
+      if (currentTime - tokenData.currentTimestamp > 3600000) {
+        toast({
+          variant: "destructive",
+          title: "Session Expired",
+          description: "Your drawing session has expired. Please create your drawing again.",
+        });
+        setDrawnImage(null);
+        setSecurityToken(null);
+        return;
+      }
+
+      const response = await signAndSubmitTransaction(
+        mintNFT({
+          collectionId: collection.collection_id,
+          amount: 1,
+          drawingTimeSeconds: drawingTime || 0,
+          usedTracing: usedTracing,
+          securityToken: securityToken,
+        }),
+      );
+      await aptosClient().waitForTransaction({ transactionHash: response.hash });
+      queryClient.invalidateQueries();
+
+      setSecurityToken(null);
+    } catch (error) {
+      console.error("Error processing mint transaction:", error);
+      toast({
+        variant: "destructive",
+        title: "Mint Error",
+        description: "Failed to mint your drawing. Please try again.",
+      });
+    }
   };
 
-  const handleSketchSubmit = (imageBlob: File) => {
-    setDrawnImage(imageBlob);
-=======
-
-    const response = await signAndSubmitTransaction(
-      mintNFT({ 
-        collectionId: collection.collection_id, 
-        amount: 1,
-        drawingTimeSeconds: drawingTime || 0,
-        usedTracing: usedTracing
-      }),
-    );
-    await aptosClient().waitForTransaction({ transactionHash: response.hash });
-    queryClient.invalidateQueries();
-  };
-
-  const handleSketchSubmit = (imageBlob: string, time: number, tracingUsed: boolean = false) => {
+  const handleSketchSubmit = (imageBlob: string, time: number, tracingUsed: boolean = false, token: string) => {
     setDrawnImage(imageBlob);
     setDrawingTime(time);
     setUsedTracing(tracingUsed);
->>>>>>> main
+    setSecurityToken(token);
   };
 
   return (
@@ -89,7 +120,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
           />
           {/* Drawing overlay (if exists) */}
           {drawnImage && (
-            <Image src={drawnImage.name} rounded className="w-full h-full object-contain absolute inset-0 z-10" />
+            <Image src={drawnImage} rounded className="w-full h-full object-contain absolute inset-0 z-10" />
           )}
           {/* Fallback to collection image if no drawing */}
           {!drawnImage && collection?.cdn_asset_uris && (

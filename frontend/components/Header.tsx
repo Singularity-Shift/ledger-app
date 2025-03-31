@@ -1,11 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletSelector } from "./WalletSelector";
 import { Button } from "./ui/button";
-<<<<<<< HEAD
 import { useAppManagement } from "@/contexts/AppManagement";
-=======
-import { Settings, Wallet } from "lucide-react";
->>>>>>> main
 
 export function Header() {
   const location = useLocation();
@@ -18,22 +14,12 @@ export function Header() {
         <Link to="/">Ledger App Fun 📒</Link>
       </h1>
 
-<<<<<<< HEAD
       <div className="flex gap-2 items-center flex-wrap">
         {isAdmin && (
           <Button variant="outline" asChild>
             <Link to={isAdminPage ? "/" : "/admin"}>{isAdminPage ? "Mint" : "Admin"}</Link>
           </Button>
         )}
-=======
-      <div className="flex gap-1 sm:gap-2 items-center flex-wrap">
-        <Button variant="outline" asChild className="h-8 w-8 p-0 sm:w-auto sm:h-10 sm:px-4">
-          <Link to={isAdminPage ? "/" : "/admin"} className="flex items-center justify-center">
-            <Settings className="h-4 w-4 sm:hidden" />
-            <span className="hidden sm:inline">{isAdminPage ? "Mint" : "Admin"}</span>
-          </Link>
-        </Button>
->>>>>>> main
         <WalletSelector />
       </div>
     </div>
