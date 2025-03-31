@@ -78,13 +78,21 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       }
 
       const jsonData = {
-        description: `ledge ID: ${collection?.collection_id}`,
+        description: `${collection?.collection_name}: ${mintId}`,
         image: "to_fill_after_upload",
         external_url: `https://ledgerapp.fun/minted/${collection?.collection_id}`,
         attributes: [
           {
-            drawing_time: drawingTime,
-            using_tracing: usedTracing,
+            trait_type: "Created by",
+            value: account.address,
+          },
+          {
+            trait_type: "Time taken drawing",
+            value: drawingTime,
+          },
+          {
+            trait_type: "Traced from image",
+            value: usedTracing ? "Yes" : "No",
           },
         ],
       };
