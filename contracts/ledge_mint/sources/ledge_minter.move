@@ -115,7 +115,7 @@ module ledge_addr::message_minter {
         sender: &signer, mint_amount_fees: u64
     ) acquires Config {
         let sender_addr = signer::address_of(sender);
-        assert!(is_admin(sender_addr), EONLY_ADMIN_CAN_UPDATE_MINT_ENABLED);
+        assert!(is_admin(sender_addr), EONLY_ADMIN_CAN_UPDATE_MINT_FEE_COLLECTOR);
 
         let coin_type = type_info::type_of<Emojicoin>();
         let emojicoin = type_info::account_address(&coin_type);
@@ -232,6 +232,8 @@ module ledge_addr::message_minter {
 
         let collection_config =
             borrow_global<CollectionConfig>(object::object_address(&collection_obj));
+
+        assert!(collection_config.mint_enabled, EMINT_IS_DISABLED);
 
         let collection_owner_obj = collection_config.collection_owner_obj;
         let collection_owner_config =
