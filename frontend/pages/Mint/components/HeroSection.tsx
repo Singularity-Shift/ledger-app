@@ -267,7 +267,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
                 )}
               </div>
               {!!mintFee && (
-                <span className="whitespace-nowrap text-secondary-text body-sm self-center">{mintFee} APT</span>
+                <span className="whitespace-nowrap text-secondary-text body-sm self-center">10,000 📒</span>
               )}
             </div>
           </CardContent>
