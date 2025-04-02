@@ -8,6 +8,7 @@ import Paper from "@/assets/placeholders/paper.png";
 import { truncateAddress } from "@/utils/truncateAddress";
 // Internal hooks
 import { useGetCollectionData } from "@/hooks/useGetCollectionData";
+import { useDrawingState } from "@/hooks/useDrawingState";
 // Internal components
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +41,7 @@ interface HeroSectionProps {}
 export const HeroSection: React.FC<HeroSectionProps> = () => {
   const { data } = useGetCollectionData();
   const { account } = useWallet();
+  const { clearDrawingState } = useDrawingState();
   const [showSketchPortal, setShowSketchPortal] = useState(false);
   const [drawnImage, setDrawnImage] = useState<File | null>(null);
   const [drawingTime, setDrawingTime] = useState<number | null>(null);
@@ -130,6 +132,8 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         ),
       });
 
+      // Clear the drawing state after successful minting
+      clearDrawingState();
       setSecurityToken(null);
     } catch (error) {
       console.error("Error processing mint transaction:", error);
@@ -157,6 +161,13 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
     setMintId(id);
     setUsedTracing(tracingUsed);
     setSecurityToken(token);
+  };
+
+  const handleRemoveDrawing = () => {
+    if (window.confirm('Are you sure you want to remove this drawing? This cannot be undone.')) {
+      setDrawnImage(null);
+      clearDrawingState();
+    }
   };
 
   useEffect(() => {
@@ -259,7 +270,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
                     className="h-12 md:h-16 text-base md:text-lg"
                     type="button"
                     variant="destructive"
-                    onClick={() => setDrawnImage(null)}
+                    onClick={handleRemoveDrawing}
                     disabled={isMinting}
                   >
                     Remove
