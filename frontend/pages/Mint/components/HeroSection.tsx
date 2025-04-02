@@ -166,6 +166,10 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const handleRemoveDrawing = () => {
     setDrawnImage(null);
     clearDrawingState();
+    toast({
+      title: "Drawing Removed",
+      description: "Your image will be available again in the drawing app after removal",
+    });
   };
 
   useEffect(() => {
