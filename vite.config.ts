@@ -10,6 +10,9 @@ export default defineConfig({
   server: {
     open: true,
   },
+  preview: {
+    allowedHosts: ["ledgerapp.fun"],
+  },
   plugins: [
     react(),
     nodePolyfills({
