@@ -364,7 +364,7 @@ module ledge_addr::message_minter {
             let resource_account_addr = fees::get_resource_account_address();
 
             assert!(
-                coin::balance<Emojicoin>(sender_addr) > mint_fees,
+                coin::balance<Emojicoin>(sender_addr) >= mint_fees,
                 ENOT_ENOUGH_BALANCE
             );
 
