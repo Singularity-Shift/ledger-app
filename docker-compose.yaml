@@ -1,0 +1,19 @@
+services:
+  ledger_app:
+    image: node:latest
+    container_name: ledger_app
+    working_dir: /usr/src/ledger_app
+    command: sh -c "npm install --legacy-peer-deps && npm run build && npm run preview -- --host 0.0.0.0 --no-open"
+    ports:
+      - "4173:4173"
+    environment:
+      VITE_APP_NETWORK: ${VITE_APP_NETWORK}
+      VITE_COLLECTION_ADDRESS: ${VITE_COLLECTION_ADDRESS}
+      VITE_SOCIAL_X: ${VITE_SOCIAL_X}
+      VITE_SOCIAL_DISCORD: ${VITE_SOCIAL_DISCORD}
+      VITE_SOCIAL_TELEGRAM: ${VITE_SOCIAL_TELEGRAM}
+      VITE_SOCIAL_HOMEPAGE: ${VITE_SOCIAL_HOMEPAGE}
+      VITE_COIN_TYPE: ${VITE_COIN_TYPE}
+      VITE_CHAT_PAGE: ${VITE_CHAT_PAGE}
+    volumes:
+      - ./:/usr/src/ledger_app
