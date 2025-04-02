@@ -164,10 +164,8 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   };
 
   const handleRemoveDrawing = () => {
-    if (window.confirm('Are you sure you want to remove this drawing? This cannot be undone.')) {
-      setDrawnImage(null);
-      clearDrawingState();
-    }
+    setDrawnImage(null);
+    clearDrawingState();
   };
 
   useEffect(() => {
