@@ -482,9 +482,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         );
 
         toast({ title: "Success", description: "Your drawing has been submitted!" });
-        clearDrawingState(); // Clear saved state on successful submit
         setIsRestored(false); // Reset restored flag so next open checks storage again
-        console.log("Drawing submitted, state cleared.");
+        console.log("Drawing submitted, state NOT cleared yet."); // Modified log message
         onClose(); // Close the portal
       }
     } catch (error) {
@@ -499,7 +498,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     onSubmit,
     elapsedTime,
     traceImage,
-    clearDrawingState,
     onClose,
     drawingStartTime,
     getSecurityToken,
