@@ -1,16 +1,11 @@
-import { WebIrys } from "@irys/sdk";
+import { WebUploader } from "@irys/web-upload";
+import { WebAptos } from "@irys/web-upload-aptos";
 import { WalletContextState } from "@aptos-labs/wallet-adapter-react";
-import { NETWORK } from "@/constants";
 import { Aptos } from "@aptos-labs/ts-sdk";
 
 const getWebIrys = async (aptosWallet: WalletContextState) => {
-  const network = NETWORK === "testnet" ? "devnet" : "mainnet"; // Irys network
-  const token = "aptos";
-  const rpcUrl = NETWORK; // Aptos network "mainnet" || "testnet"
-  const wallet = { rpcUrl: rpcUrl, name: "aptos", provider: aptosWallet };
-  const webIrys = new WebIrys({ network, token, wallet });
-  await webIrys.ready();
-  return webIrys;
+  const irysUploader = await WebUploader(WebAptos).withProvider(aptosWallet);
+  return irysUploader;
 };
 
 export const checkIfFund = async (aptosWallet: WalletContextState, files: File[], aptos: Aptos) => {
@@ -18,7 +13,7 @@ export const checkIfFund = async (aptosWallet: WalletContextState, files: File[]
   const webIrys = await getWebIrys(aptosWallet);
   const costToUpload = await webIrys.utils.estimateFolderPrice(files.map((f) => f.size));
   // 2. check the wallet balance on the irys node: irys.getLoadedBalance()
-  const irysBalance = await webIrys.getLoadedBalance();
+  const irysBalance = await webIrys.getBalance();
 
   // 3. if balance is enough, then upload without funding
   if (irysBalance.toNumber() > costToUpload.toNumber()) {
