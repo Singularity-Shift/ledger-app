@@ -18,6 +18,7 @@ import DrawingTimer from "./sketch/DrawingTimer";
 // Import custom hooks
 import useSketchTimer from "./sketch/useSketchTimer";
 import useSketchExport from "./sketch/useSketchExport";
+import { moderateImage } from "@/utils/imageModeration";
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
@@ -290,6 +291,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Handle submission
   const handleSubmit = useCallback(async () => {
+    let moderationPassed = false; // Flag to track moderation status
     try {
       if (sketchCanvasRef.current?.canvasRef.current && onSubmit) {
         console.log("Submitting drawing...");
@@ -299,15 +301,56 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           sketchCanvasRef.current.canvasRef,
           canvasSize,
           elapsedTime,
-          drawingStartTime, // Use the actual drawingStartTime instead of Date.now()
+          drawingStartTime,
           traceImage,
           getSecurityToken
         );
 
-        if (!exportResult) {
-          console.error("Export failed");
+        if (!exportResult || !exportResult.file) {
+          console.error("Export failed or file missing");
+          toast({ variant: "destructive", title: "Export Error", description: "Could not generate the image file." });
           return;
         }
+
+        console.log("Image exported, proceeding to moderation...");
+
+        // --- Moderation Step --- START
+        const fileToDataUrl = (file: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
+
+        let isFlagged = true; // Default to flagged to be safe
+        try {
+          const imageDataUrl = await fileToDataUrl(exportResult.file);
+          isFlagged = await moderateImage(imageDataUrl);
+        } catch (moderationError) {
+          console.error("Error during image moderation:", moderationError);
+          toast({
+            variant: "destructive",
+            title: "Moderation Error",
+            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ''}`,
+          });
+          return; // Stop submission if moderation API fails
+        }
+
+        if (isFlagged) {
+          console.warn("Image failed moderation check.");
+          toast({
+            variant: "destructive",
+            title: "Moderation Failed",
+            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
+          });
+          return; // Stop submission if flagged
+        }
+        // --- Moderation Step --- END
+
+        console.log("Moderation passed. Submitting...");
+        moderationPassed = true; // Mark as passed
 
         // Call onSubmit with the exported data
         onSubmit(
@@ -326,11 +369,14 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       }
     } catch (error) {
       console.error("Error submitting drawing:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to submit your drawing: ${error instanceof Error ? error.message : String(error)}`,
-      });
+      // Only show generic submission error if moderation hasn't already failed
+      if (!moderationPassed) { 
+        toast({
+          variant: "destructive",
+          title: "Submission Error",
+          description: `Failed to submit your drawing: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
     }
   }, [onSubmit, elapsedTime, traceImage, onClose, getSecurityToken, exportMergedSketch, canvasSize, toast, drawingStartTime]);
 
