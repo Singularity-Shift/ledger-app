@@ -528,22 +528,19 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               />
             </div>
 
-            {/* Middle Row - Color and Size */}
-            <div className="grid grid-cols-2 gap-1">
-              {/* Color Selector */}
-              <ColorSelector
-                baseColor={baseColor}
-                setBaseColor={setBaseColor}
-                customColor={customColor}
-                setCustomColor={setCustomColor}
-              />
-
-              {/* Pencil Size */}
-              <StrokeWidthControl strokeWidth={strokeWidth} setStrokeWidth={setStrokeWidth} />
-            </div>
-
-            {/* Pencil Grade Selector */}
+            {/* Pencil Grade Selector - Moved Up */}
             <PencilGradeSelector selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
+
+            {/* Color Selector */}
+            <ColorSelector
+              baseColor={baseColor}
+              setBaseColor={setBaseColor}
+              customColor={customColor}
+              setCustomColor={setCustomColor}
+            />
+
+            {/* Stroke Width Control (Pencil Size) */}
+            <StrokeWidthControl strokeWidth={strokeWidth} setStrokeWidth={setStrokeWidth} />
 
             {/* Action Buttons */}
             <ActionButtons
