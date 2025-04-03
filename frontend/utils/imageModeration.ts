@@ -1,8 +1,42 @@
 import OpenAI from "openai";
-import * as dotenv from "dotenv";
+// Removed dotenv import as it's not needed for Vite env vars
+
+// --- Custom Moderation Thresholds --- START
+// Adjust these values (0.0 to 1.0) to control sensitivity.
+// Higher values = less sensitive (more permissive).
+// Lower values = more sensitive (stricter).
+const CUSTOM_THRESHOLDS = {
+  // Hate speech (Text Only according to docs, but set low as a safeguard)
+  "hate": 0.2,
+  "hate/threatening": 0.1, // Very strict
+
+  // Self-harm (Image Applicable)
+  "self-harm": 0.2,
+  "self-harm/intent": 0.1, // Very strict
+  "self-harm/instructions": 0.1, // Very strict
+
+  // Violence (Image Applicable)
+  "violence": 0.4,
+  "violence/graphic": 0.2, // Stricter for graphic
+
+  // Sexual Content (Image Applicable)
+  "sexual": 0.5, // Moderate - adjust based on specific context if needed
+
+  // Sexual Content - Minors (Text Only according to docs, but set extremely low)
+  "sexual/minors": 0.1,
+
+  // Harassment (Text Only according to docs, but set low)
+  "harassment": 0.3,
+  "harassment/threatening": 0.2, // Stricter
+
+  // Illicit Activities (Text Only according to docs, but set low/moderate)
+  "illicit": 0.4,
+  "illicit/violent": 0.3, // Stricter
+};
+// --- Custom Moderation Thresholds --- END
 
 // Load environment variables - Ensure your VITE_OPENAI_API_KEY is in the .env file
-dotenv.config();
+// Removed dotenv.config()
 
 const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
 
@@ -17,9 +51,9 @@ const openai = new OpenAI({
 });
 
 /**
- * Moderates an image using the OpenAI Moderation API.
+ * Moderates an image using the OpenAI Moderation API based on custom thresholds.
  * @param imageDataUrl Base64 encoded image data URL (e.g., "data:image/png;base64,...").
- * @returns True if the image is flagged as potentially harmful, false otherwise.
+ * @returns True if the image is flagged based on custom thresholds, false otherwise.
  * @throws Error if the API call fails or the API key is missing.
  */
 export async function moderateImage(imageDataUrl: string): Promise<boolean> {
@@ -49,13 +83,34 @@ export async function moderateImage(imageDataUrl: string): Promise<boolean> {
 
     console.log("Moderation response:", response);
 
-    // Check if any result is flagged
-    const isFlagged = response.results.some((result) => result.flagged);
+    // --- Custom Threshold Check --- START
+    let isFlagged = false;
+    const flaggedCategories: { category: string; score: number; threshold: number }[] = [];
+
+    for (const result of response.results) {
+      for (const category in CUSTOM_THRESHOLDS) {
+        // Ensure the category exists in the response scores and our thresholds
+        if (category in result.category_scores && category in CUSTOM_THRESHOLDS) {
+          const score = result.category_scores[category as keyof typeof result.category_scores];
+          const threshold = CUSTOM_THRESHOLDS[category as keyof typeof CUSTOM_THRESHOLDS];
+
+          if (score > threshold) {
+            isFlagged = true;
+            flaggedCategories.push({ category, score, threshold });
+            // Optional: break early if one flag is enough
+            // break;
+          }
+        }
+      }
+      // Optional: break outer loop if already flagged
+      // if (isFlagged) break;
+    }
+    // --- Custom Threshold Check --- END
 
     if (isFlagged) {
-      console.warn("Image flagged by moderation:", response.results.filter(r => r.flagged));
+      console.warn("Image flagged by custom moderation thresholds:", flaggedCategories);
     } else {
-      console.log("Image passed moderation.");
+      console.log("Image passed custom moderation thresholds.");
     }
 
     return isFlagged;
