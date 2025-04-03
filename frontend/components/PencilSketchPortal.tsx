@@ -43,8 +43,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [tracingActive, setTracingActive] = useState(drawingState?.traceConfig?.active ?? false);
   const [imagePosition, setImagePosition] = useState(drawingState?.traceConfig?.position ?? { x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(drawingState?.traceConfig?.scale ?? 1);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isAdjustMode, setIsAdjustMode] = useState(false);
 
   // Initialize timer hook
@@ -240,7 +238,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Save state on drawing/erasing actions
   const handlePointerUp = useCallback(() => {
     setIsErasing(false);
-    setIsDragging(false);
     saveCurrentState(); // Save after drawing action completes
   }, [saveCurrentState]);
 
@@ -344,6 +341,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -409,20 +407,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // When in adjust mode, allow dragging of tracing image
-    if (isAdjustMode && tracingActive && traceImage) {
-      const rect = sketchCanvasRef.current?.canvasContainerRef.current?.getBoundingClientRect();
-      if (rect) {
-        setIsDragging(true);
-        setDragStart({
-          x: e.clientX - imagePosition.x,
-          y: e.clientY - imagePosition.y,
-        });
-      }
-      e.preventDefault();
-      return;
-    }
-
     // When in draw mode with eraser active
     if (!isAdjustMode && isEraser) {
       setIsErasing(true);
@@ -437,16 +421,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    // When in adjust mode and dragging tracing image
-    if (isAdjustMode && isDragging && tracingActive && traceImage) {
-      setImagePosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-      e.preventDefault();
-      return;
-    }
-
     // When in draw mode with eraser active
     if (!isAdjustMode && isEraser && isErasing) {
       const rect = sketchCanvasRef.current?.canvasContainerRef.current?.getBoundingClientRect();
@@ -491,6 +465,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               imageScale={imageScale}
               cursorPosition={cursorPosition}
               scaledStrokeWidth={scaledStrokeWidth}
+              setImagePosition={setImagePosition}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}

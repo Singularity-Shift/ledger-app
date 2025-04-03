@@ -22,6 +22,8 @@ export const TracingControls: React.FC<TracingControlsProps> = ({
   handleToggleTracing,
   handleScaleIncrease,
   handleScaleDecrease,
+  onImageSelect,
+  fileInputRef,
 }) => {
   return (
     <>
@@ -71,6 +73,15 @@ export const TracingControls: React.FC<TracingControlsProps> = ({
           <div className="text-xs text-gray-600 mt-1 text-center italic">Drag image to position</div>
         </div>
       )}
+
+      {/* Hidden file input for image selection */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={onImageSelect}
+        accept="image/*"
+        style={{ display: "none" }}
+      />
     </>
   );
 };
