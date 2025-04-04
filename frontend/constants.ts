@@ -11,3 +11,6 @@ export const SOCIAL_X = import.meta.env.VITE_SOCIAL_X;
 export const SOCIAL_DISCORD = import.meta.env.VITE_SOCIAL_DISCORD;
 export const SOCIAL_TELEGRAM = import.meta.env.VITE_SOCIAL_TELEGRAM;
 export const SOCIAL_HOMEPAGE = import.meta.env.VITE_SOCIAL_HOMEPAGE;
+
+// Secondary marketplace 
+export const SECONDARY_MARKETPLACE = import.meta.env.VITE_SECONDARY_MARKETPLACE;

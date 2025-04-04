@@ -17,7 +17,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Socials } from "@/pages/Mint/components/Socials";
 import { PencilSketchPortal } from "@/components/PencilSketchPortal";
 // Internal constants
-import { COIN_TYPE, COLLECTION_ADDRESS, NETWORK } from "@/constants";
+import { COIN_TYPE, COLLECTION_ADDRESS, NETWORK, SECONDARY_MARKETPLACE } from "@/constants";
 // Internal config
 import { config } from "@/config";
 import { updateMintData } from "@/utils/assetsUploader";
@@ -302,6 +302,15 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             >
               View on Explorer <Image src={ExternalLink} className="w-4 h-4 md:w-5 md:h-5" />
             </a>
+            {SECONDARY_MARKETPLACE && (
+              <a
+                className={buttonVariants({ variant: "link", className: "text-sm md:text-base" })}
+                target="_blank"
+                href={SECONDARY_MARKETPLACE}
+              >
+                Marketplace <Image src={ExternalLink} className="w-4 h-4 md:w-5 md:h-5" />
+              </a>
+            )}
           </div>
         </div>
       </div>
