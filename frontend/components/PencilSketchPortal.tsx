@@ -92,36 +92,46 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           const containerHeight = entry.contentRect.height;
           const containerWidth = entry.contentRect.width;
 
-          // Calculate available space for canvas (accounting for controls)
-          const controlsHeight = 350; // Increased to account for tracing controls
-          const availableHeight = Math.max(containerHeight - controlsHeight, 300);
-          const availableWidth = Math.max(containerWidth - 40, 300); // 40px for padding
-
-          // Calculate the reduction factor based on screen size
-          const isMobile = window.innerWidth <= 768; // Standard mobile breakpoint
-
-          // Apply additional size reduction for very small devices (Galaxy S8 size)
-          let reductionFactor = isMobile ? 0.95 : 0.92;
-
           // Get actual window dimensions
           const windowWidth = window.innerWidth;
           const windowHeight = window.innerHeight;
 
-          // Further reduce size for smaller devices based on window dimensions
-          if (windowHeight <= 800 || windowWidth <= 400) {
-            reductionFactor = isMobile ? 0.8 : 0.75;
+          // Calculate available space for canvas (accounting for controls)
+          // Use smaller control height value for smaller screens
+          const controlsHeight = windowWidth <= 960 ? 270 : 350;
+          const availableHeight = Math.max(containerHeight - controlsHeight, 300);
+          const availableWidth = Math.max(containerWidth - 40, 300); // 40px for padding
 
-            // For extra small devices like Galaxy S8, use even smaller factor
+          // Base reduction factor - adjusted for different viewport sizes
+          let reductionFactor = 0.92; // Default for larger screens
+          
+          // Add specific breakpoint for sub-960px widths
+          if (windowWidth <= 960) {
+            reductionFactor = 0.85; // More aggressive reduction for widths below 960px
+          }
+
+          // Apply additional size reduction for very small devices
+          if (windowWidth <= 768) {
+            reductionFactor = 0.8; // For tablets and smaller devices
+          }
+
+          // Further reduce size for smaller devices
+          if (windowHeight <= 800 || windowWidth <= 400) {
+            reductionFactor = 0.7;
+            
+            // Even smaller for very small devices
             if (windowWidth <= 360) {
-              reductionFactor = 0.7;
+              reductionFactor = 0.6;
             }
           }
 
           // Use the smaller of width or height to maintain square aspect ratio
           // Allow larger canvas on desktop (up to 1200px)
-          const maxCanvasSize = isMobile ? 900 : 1200;
+          const maxCanvasSize = windowWidth <= 960 ? 800 : 1200; // Smaller max for sub-960px
           const size = Math.min(availableWidth, availableHeight, maxCanvasSize) * reductionFactor;
           setCanvasSize(size);
+
+          console.log(`Canvas sizing: width=${windowWidth}px, factor=${reductionFactor}, size=${size}px`); // Debug info
         }
       });
 
@@ -485,10 +495,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 overflow-y-auto">
       <div
         ref={containerRef}
-        className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col my-2 max-h-[98vh]"
+        className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col my-1 sm:my-2 max-h-[98vh]"
       >
         {/* Header */}
-        <div className="p-2 bg-gray-100 border-b border-gray-200">
+        <div className="p-1 sm:p-2 bg-gray-100 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold">Sketch Your Page</h2>
             <DrawingTimer elapsedTime={elapsedTime} />
@@ -496,8 +506,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         </div>
 
         {/* Canvas Container */}
-        <div className="p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50">
-          <div className="bg-white p-2 md:p-4 rounded-lg shadow-sm">
+        <div className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50">
+          <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm">
             <SketchCanvas
               ref={sketchCanvasRef}
               canvasSize={canvasSize}
@@ -520,7 +530,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         </div>
 
         {/* Controls */}
-        <div className="p-2 bg-gray-100 border-t border-gray-200 overflow-y-auto">
+        <div className="p-1 sm:p-2 bg-gray-100 border-t border-gray-200 overflow-y-auto">
           <div className="max-w-[500px] mx-auto space-y-1">
             {/* Top Row - Mode Controls */}
             <div className="grid grid-cols-2 gap-1">
