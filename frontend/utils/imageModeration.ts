@@ -17,10 +17,10 @@ const CUSTOM_THRESHOLDS = {
 
   // Violence (Image Applicable)
   "violence": 0.4,
-  "violence/graphic": 0.2, // Stricter for graphic
+  "violence/graphic": 0.4, // Stricter for graphic
 
   // Sexual Content (Image Applicable)
-  "sexual": 0.5, // Moderate - adjust based on specific context if needed
+  "sexual": 0.6, // Moderate - adjust based on specific context if needed
 
   // Sexual Content - Minors (Text Only according to docs, but set extremely low)
   "sexual/minors": 0.1,
