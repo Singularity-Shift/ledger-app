@@ -7,7 +7,7 @@ import OpenAI from "openai";
 // Lower values = more sensitive (stricter).
 const CUSTOM_THRESHOLDS = {
   // Hate speech (Text Only according to docs, but set low as a safeguard)
-  "hate": 0.2,
+  "hate": 0.1,
   "hate/threatening": 0.1, // Very strict
 
   // Self-harm (Image Applicable)
@@ -16,22 +16,22 @@ const CUSTOM_THRESHOLDS = {
   "self-harm/instructions": 0.1, // Very strict
 
   // Violence (Image Applicable)
-  "violence": 0.4,
-  "violence/graphic": 0.4, // Stricter for graphic
+  "violence": 0.2,
+  "violence/graphic": 0.2, // Stricter for graphic
 
   // Sexual Content (Image Applicable)
-  "sexual": 0.8, // Moderate - adjust based on specific context if needed
+  "sexual": 0.2, // Moderate - adjust based on specific context if needed
 
   // Sexual Content - Minors (Text Only according to docs, but set extremely low)
   "sexual/minors": 0.1,
 
   // Harassment (Text Only according to docs, but set low)
-  "harassment": 0.3,
-  "harassment/threatening": 0.2, // Stricter
+  "harassment": 0.1,
+  "harassment/threatening": 0.1, // Stricter
 
   // Illicit Activities (Text Only according to docs, but set low/moderate)
   "illicit": 0.4,
-  "illicit/violent": 0.3, // Stricter
+  "illicit/violent": 0.1, // Stricter
 };
 // --- Custom Moderation Thresholds --- END
 
