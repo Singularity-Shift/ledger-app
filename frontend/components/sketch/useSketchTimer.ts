@@ -3,11 +3,17 @@ import { useState, useRef, useEffect } from 'react';
 export const useSketchTimer = (
   isOpen: boolean,
   isRestored: boolean,
-  initialElapsedTime: number = 0
+  initialElapsedTime: number = 0,
+  initialDrawingStartTime: number | null = null
 ) => {
   const [elapsedTime, setElapsedTime] = useState(initialElapsedTime);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [drawingStartTime] = useState<number>(Date.now());
+  const [startTime] = useState<number>(initialDrawingStartTime ?? Date.now());
+
+  // Update initial state based on props when they change (especially after restoration)
+  useEffect(() => {
+    setElapsedTime(initialElapsedTime);
+  }, [initialElapsedTime]);
 
   // Timer management
   useEffect(() => {
@@ -40,11 +46,11 @@ export const useSketchTimer = (
   const getSecurityToken = () => {
     // Create a verification token that includes a hash of start time
     const verificationData = {
-      startTimestamp: drawingStartTime,
+      startTimestamp: startTime,
       currentTimestamp: Date.now(),
       sessionId: sessionStorage.getItem("ledgerDrawingSessionSecret") || "unknown",
       // Include a hash of the combined data
-      hash: btoa(`${drawingStartTime}:${sessionStorage.getItem("ledgerDrawingSessionSecret") || "unknown"}`),
+      hash: btoa(`${startTime}:${sessionStorage.getItem("ledgerDrawingSessionSecret") || "unknown"}`),
     };
     return btoa(JSON.stringify(verificationData));
   };
@@ -52,7 +58,7 @@ export const useSketchTimer = (
   return {
     elapsedTime,
     setElapsedTime,
-    drawingStartTime,
+    drawingStartTime: startTime,
     getSecurityToken,
   };
 };

@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 
 // Define the structure for the saved drawing state
 interface DrawingState {
-  drawingPaths: any[] | null; // Store paths from react-sketch-canvas
+  drawingLayerJSON: string | null; // Store Konva layer state as JSON string
   elapsedTime: number;
+  drawingStartTime: number | null; // ADDED: Timestamp when drawing/timer first started
   lastActiveTimestamp: number | null;
   traceImage: string | null;
   traceConfig: {
@@ -43,8 +44,9 @@ const calculateSignature = (state: Omit<DrawingState, 'signature'>): string => {
   try {
     // Create a string representation of state without the signature field
     const stateString = JSON.stringify({
-      drawingPaths: state.drawingPaths,
+      drawingLayerJSON: state.drawingLayerJSON ? '[KONVA_LAYER_JSON]' : null, // Placeholder for JSON
       elapsedTime: state.elapsedTime,
+      drawingStartTime: state.drawingStartTime, // INCLUDE in signature
       lastActiveTimestamp: state.lastActiveTimestamp,
       traceImage: state.traceImage ? '[TRACE_IMAGE_DATA]' : null, // Replace actual image data with placeholder to keep signature shorter
       traceConfig: state.traceConfig,
@@ -138,9 +140,32 @@ export const useDrawingState = () => {
   // Function to update and save the state
   const saveDrawingState = useCallback((newState: Partial<DrawingState>) => {
     setState(prevState => {
-      const updatedState = { ...(prevState || {} as DrawingState), ...newState };
-      saveStateToStorage(updatedState);
-      return updatedState;
+      // Merge new state with previous, ensuring defaults for a potentially null prevState
+      const mergedState: Partial<DrawingState> = {
+        drawingLayerJSON: null,
+        elapsedTime: 0,
+        drawingStartTime: null,
+        lastActiveTimestamp: null,
+        traceImage: null,
+        traceConfig: null,
+        pencilConfig: null,
+        ...(prevState || {}), // Spread previous state if it exists
+        ...newState, // Override with new state parts
+      };
+
+      // Ensure required fields have valid values before saving (using mergedState)
+      const stateToSave: DrawingState = {
+        drawingLayerJSON: mergedState.drawingLayerJSON ?? null,
+        elapsedTime: mergedState.elapsedTime ?? 0,
+        drawingStartTime: mergedState.drawingStartTime ?? Date.now(), // Provide default start time
+        lastActiveTimestamp: mergedState.lastActiveTimestamp ?? Date.now(),
+        traceImage: mergedState.traceImage ?? null,
+        traceConfig: mergedState.traceConfig ?? { active: false, position: { x: 0, y: 0 }, scale: 1 }, // Default trace config
+        pencilConfig: mergedState.pencilConfig ?? { color: '#000000', width: 2, gradeLabel: 'HB', isEraser: false }, // Default pencil config
+      };
+
+      saveStateToStorage(stateToSave); // Pass the validated DrawingState object
+      return stateToSave; // Return the full state
     });
   }, []);
 

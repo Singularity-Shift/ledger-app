@@ -150,14 +150,14 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const handleSketchSubmit = (
     image: File,
     time: number,
-    path: string,
     id: string,
     tracingUsed: boolean = false,
     token: string,
   ) => {
     setDrawnImage(image);
     setDrawingTime(time);
-    setDrawPath(path);
+    const imageUrl = URL.createObjectURL(image);
+    setDrawPath(imageUrl);
     setMintId(id);
     setUsedTracing(tracingUsed);
     setSecurityToken(token);

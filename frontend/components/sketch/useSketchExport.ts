@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { ReactSketchCanvasRef } from 'react-sketch-canvas';
-import Paper from '@/assets/placeholders/paper.png';
+// import { ReactSketchCanvasRef } from 'react-sketch-canvas'; // REMOVED
+import Konva from 'konva'; // IMPORT Konva
+// import Paper from '@/assets/placeholders/paper.png'; // REMOVED - Assume background is handled by Konva Stage/Layers
 import { toast } from '@/components/ui/use-toast';
 import { COLLECTION_ADDRESS } from '@/constants';
 import { useAbiClient } from '@/contexts/AbiProvider';
@@ -10,74 +11,50 @@ export const useSketchExport = () => {
 
   const exportMergedSketch = useCallback(
     async (
-      canvasRef: React.RefObject<ReactSketchCanvasRef>,
-      canvasSize: number,
+      // canvasRef: React.RefObject<ReactSketchCanvasRef>, // REMOVED
+      stageRef: React.RefObject<Konva.Stage>, // CHANGED to Stage Ref
+      canvasSize: number, // Keep for potential metadata or validation?
       elapsedTime: number,
       drawingStartTime: number,
-      traceImage: string | null,
+      traceImage: string | null, // Keep for usedTracing flag
       getSecurityToken: () => string
     ) => {
       try {
-        if (!canvasRef.current) {
-          throw new Error('Canvas reference is not available');
+        // if (!canvasRef.current) { // REMOVED
+        if (!stageRef.current) { // CHECK Stage Ref
+          throw new Error('Konva Stage reference is not available');
         }
 
-        console.log("Exporting drawing...");
+        console.log("Exporting Konva stage...");
 
-        // 1. Export the drawing layer (transparent background)
-        const drawingDataUrl = await canvasRef.current.exportImage("png");
-
-        // --- Merging Logic Start ---
-
-        // 2. Create a temporary canvas
-        const tempCanvas = document.createElement("canvas");
-        const ctx = tempCanvas.getContext("2d");
-        if (!ctx) {
-          throw new Error("Failed to get 2D context for merging");
-        }
-
-        // 3. Set temporary canvas dimensions
-        tempCanvas.width = canvasSize;
-        tempCanvas.height = canvasSize;
-
-        // 4. Load both paper background and drawing images
-        const paperImg = new Image();
-        const drawingImg = new Image();
-
-        const loadImage = (img: HTMLImageElement, src: string): Promise<void> => {
-          return new Promise((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = reject;
-            img.src = src;
-          });
-        };
-
-        await Promise.all([
-          loadImage(paperImg, Paper), // Use the imported Paper variable
-          loadImage(drawingImg, drawingDataUrl),
-        ]);
-
-        // 5. Draw background image first
-        ctx.drawImage(paperImg, 0, 0, tempCanvas.width, tempCanvas.height);
-
-        // 6. Draw the user's sketch on top
-        ctx.drawImage(drawingImg, 0, 0, tempCanvas.width, tempCanvas.height);
-
-        // 7. Export the merged canvas as a Blob
-        const blob = await new Promise<Blob | null>((resolve) => {
-          tempCanvas.toBlob(resolve, "image/png");
+        // 1. Export the entire stage as Data URL
+        // Konva handles merging visible layers automatically
+        const drawingDataUrl = stageRef.current.toDataURL({
+          mimeType: "image/png",
+          // Optional: Adjust quality or resolution if needed
+          // quality: 0.8,
+          // pixelRatio: 2, // For higher resolution export
         });
 
-        if (!blob) {
-          throw new Error("Failed to create blob from merged canvas");
+        if (!drawingDataUrl) {
+           throw new Error("Failed to export stage to data URL");
         }
 
-        // Calculate server-verifiable metrics
+        // --- Merging Logic Removed (Konva handles it) ---
+
+        // 2. Convert Data URL to Blob
+        const fetchRes = await fetch(drawingDataUrl);
+        const blob = await fetchRes.blob();
+
+        if (!blob) {
+          throw new Error("Failed to create blob from exported stage data");
+        }
+
+        // 3. Calculate server-verifiable metrics (Keep existing logic)
         const actualElapsedSeconds = Math.floor((Date.now() - drawingStartTime) / 1000);
         const reportedElapsedSeconds = elapsedTime;
 
-        // Detect potential timer manipulation - use a more forgiving validation
-        // Only validate if the actual time is less than half the reported time
+        // Detect potential timer manipulation (Keep existing logic)
         if (actualElapsedSeconds < reportedElapsedSeconds * 0.2) {
           console.warn("Potential timer manipulation detected!");
           console.log(`Actual seconds: ${actualElapsedSeconds}, Reported seconds: ${reportedElapsedSeconds}`);
@@ -89,25 +66,23 @@ export const useSketchExport = () => {
           return null;
         }
 
-        // Get NFT ID
+        // 4. Get NFT ID (Keep existing logic)
         const idResult = await abi?.useABI(ledgeABI).view.get_nft_minted({
           typeArguments: [],
           functionArguments: [COLLECTION_ADDRESS],
         });
         const id = parseInt(idResult?.[0] || "0") + 1;
 
-        // Create the File object from the merged blob
+        // 5. Create the File object from the blob
         const file = new File([blob], `${id}.png`, { type: "image/png" });
 
-        // Get the Data URL for the merged image
-        const mergedDataUrl = tempCanvas.toDataURL("image/png");
-
-        // Return the submission data
+        // 6. Return the submission data
         return {
           file,
-          drawPath: mergedDataUrl,
+          // drawPath: mergedDataUrl, // REMOVED
+          drawPath: "", // Or null, consistent with PencilSketchPortal change
           id: id.toString(),
-          usedTracing: !!traceImage,
+          usedTracing: !!traceImage, // Base this on the presence of the initial traceImage prop
           securityToken: getSecurityToken(),
           success: true,
         };

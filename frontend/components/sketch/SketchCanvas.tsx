@@ -1,32 +1,49 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas';
-import Paper from '@/assets/placeholders/paper.png';
-import TraceImageLayer from './TraceImageLayer';
-import { pencilCursor, eraserCursor } from './sketchConstants';
+import React, { useRef, useState, forwardRef, useImperativeHandle, useEffect } from "react";
+import { Stage, Layer, Line, Image as KonvaImage, Transformer } from "react-konva";
+import Konva from "konva"; // Import Konva namespace for type hints and core functionalities
+import useImage from "use-image"; // Helper hook for loading images in Konva
+import Paper from '@/assets/placeholders/paper.png'; // Re-import Paper asset
 
+// Keep relevant existing types/imports
+import { PencilGrade } from "./sketchTypes"; // Assuming this is still relevant for opacity
+import { findGradeByLabel, PENCIL_GRADES, COLORS, pencilCursor, eraserCursor } from "./sketchConstants"; // Re-import cursor constants
+
+// --- Remove react-sketch-canvas imports ---
+// import { ReactSketchCanvas, ReactSketchCanvasRef, ReactSketchCanvasProps } from "react-sketch-canvas";
+
+// New Props for Konva-based canvas
 interface SketchCanvasProps {
   canvasSize: number;
-  strokeColor: string;
+  strokeColor: string; // Expecting rgba format including opacity now
   isEraser: boolean;
-  isErasing: boolean;
+  isErasing: boolean; // Keep for potential eraser cursor/visuals
   isAdjustMode: boolean;
   tracingActive: boolean;
-  traceImage: string | null;
+  traceImage: string | null; // Base64 string or URL
   imagePosition: { x: number; y: number };
-  setImagePosition: (position: { x: number; y: number }) => void;
   imageScale: number;
-  cursorPosition: { x: number; y: number };
+  cursorPosition: { x: number; y: number }; // Keep for potential custom cursor
   scaledStrokeWidth: number;
-  onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerLeave?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  setImagePosition: (position: { x: number; y: number }) => void; // Keep for trace image adjustment
+  setImageScale: (scale: number) => void; // Added prop to update scale from here
+  onPointerDown?: (e: Konva.KonvaEventObject<PointerEvent>) => void; // Update event type
+  onPointerMove?: (e: Konva.KonvaEventObject<PointerEvent>) => void; // Update event type
+  onPointerUp?: (e: Konva.KonvaEventObject<PointerEvent>) => void; // Update event type
+  // Potentially add more Konva specific callbacks if needed
 }
 
+// Define the type for the forwarded ref handle
 export interface SketchCanvasHandle {
-  canvasRef: React.RefObject<ReactSketchCanvasRef>;
-  fileInputRef: React.RefObject<HTMLInputElement>;
-  canvasContainerRef: React.RefObject<HTMLDivElement>;
+  stageRef: React.RefObject<Konva.Stage>;
+  drawingLayerRef: React.RefObject<Konva.Layer>;
+  traceLayerRef: React.RefObject<Konva.Layer>;
+  // Potentially add methods like clearCanvas, undo, redo, export etc. later
+  clearCanvas: () => void;
+  undo: () => void; // Add undo method signature
+  redo: () => void; // Add redo method signature
+  // Add methods for export if needed later
+  // Keep fileInputRef if tracing upload button stays here, otherwise remove/move
+  // fileInputRef: React.RefObject<HTMLInputElement>;
 }
 
 export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
@@ -35,162 +52,264 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       canvasSize,
       strokeColor,
       isEraser,
-      isErasing,
+      isErasing, // Keep for cursor/visuals
       isAdjustMode,
       tracingActive,
       traceImage,
       imagePosition,
-      setImagePosition,
       imageScale,
-      cursorPosition,
+      cursorPosition, // Keep for cursor/visuals
       scaledStrokeWidth,
+      setImagePosition, // Keep for trace image
+      setImageScale, // Destructure new prop
       onPointerDown,
       onPointerMove,
       onPointerUp,
-      onPointerLeave,
     },
     ref,
   ) => {
-    const canvasRef = React.useRef<ReactSketchCanvasRef>(null);
-    const canvasContainerRef = React.useRef<HTMLDivElement>(null);
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const stageRef = useRef<Konva.Stage>(null);
+    const drawingLayerRef = useRef<Konva.Layer>(null);
+    const traceLayerRef = useRef<Konva.Layer>(null);
+    const imageRef = useRef<Konva.Image>(null); // Ref for the trace image
+    const transformerRef = useRef<Konva.Transformer>(null); // Ref for the transformer
+    // const fileInputRef = useRef<HTMLInputElement>(null); // Keep if trace upload button is here
 
-    // State for dragging within SketchCanvas
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [lines, setLines] = useState<Konva.LineConfig[]>([]);
+    const [currentLine, setCurrentLine] = useState<number[] | null>(null); // Store points [x1, y1, x2, y2, ...]
+    const isDrawing = useRef(false);
 
-    // Setup eraser mode when it changes
+    // State for redo functionality
+    const [redoStack, setRedoStack] = useState<Konva.LineConfig[]>([]);
+
+    // Load trace image using useImage hook
+    const [loadedTraceImage] = useImage(traceImage || ""); // Pass empty string if null
+
+    // Attach transformer to image when in adjust mode
     useEffect(() => {
-      if (canvasRef.current) {
-        if (isEraser) {
-          canvasRef.current.eraseMode(true);
-        } else {
-          canvasRef.current.eraseMode(false);
-        }
+      if (isAdjustMode && tracingActive && imageRef.current && transformerRef.current) {
+        transformerRef.current.nodes([imageRef.current]);
+        transformerRef.current.getLayer()?.batchDraw();
+      } else {
+        // Detach transformer if not in adjust mode or tracing inactive
+        transformerRef.current?.nodes([]);
       }
-    }, [isEraser]);
+    }, [isAdjustMode, tracingActive, loadedTraceImage]); // Rerun when mode/image changes
 
-    // Expose refs to parent
+    // Expose methods and refs via useImperativeHandle
     useImperativeHandle(ref, () => ({
-      canvasRef,
-      fileInputRef,
-      canvasContainerRef,
+      stageRef,
+      drawingLayerRef,
+      traceLayerRef,
+      // fileInputRef, // Expose if needed
+      clearCanvas: () => {
+        setLines([]); // Clear internal React state for lines
+        setRedoStack([]); // Clear redo stack as well
+        const layer = drawingLayerRef.current;
+        if (layer) {
+            layer.destroyChildren(); // Clear Konva layer directly
+            layer.draw(); // Redraw the empty layer
+        }
+      },
+      undo: () => {
+        setLines((prevLines) => {
+          if (prevLines.length === 0) {
+            return []; // Nothing to undo
+          }
+          const lastLine = prevLines[prevLines.length - 1];
+          // Add the undone line to the redo stack
+          setRedoStack((prevRedo) => [...prevRedo, lastLine]);
+          return prevLines.slice(0, -1); // Return new array without the last line
+        });
+      },
+      redo: () => {
+        setRedoStack((prevRedo) => {
+          if (prevRedo.length === 0) {
+            return []; // Nothing to redo
+          }
+          const lineToRedo = prevRedo[prevRedo.length - 1];
+          // Add the redone line back to the main lines state
+          setLines((prevLines) => [...prevLines, lineToRedo]);
+          return prevRedo.slice(0, -1); // Return new array without the redone line
+        });
+      },
+      // Add loadPaths equivalent later if needed for restoring state
+      // Add export methods later
     }));
 
-    // --- Adjust Mode Handlers ---
-    const handleAdjustPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (tracingActive && traceImage) {
-          setIsDragging(true);
-          setDragStart({
-            x: e.clientX - imagePosition.x,
-            y: e.clientY - imagePosition.y,
-          });
+    const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      // Prevent drawing when clicking on the transformer
+      if (e.target instanceof Konva.Transformer) {
+        return;
       }
-      e.stopPropagation(); // Prevent event from bubbling up
-    };
-
-    const handleAdjustPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (isDragging && tracingActive && traceImage) {
-        setImagePosition({
-          x: e.clientX - dragStart.x,
-          y: e.clientY - dragStart.y,
-        });
+      // Prevent drawing when in adjust mode and clicking the image
+      if (isAdjustMode && e.target === imageRef.current) {
+        return;
       }
-      e.stopPropagation(); // Prevent event from bubbling up
+
+      // Prevent drawing when in trace image adjust mode
+      if (isAdjustMode) return;
+
+      isDrawing.current = true;
+      const pos = e.target.getStage()?.getPointerPosition();
+      if (!pos) return;
+      setCurrentLine([pos.x, pos.y]); // Start a new line with the initial point
+
+      // Call external handler if provided
+      // Note: Konva events are different from react-sketch-canvas, adjust parent accordingly
+      // onPointerDown?.(e); // Pass the Konva event object
     };
 
-    const handleAdjustPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-      setIsDragging(false);
-      e.stopPropagation(); // Prevent event from bubbling up
+    const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      if (!isDrawing.current || isAdjustMode) return;
+
+      const stage = e.target.getStage();
+      const point = stage?.getPointerPosition();
+      if (!point || !currentLine) return;
+
+      // Add new points to the current line's points array
+      setCurrentLine(currentLine.concat([point.x, point.y]));
+
+      // Call external handler if provided
+      // onPointerMove?.(e); // Pass the Konva event object
     };
 
-    const handleAdjustPointerLeave = (e: React.PointerEvent<HTMLDivElement>) => {
-      setIsDragging(false);
-      e.stopPropagation(); // Prevent event from bubbling up
+    const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      if (isDrawing.current && !isAdjustMode) {
+        if (currentLine && currentLine.length > 2) { // Ensure there are at least two points
+          // Create a new line config object and add it to the state
+          const newLine: Konva.LineConfig = {
+            points: currentLine,
+            stroke: strokeColor,
+            strokeWidth: scaledStrokeWidth,
+            tension: 0.5, // Optional: adds smoothing
+            lineCap: "round",
+            lineJoin: "round",
+            globalCompositeOperation: isEraser ? "destination-out" : "source-over",
+          };
+          setLines([...lines, newLine]);
+          // Clear the redo stack whenever a new line is drawn
+          setRedoStack([]);
+        }
+
+        setCurrentLine(null); // Reset current line
+        isDrawing.current = false;
+
+        // Call external handler AFTER adding the line to state
+        onPointerUp?.(e); // Pass the Konva event object
+      }
     };
-    // --- End Adjust Mode Handlers ---
+
+    // Handlers for image transformation
+    const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+      setImagePosition({ x: e.target.x(), y: e.target.y() });
+    };
+
+    const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
+      const node = imageRef.current;
+      if (node) {
+        const newScale = node.scaleX(); // Assuming uniform scaling
+        setImagePosition({ x: node.x(), y: node.y() });
+        setImageScale(newScale);
+      }
+    };
+
+    // Determine cursor style based on mode
+    const cursorStyle = isAdjustMode && tracingActive
+      ? 'move'
+      : isEraser
+      ? eraserCursor // Use imported constant
+      : pencilCursor; // Use imported constant
 
     return (
+      // Container div for positioning background and stage
       <div
-        ref={canvasContainerRef}
-        onPointerDown={isAdjustMode ? undefined : onPointerDown}
-        onPointerMove={isAdjustMode ? undefined : onPointerMove}
-        onPointerUp={isAdjustMode ? undefined : onPointerUp}
-        onPointerLeave={isAdjustMode ? undefined : (onPointerLeave || onPointerUp)}
         style={{
           width: `${canvasSize}px`,
           height: `${canvasSize}px`,
-          border: "2px solid black",
-          borderRadius: "4px",
-          position: "relative",
-          overflow: "hidden",
-          cursor: isAdjustMode && tracingActive ? "move" : isEraser ? eraserCursor : pencilCursor,
+          position: 'relative',
+          border: '1px solid #ccc',
+          overflow: 'hidden',
+          cursor: cursorStyle, // Apply dynamic cursor style here
         }}
       >
-        {/* Background layer (paper) */}
+        {/* Background Paper Image */}
         <div
           style={{
-            position: "absolute",
+            position: 'absolute',
             top: 0,
             left: 0,
-            width: "100%",
-            height: "100%",
+            width: '100%',
+            height: '100%',
             backgroundImage: `url(${Paper})`,
-            backgroundSize: "cover",
-            zIndex: 1,
+            backgroundSize: 'cover',
+            zIndex: 0, // Ensure it's behind the stage
           }}
         />
+        {/* Konva Stage - Should be transparent by default */}
+        <Stage
+          width={canvasSize}
+          height={canvasSize}
+          ref={stageRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onTouchStart={handleMouseDown}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={handleMouseUp}
+          style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }} // Position stage above background
+          // style={{ touchAction: "manipulation" }} // Previous style, might conflict with absolute positioning
+        >
+          {/* Layer for Tracing Image */}
+          <Layer ref={traceLayerRef}>
+            {tracingActive && loadedTraceImage && (
+              <KonvaImage
+                ref={imageRef} // Assign ref
+                image={loadedTraceImage}
+                x={imagePosition.x}
+                y={imagePosition.y}
+                scaleX={imageScale}
+                scaleY={imageScale}
+                draggable={isAdjustMode} // Enable dragging only in adjust mode
+                onDragEnd={handleDragEnd} // Update position on drag end
+                onTransformEnd={handleTransformEnd} // Update scale/position on transform end
+              />
+            )}
+            {/* Add Transformer only when needed */}
+            {isAdjustMode && tracingActive && (
+              <Transformer
+                 ref={transformerRef}
+                 boundBoxFunc={(oldBox, newBox) => {
+                   // Limit resize scale if needed
+                   // Example: if (newBox.width < 10 || newBox.height < 10) {
+                   //   return oldBox;
+                   // }
+                   return newBox;
+                 }}
+              />
+            )}
+          </Layer>
 
-        {/* Trace image layer */}
-        <TraceImageLayer
-          traceImage={traceImage}
-          tracingActive={tracingActive}
-          imagePosition={imagePosition}
-          imageScale={imageScale}
-        />
-
-        {/* Drawing canvas */}
-        <ReactSketchCanvas
-          ref={canvasRef}
-          strokeWidth={scaledStrokeWidth}
-          strokeColor={strokeColor}
-          width={`${canvasSize}`}
-          height={`${canvasSize}`}
-          backgroundImage=""
-          exportWithBackgroundImage={false}
-          canvasColor="transparent"
-          eraserWidth={scaledStrokeWidth}
-          allowOnlyPointerType="all"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            zIndex: 3,
-          }}
-        />
-
-        {/* Block overlay to prevent drawing when in adjust mode - NOW WITH HANDLERS */}
-        {isAdjustMode && (
-          <div
-            onPointerDown={handleAdjustPointerDown}
-            onPointerMove={handleAdjustPointerMove}
-            onPointerUp={handleAdjustPointerUp}
-            onPointerLeave={handleAdjustPointerLeave}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              zIndex: 10,
-              cursor: "move",
-            }}
-          />
-        )}
-
-        {/* Eraser cursor */}
+          {/* Layer for User Drawing */}
+          <Layer ref={drawingLayerRef}>
+            {lines.map((line, i) => (
+              <Line key={i} {...line} />
+            ))}
+            {/* Render the currently drawing line in real-time */}
+            {currentLine && currentLine.length > 2 && (
+               <Line
+                 points={currentLine}
+                 stroke={strokeColor}
+                 strokeWidth={scaledStrokeWidth}
+                 tension={0.5}
+                 lineCap="round"
+                 lineJoin="round"
+                 globalCompositeOperation={isEraser ? "destination-out" : "source-over"}
+               />
+             )}
+          </Layer>
+        </Stage>
+        {/* Eraser cursor visual */}
         {isEraser && isErasing && (
           <div
             className="pointer-events-none absolute"
@@ -203,16 +322,18 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
               transform: "translate(-50%, -50%)",
               left: cursorPosition.x,
               top: cursorPosition.y,
-              zIndex: 100,
-              pointerEvents: "none",
+              zIndex: 100, // Ensure it's above the stage
+              pointerEvents: "none", // Make sure it doesn't interfere with Konva events
             }}
           />
         )}
+        {/* Optional: Keep file input here if needed */}
+        {/* <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={onImageSelect} /> */}
       </div>
     );
   },
 );
 
-SketchCanvas.displayName = 'SketchCanvas';
+SketchCanvas.displayName = "SketchCanvas"; // Add display name
 
 export default SketchCanvas; 

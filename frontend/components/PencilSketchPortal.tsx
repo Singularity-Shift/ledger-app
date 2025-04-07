@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { toast } from "@/components/ui/use-toast";
 import { useDrawingState } from "@/hooks/useDrawingState";
+import Konva from 'konva'; // Import Konva
 
 // Import types and sub-components
 import { PencilSketchPortalProps, PencilGrade } from "./sketch/sketchTypes";
@@ -50,7 +51,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const { elapsedTime, setElapsedTime, drawingStartTime, getSecurityToken } = useSketchTimer(
     isOpen,
     isRestored,
-    drawingState?.elapsedTime ?? 0
+    drawingState?.elapsedTime ?? 0,
+    drawingState?.drawingStartTime ?? null // Pass initial start time
   );
 
   // Initialize export hook
@@ -146,23 +148,50 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Restore state when the portal opens and state is loaded
   useEffect(() => {
     // Only attempt restoration if the portal is open, state is loaded, drawingState exists,
-    // we haven't already restored in this session, and the canvas ref is available.
-    if (isOpen && isDrawingStateLoaded && drawingState && !isRestored && sketchCanvasRef.current?.canvasRef.current) {
-      console.log("Attempting to restore drawing state...");
-      // Load drawing paths if they exist
-      if (drawingState.drawingPaths) {
+    // we haven't already restored in this session, and the necessary refs are available.
+    if (
+      isOpen &&
+      isDrawingStateLoaded &&
+      drawingState &&
+      !isRestored &&
+      sketchCanvasRef.current?.stageRef.current &&
+      sketchCanvasRef.current?.drawingLayerRef.current // Check refs exist
+    ) {
+      // Assign refs to local variables immediately after check
+      const canvasHandle = sketchCanvasRef.current;
+      const drawingLayer = canvasHandle.drawingLayerRef.current;
+
+      console.log("Attempting to restore drawing state from Konva JSON...");
+      // Load drawing layer from JSON if it exists
+      if (drawingState.drawingLayerJSON) {
         try {
-          sketchCanvasRef.current.canvasRef.current.loadPaths(drawingState.drawingPaths);
-          console.log("Paths loaded successfully.");
+          // Use the local variable 'drawingLayer'
+          drawingLayer.destroyChildren(); // Clear existing nodes
+          const nodeGroup = Konva.Node.create(drawingState.drawingLayerJSON);
+          if (nodeGroup instanceof Konva.Layer || nodeGroup instanceof Konva.Group) {
+            nodeGroup.children?.forEach(child => drawingLayer.add(child.clone()));
+          } else if (nodeGroup instanceof Konva.Node) {
+            drawingLayer.add(nodeGroup.clone());
+          }
+          drawingLayer.batchDraw();
+          console.log("Konva drawing layer restored successfully.");
         } catch (error) {
-          console.error("Error loading drawing paths:", error);
+          console.error("Error loading drawing layer from JSON:", error);
           toast({
             variant: "destructive",
             title: "Restore Error",
-            description: "Failed to load previous drawing paths.",
+            description: "Failed to load previous drawing layer state.",
           });
+          clearDrawingState();
+          // Check handle before calling clearCanvas
+          canvasHandle?.clearCanvas(); // Use local handle variable
         }
+      } else {
+        // If no JSON, ensure canvas is clear
+        // Check handle before calling clearCanvas
+        canvasHandle?.clearCanvas(); // Use local handle variable
       }
+
       // Restore other states (tool settings, trace image, timer)
       setStrokeWidth(drawingState.pencilConfig?.width ?? 2);
       const restoredGrade = drawingState.pencilConfig?.gradeLabel
@@ -185,12 +214,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     } else if (isOpen && isDrawingStateLoaded && !drawingState && !isRestored) {
       // Condition for: Portal is open, state is loaded, NO saved state exists, and we haven't initialized yet.
       console.log("No saved state found, clearing canvas.");
-      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
+      // Check ref before calling clearCanvas
+      sketchCanvasRef.current?.clearCanvas();
       setElapsedTime(0); // Reset timer if no state
-      // Mark as 'restored' because we've handled the initial state (empty canvas).
       setIsRestored(true);
     } else if (!isOpen) {
-      // Reset isRestored flag when portal closes, allowing restoration on next open
+      // Reset isRestored flag when portal closes
       if (isRestored) {
         setIsRestored(false);
         console.log("Portal closed, reset isRestored flag.");
@@ -200,18 +229,24 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Auto-save drawing state periodically and on drawing actions
   const saveCurrentState = useCallback(async () => {
-    // Only save if the initial restoration attempt is complete
-    if (!isRestored || !sketchCanvasRef.current?.canvasRef.current) {
+    // Only save if the initial restoration attempt is complete AND refs are valid
+    if (!isRestored || !sketchCanvasRef.current?.drawingLayerRef?.current) {
+      console.log("Skipping saveCurrentState: Not restored or refs not ready.");
       return;
     }
 
-    console.log("Saving current state...");
+    // Assign the validated ref to a variable
+    const drawingLayer = sketchCanvasRef.current.drawingLayerRef.current;
+
+    console.log("Saving current state (Konva JSON)...");
     try {
-      const paths = await sketchCanvasRef.current.canvasRef.current.exportPaths();
+      // Export the drawing layer as JSON using the variable
+      const layerJSON = drawingLayer.toJSON();
 
       saveDrawingState({
-        drawingPaths: paths,
+        drawingLayerJSON: layerJSON,
         elapsedTime: elapsedTime,
+        drawingStartTime: drawingStartTime, // Include start time when saving
         lastActiveTimestamp: Date.now(),
         traceImage: traceImage,
         traceConfig: {
@@ -244,6 +279,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     isEraser,
     saveDrawingState,
     toast,
+    drawingStartTime, // Add drawingStartTime to dependency array
   ]);
 
   // Save state on drawing/erasing actions
@@ -256,7 +292,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   useEffect(() => {
     const handleBeforeUnload = () => {
       // Check if there's something potentially worth saving
-      if (isOpen && isRestored && sketchCanvasRef.current?.canvasRef.current && elapsedTime > 0) {
+      if (isOpen && isRestored && sketchCanvasRef.current?.drawingLayerRef.current && elapsedTime > 0) {
         console.log("beforeunload: Triggering saveCurrentState...");
         saveCurrentState();
       }
@@ -267,52 +303,74 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       // Save when component unmounts only if it was open and restored.
-      if (isOpen && isRestored) {
-        console.log("Unmount: Triggering saveCurrentState...");
-        saveCurrentState();
-      }
+      // if (isOpen && isRestored) { // Simplified logic was causing issues, revert slightly
+      //   console.log("Unmount: Triggering saveCurrentState...");
+      //   saveCurrentState();
+      // }
+      // Let the beforeunload handler manage the last save
     };
-  }, [isOpen, isRestored, elapsedTime, saveCurrentState]);
+  }, [isOpen, isRestored, elapsedTime, saveCurrentState, drawingStartTime]); // Add drawingStartTime dependency
 
   // Clear state handlers
   const handleClear = useCallback(() => {
     if (window.confirm("Are you sure you want to clear your drawing? This cannot be undone.")) {
       console.log("Clearing canvas and state...");
-      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
+      sketchCanvasRef.current?.clearCanvas(); // Use the exposed clear method
       setTraceImage(null);
       setTracingActive(false);
       setImagePosition({ x: 0, y: 0 });
       setImageScale(1);
       setElapsedTime(0);
       clearDrawingState();
+      // Explicitly save the cleared state with null JSON
+      saveDrawingState({
+          drawingLayerJSON: null,
+          elapsedTime: 0,
+          drawingStartTime: Date.now(), // Reset start time on clear
+          lastActiveTimestamp: Date.now(),
+          traceImage: null,
+          traceConfig: { active: false, position: { x: 0, y: 0 }, scale: 1 },
+          pencilConfig: { color: baseColor, width: strokeWidth, gradeLabel: selectedGrade.label, isEraser: isEraser } // Keep current tool settings
+      });
       setIsRestored(true); // Set to true because the 'restored' state is now empty canvas
       console.log("State cleared.");
       toast({ title: "Canvas Cleared", description: "Your drawing has been cleared." });
     }
-  }, [clearDrawingState, setElapsedTime, toast]);
+  }, [clearDrawingState, setElapsedTime, toast, baseColor, strokeWidth, selectedGrade, isEraser, saveDrawingState]);
 
   const handleUndo = () => {
-    sketchCanvasRef.current?.canvasRef.current?.undo();
+    if (sketchCanvasRef.current) {
+      sketchCanvasRef.current.undo();
+      saveCurrentState();
+    } else {
+      console.warn("Undo called but sketchCanvasRef is not available.");
+    }
   };
 
   const handleRedo = () => {
-    sketchCanvasRef.current?.canvasRef.current?.redo();
+    if (sketchCanvasRef.current) {
+      sketchCanvasRef.current.redo();
+      saveCurrentState();
+    } else {
+      console.warn("Redo called but sketchCanvasRef is not available.");
+    }
   };
 
   // Handle submission
   const handleSubmit = useCallback(async () => {
     let moderationPassed = false; // Flag to track moderation status
     try {
-      if (sketchCanvasRef.current?.canvasRef.current && onSubmit) {
+      if (sketchCanvasRef.current?.stageRef.current && onSubmit) {
         console.log("Submitting drawing...");
 
-        // Use the export hook to handle the export and merge
+        // Use the export hook to handle the export and merge (needs adaptation for Konva)
         const exportResult = await exportMergedSketch(
-          sketchCanvasRef.current.canvasRef,
+          // Pass stage ref instead of canvas ref
+          sketchCanvasRef.current.stageRef,
           canvasSize,
           elapsedTime,
           drawingStartTime,
-          traceImage,
+          traceImage, // Trace image itself might not be needed if stage export includes it
           getSecurityToken
         );
 
@@ -366,7 +424,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         onSubmit(
           exportResult.file,
           elapsedTime,
-          exportResult.drawPath,
+          "", // Pass empty string for the old path parameter
           exportResult.id,
           exportResult.usedTracing,
           exportResult.securityToken
