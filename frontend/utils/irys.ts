@@ -1,9 +1,33 @@
 import { WebUploader } from "@irys/web-upload";
 import { WebAptos } from "@irys/web-upload-aptos";
-import { WalletContextState } from "@aptos-labs/wallet-adapter-react";
+import { AptosSignMessageInput, WalletContextState } from "@aptos-labs/wallet-adapter-react";
 import { Aptos } from "@aptos-labs/ts-sdk";
+import { InjectedAptosSigner } from "@irys/bundles";
 
 const getWebIrys = async (aptosWallet: WalletContextState) => {
+  const signMessage = aptosWallet.signMessage;
+
+  aptosWallet.signMessage = async (message: AptosSignMessageInput) => {
+    const result = await signMessage(message);
+    let signature = undefined;
+    if ((result.signature as any).data) {
+      return result;
+    }
+
+    signature = (result.signature as any).signature.ephemeralSignature as any;
+    const publicKey = ((result.signature as any).signature.ephemeralPublicKey.publicKey as any).key.data;
+
+    console.log(
+      "signature valid by Irys?",
+      await InjectedAptosSigner.verify(
+        Buffer.from(publicKey),
+        Buffer.from(message.message, "hex"),
+        signature.signature.data.data,
+      ),
+    );
+    return signature;
+  };
+
   const irysUploader = await WebUploader(WebAptos).withProvider(aptosWallet);
   return irysUploader;
 };
