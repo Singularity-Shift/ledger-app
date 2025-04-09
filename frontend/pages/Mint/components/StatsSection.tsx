@@ -63,7 +63,7 @@ export const StatsSection: React.FC<StatsSectionProps> = () => {
           <li className="basis-1/3" key={title + " " + value}>
             <Card className="py-2 px-3 md:px-4 shadow-[0_4px_15px_rgb(0,0,0,0.1)] hover:shadow-[0_12px_24px_rgb(0,0,0,0.15)] hover:-translate-y-1 transition-all duration-300">
               <p className="label-sm">{title}</p>
-              <p className="heading-sm">{clampNumber(value)}</p>
+              <p className="heading-sm">{clampNumber(value as number)}</p>
             </Card>
           </li>
         ))}
