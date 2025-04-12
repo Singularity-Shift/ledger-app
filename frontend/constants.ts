@@ -14,3 +14,6 @@ export const SOCIAL_HOMEPAGE = import.meta.env.VITE_SOCIAL_HOMEPAGE;
 
 // Secondary marketplace 
 export const SECONDARY_MARKETPLACE = import.meta.env.VITE_SECONDARY_MARKETPLACE;
+
+// Buy Ledger button URL
+export const BUY_LEDGER = import.meta.env.VITE_BUY_LEDGER;
