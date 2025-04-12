@@ -17,7 +17,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Socials } from "@/pages/Mint/components/Socials";
 import { PencilSketchPortal } from "@/components/PencilSketchPortal";
 // Internal constants
-import { COIN_TYPE, COLLECTION_ADDRESS, NETWORK, SECONDARY_MARKETPLACE } from "@/constants";
+import { COIN_TYPE, COLLECTION_ADDRESS, NETWORK, SECONDARY_MARKETPLACE, BUY_LEDGER } from "@/constants";
 // Internal config
 import { config } from "@/config";
 import { updateMintData } from "@/utils/assetsUploader";
@@ -242,7 +242,24 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         </div>
       </div>
       <div className="basis-full md:basis-3/5 flex flex-col gap-3 md:gap-4">
-        <h1 className="title-md">{collection?.collection_name ?? config.defaultCollection?.name}</h1>
+        <div className="flex flex-wrap justify-between items-center gap-2">
+          <h1 className="title-md">{collection?.collection_name ?? config.defaultCollection?.name}</h1>
+          <a
+            href={BUY_LEDGER}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center px-4 py-2 text-white font-bold bg-green-500 border-2 border-black rounded-md shadow-md hover:shadow-lg hover:bg-green-600 transform hover:scale-110 transition-all duration-300 relative overflow-hidden"
+          >
+            <span className="z-10 flex items-center gap-1">
+              BUY - <span className="text-xl">📒</span>
+            </span>
+            <span className="absolute inset-0 bg-green-400 opacity-0 group-hover:opacity-30 animate-pulse"></span>
+            <span className="absolute -inset-x-1 bottom-0 h-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
+            <span className="absolute left-0 top-0 h-full w-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
+            <span className="absolute right-0 top-0 h-full w-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
+            <span className="absolute -inset-x-1 top-0 h-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
+          </a>
+        </div>
         <Socials />
         <p className="body-sm">{collection?.description ?? config.defaultCollection?.description}</p>
 
