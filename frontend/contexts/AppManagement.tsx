@@ -5,14 +5,16 @@ import { AccountAddress } from "@aptos-labs/ts-sdk";
 
 export interface AppManagementType {
   isAdmin: boolean;
+  hasSubscription: boolean;
 }
 
 export const AppManagementContext = React.createContext<AppManagementType>({} as AppManagementType);
 
 export const AppManagementProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = React.useState(false);
+  const [hasSubscription, setHasSubscription] = React.useState(false);
   const { account, connected } = useWallet();
-  const { abi, feesABI } = useAbiClient();
+  const { abi, feesABI, subscriptionABI } = useAbiClient();
 
   useEffect(() => {
     if (!account || !abi) return;
@@ -26,10 +28,22 @@ export const AppManagementProvider = ({ children }: { children: ReactNode }) => 
       const admin = adminResult[0];
 
       setIsAdmin(account.address === AccountAddress.from(admin).toString());
-    })();
-  }, [account, abi, connected]);
 
-  return <AppManagementContext.Provider value={{ isAdmin }}>{children}</AppManagementContext.Provider>;
+      const [_starTime, _endTime, _upgrades, trial_version] = await abi.useABI(subscriptionABI).view.get_plan({
+        typeArguments: [],
+        functionArguments: [account.address as `0x${string}`],
+      });
+
+      const responseHasSubscription = await abi.useABI(subscriptionABI).view.has_subscription_active({
+        typeArguments: [],
+        functionArguments: [account.address as `0x${string}`],
+      });
+
+      setHasSubscription(responseHasSubscription[0] && !trial_version);
+    })();
+  }, [account, abi, subscriptionABI, feesABI, connected]);
+
+  return <AppManagementContext.Provider value={{ isAdmin, hasSubscription }}>{children}</AppManagementContext.Provider>;
 };
 
 export const useAppManagement = () => {

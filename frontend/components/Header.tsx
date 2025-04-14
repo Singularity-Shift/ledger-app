@@ -3,6 +3,7 @@ import { WalletSelector } from "./WalletSelector";
 import { Button } from "./ui/button";
 import { useAppManagement } from "@/contexts/AppManagement";
 import { MessageCircle } from "lucide-react";
+import { TokenBalance } from "@/pages/Mint/components/TokenBalance";
 
 export function Header() {
   const location = useLocation();
@@ -26,6 +27,7 @@ export function Header() {
       </div>
 
       <div className="flex gap-2 items-center flex-wrap">
+        <TokenBalance />
         {isAdmin && (
           <Button variant="outline" asChild>
             <Link to={isAdminPage ? "/" : "/admin"}>{isAdminPage ? "Mint" : "Admin"}</Link>

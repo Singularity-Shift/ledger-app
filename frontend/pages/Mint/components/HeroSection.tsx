@@ -17,7 +17,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Socials } from "@/pages/Mint/components/Socials";
 import { PencilSketchPortal } from "@/components/PencilSketchPortal";
 // Internal constants
-import { COIN_TYPE, COLLECTION_ADDRESS, NETWORK, SECONDARY_MARKETPLACE, BUY_LEDGER } from "@/constants";
+import { COIN_TYPE, COLLECTION_ADDRESS, NETWORK, SECONDARY_MARKETPLACE } from "@/constants";
 // Internal config
 import { config } from "@/config";
 import { updateMintData } from "@/utils/assetsUploader";
@@ -26,13 +26,16 @@ import { useWalletClient } from "@thalalabs/surf/hooks";
 import { useAbiClient } from "@/contexts/AbiProvider";
 import { convertAmountFromOnChainToHumanReadable } from "@aptos-labs/ts-sdk";
 import { Spinner } from "@/components/ui/spinner";
+import { useAppManagement } from "@/contexts/AppManagement";
+import { InsufficientBalanceModal } from "@/pages/Mint/components/InsufficientBalance";
+import { APT_DECIMALS, LEDGER_COIN_TYPE } from "@/utils/helpers";
 
 // Time formatting utility
 const formatTimeToHMS = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = seconds % 60;
-  
+
   return `${hours} hr ${minutes} min ${remainingSeconds} sec`;
 };
 
@@ -52,10 +55,13 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const [mintFee, setMintFee] = useState<number>(0);
   const [coinMintFees, setCoinMintFees] = useState<string>("");
   const [isMinting, setIsMinting] = useState<boolean>(false);
+  const [showInsufficientBalanceModal, setShowInsufficientBalanceModal] = useState(false);
+  const [currentTokenBalance, setCurrentTokenBalance] = useState(0);
   const wallet = useWallet();
   const aptos = aptosClient();
   const { client } = useWalletClient();
   const { abi, ledgeABI } = useAbiClient();
+  const { hasSubscription } = useAppManagement();
 
   const { collection } = data ?? {};
 
@@ -73,6 +79,34 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         description: "Drawing validation failed. Please create your drawing again.",
       });
       return;
+    }
+
+    // Check if user has sufficient balance
+    if (!hasSubscription) {
+      try {
+        // Get current balance
+        const balanceResult = await aptos.account.getAccountCoinAmount({
+          accountAddress: account.address,
+          coinType: LEDGER_COIN_TYPE,
+        });
+
+        const balance = convertAmountFromOnChainToHumanReadable(Number(balanceResult), APT_DECIMALS);
+        setCurrentTokenBalance(balance);
+
+        // Check if balance is sufficient
+        if (balance < mintFee) {
+          setShowInsufficientBalanceModal(true);
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking token balance:", error);
+
+        toast({
+          variant: "destructive",
+          title: "Error Checking Balance",
+          description: `Failed to check balance. ${error}`,
+        });
+      }
     }
 
     setIsMinting(true);
@@ -244,21 +278,6 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       <div className="basis-full md:basis-3/5 flex flex-col gap-3 md:gap-4">
         <div className="flex flex-wrap justify-between items-center gap-2">
           <h1 className="title-md">{collection?.collection_name ?? config.defaultCollection?.name}</h1>
-          <a
-            href={BUY_LEDGER}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center px-4 py-2 text-white font-bold bg-green-500 border-2 border-black rounded-md shadow-md hover:shadow-lg hover:bg-green-600 transform hover:scale-110 transition-all duration-300 relative overflow-hidden"
-          >
-            <span className="z-10 flex items-center gap-1">
-              BUY - <span className="text-xl">📒</span>
-            </span>
-            <span className="absolute inset-0 bg-green-400 opacity-0 group-hover:opacity-30 animate-pulse"></span>
-            <span className="absolute -inset-x-1 bottom-0 h-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
-            <span className="absolute left-0 top-0 h-full w-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
-            <span className="absolute right-0 top-0 h-full w-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
-            <span className="absolute -inset-x-1 top-0 h-1 bg-green-600 animate-[pulse_1.5s_ease-in-out_infinite]"></span>
-          </a>
         </div>
         <Socials />
         <p className="body-sm">{collection?.description ?? config.defaultCollection?.description}</p>
@@ -297,7 +316,9 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
                 )}
               </div>
               {!!mintFee && (
-                <span className="whitespace-nowrap text-secondary-text body-sm self-center">{mintFee} 📒</span>
+                <span className="whitespace-nowrap text-secondary-text body-sm self-center">
+                  {hasSubscription ? "FREE" : `${mintFee} 📒`}
+                </span>
               )}
             </div>
           </CardContent>
@@ -336,6 +357,14 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         isOpen={showSketchPortal}
         onClose={() => setShowSketchPortal(false)}
         onSubmit={handleSketchSubmit}
+      />
+      {/* Insufficient Balance Modal */}
+      <InsufficientBalanceModal
+        isOpen={showInsufficientBalanceModal}
+        onClose={() => setShowInsufficientBalanceModal(false)}
+        requiredAmount={mintFee}
+        currentBalance={currentTokenBalance}
+        mintNFT={mintNFT}
       />
     </section>
   );
