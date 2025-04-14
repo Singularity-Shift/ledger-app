@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { aptosClient } from "@/utils/aptosClient";
 import { convertAmountFromOnChainToHumanReadable } from "@aptos-labs/ts-sdk";
-import { COIN_TYPE } from "@/constants";
 import { useAbiClient } from "@/contexts/AbiProvider";
 import { LEDGER_COIN_TYPE } from "@/utils/helpers";
 

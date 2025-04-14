@@ -65,7 +65,7 @@ export const InsufficientBalanceModal = ({
         typeArguments: [LEDGER_COIN_TYPE, LEDGER_COIN_LIQUIDITY],
         functionArguments: [
           "0xd99d02e42aa3a59aeb4fee6e885b5a6237bffddfa9408ebb8cafab513743e708",
-          convertAmountFromHumanReadableToOnChain(ledgerPriceToBuyApt, APT_DECIMALS),
+          convertAmountFromHumanReadableToOnChain(parseFloat(ledgerPriceToBuyApt), APT_DECIMALS),
           false,
           integratorAddress,
           50,
