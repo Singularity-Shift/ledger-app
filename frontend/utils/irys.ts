@@ -8,7 +8,13 @@ const getWebIrys = async (aptosWallet: WalletContextState) => {
   const signMessage = aptosWallet.signMessage;
 
   aptosWallet.signMessage = async (message: AptosSignMessageInput) => {
-    const result = await signMessage(message);
+    const result = await signMessage({
+      ...message,
+      address: undefined,
+      chainId: undefined,
+      application: undefined,
+    });
+
     let signature = undefined;
     if ((result.signature as any).data) {
       return result;
