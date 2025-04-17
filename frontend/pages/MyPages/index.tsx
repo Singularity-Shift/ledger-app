@@ -161,11 +161,13 @@ export default function MyPages() {
 
   if (!connected) {
     return (
-      <div className="max-w-screen-xl mx-auto p-4">
+      <div className="min-h-screen">
         <Header />
-        <h1 className="text-3xl font-bold mb-6">My Pages</h1>
-        <div className="text-center p-8 border rounded-lg">
-          <p className="text-lg text-gray-500">Please connect your wallet to view your NFTs.</p>
+        <div className="max-w-screen-xl mx-auto">
+          <h1 className="text-3xl font-bold mb-6">My Pages</h1>
+          <div className="text-center p-8 border rounded-lg">
+            <p className="text-lg text-gray-500">Please connect your wallet to view your NFTs.</p>
+          </div>
         </div>
       </div>
     );
@@ -174,25 +176,27 @@ export default function MyPages() {
   // Render skeleton UI while loading
   if (loading) {
     return (
-      <div className="max-w-screen-xl mx-auto p-4">
+      <div className="min-h-screen">
         <Header />
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">My Pages</h1>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, index) => (
-            <Card key={index} className="overflow-hidden">
-              <CardHeader className="p-0">
-                <Skeleton className="aspect-square w-full" />
-              </CardHeader>
-              <CardContent className="p-4">
-                <Skeleton className="h-6 w-3/4 mb-2" />
-              </CardContent>
-              <CardFooter className="p-4 pt-0">
-                <Skeleton className="h-10 w-full" />
-              </CardFooter>
-            </Card>
-          ))}
+        <div className="max-w-screen-xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">My Pages</h1>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, index) => (
+              <Card key={index} className="overflow-hidden">
+                <CardHeader className="p-0">
+                  <Skeleton className="aspect-square w-full" />
+                </CardHeader>
+                <CardContent className="p-4">
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                </CardContent>
+                <CardFooter className="p-4 pt-0">
+                  <Skeleton className="h-10 w-full" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -200,118 +204,122 @@ export default function MyPages() {
 
   if (ownedNFTs.length === 0) {
     return (
-      <div className="max-w-screen-xl mx-auto p-4">
+      <div className="min-h-screen">
         <Header />
-        <h1 className="text-3xl font-bold mb-6">My Pages</h1>
-        <div className="text-center p-8 border rounded-lg">
-          <p className="text-lg text-gray-500">You don't own any NFTs from this collection yet.</p>
+        <div className="max-w-screen-xl mx-auto">
+          <h1 className="text-3xl font-bold mb-6">My Pages</h1>
+          <div className="text-center p-8 border rounded-lg">
+            <p className="text-lg text-gray-500">You don't own any NFTs from this collection yet.</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-screen-xl mx-auto p-4">
+    <div className="min-h-screen">
       <Header />
-      <div className="mb-6 flex items-center gap-2">
-        <h1 className="text-3xl font-bold">My Pages</h1>
-        <Info description="List your pages for sale on Wapal. Each page can be listed individually." />
-      </div>
+      <div className="max-w-screen-xl mx-auto">
+        <div className="mb-6 flex items-center gap-2">
+          <h1 className="text-3xl font-bold">My Pages</h1>
+          <Info description="List your pages for sale on Wapal. Each page can be listed individually." />
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {ownedNFTs.map((nft) => (
-          <Card key={nft.token_data_id} className="overflow-hidden">
-            <CardHeader className="p-0">
-              <div className="aspect-square w-full">
-                <img
-                  src={nft.img_url}
-                  alt={nft.current_token_data?.token_name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    // Fallback if image fails to load
-                    e.currentTarget.src = "https://via.placeholder.com/400?text=Image+Not+Available";
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {ownedNFTs.map((nft) => (
+            <Card key={nft.token_data_id} className="overflow-hidden">
+              <CardHeader className="p-0">
+                <div className="aspect-square w-full">
+                  <img
+                    src={nft.img_url}
+                    alt={nft.current_token_data?.token_name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      e.currentTarget.src = "https://via.placeholder.com/400?text=Image+Not+Available";
+                    }}
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                <CardTitle className="text-xl mb-2">Page Nº {nft.current_token_data?.token_name}</CardTitle>
+              </CardContent>
+              <CardFooter className="p-4 pt-0">
+                <Button
+                  variant={"default"}
+                  className="w-full"
+                  onClick={() => {
+                    handleOpenListingDialog(nft.token_data_id);
                   }}
+                  disabled={processingAction}
+                >
+                  {processingAction && selectedNFT === nft.token_data_id ? (
+                    <>
+                      <Spinner className="mr-2" size="sm" />
+                      Listing
+                    </>
+                  ) : (
+                    "List for Sale"
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+
+        <Dialog open={isListingDialogOpen} onOpenChange={setIsListingDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>List NFT for Sale</DialogTitle>
+            </DialogHeader>
+
+            <div className="py-4">
+              <p className="mb-4">You are about to list your NFT for sale on the marketplace.</p>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="price" className="text-sm font-medium">
+                    Price (APT)
+                  </label>
+                  <Info description="Set the price in APT (Aptos) tokens. This is the amount a buyer will pay to purchase your NFT." />
+                </div>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Enter price in APT"
+                  value={listingPrice}
+                  onChange={(e) => setListingPrice(e.target.value)}
                 />
               </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              <CardTitle className="text-xl mb-2">Page Nº {nft.current_token_data?.token_name}</CardTitle>
-            </CardContent>
-            <CardFooter className="p-4 pt-0">
+            </div>
+
+            <DialogFooter>
               <Button
-                variant={"default"}
-                className="w-full"
+                variant="outline"
                 onClick={() => {
-                  handleOpenListingDialog(nft.token_data_id);
+                  setIsListingDialogOpen(false);
+                  setSelectedNFT(null);
                 }}
                 disabled={processingAction}
               >
-                {processingAction && selectedNFT === nft.token_data_id ? (
+                Cancel
+              </Button>
+              <Button onClick={handleListNFT} disabled={processingAction}>
+                {processingAction ? (
                   <>
                     <Spinner className="mr-2" size="sm" />
-                    Listing
+                    Listing...
                   </>
                 ) : (
-                  "List for Sale"
+                  "Confirm Listing"
                 )}
               </Button>
-            </CardFooter>
-          </Card>
-        ))}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      <Dialog open={isListingDialogOpen} onOpenChange={setIsListingDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>List NFT for Sale</DialogTitle>
-          </DialogHeader>
-
-          <div className="py-4">
-            <p className="mb-4">You are about to list your NFT for sale on the marketplace.</p>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <label htmlFor="price" className="text-sm font-medium">
-                  Price (APT)
-                </label>
-                <Info description="Set the price in APT (Aptos) tokens. This is the amount a buyer will pay to purchase your NFT." />
-              </div>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Enter price in APT"
-                value={listingPrice}
-                onChange={(e) => setListingPrice(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsListingDialogOpen(false);
-                setSelectedNFT(null);
-              }}
-              disabled={processingAction}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleListNFT} disabled={processingAction}>
-              {processingAction ? (
-                <>
-                  <Spinner className="mr-2" size="sm" />
-                  Listing...
-                </>
-              ) : (
-                "Confirm Listing"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
