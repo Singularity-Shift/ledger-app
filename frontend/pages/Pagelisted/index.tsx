@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { truncateAddress, useWallet } from "@aptos-labs/wallet-adapter-react";
 import { wapal } from "@/services/wapal";
 import { useToast } from "@/components/ui/use-toast";
 import { convertAmountFromHumanReadableToOnChain, convertAmountFromOnChainToHumanReadable } from "@aptos-labs/ts-sdk";
@@ -13,6 +13,9 @@ import { Tag, ArrowUpDown, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWalletClient } from "@thalalabs/surf/hooks";
+import { Pencil, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { CREATOR_ADDRESS } from "@/constants";
 
 interface ListedNFT {
@@ -30,13 +33,17 @@ export default function PagesListed() {
   const [listedNFTs, setListedNFTs] = useState<ListedNFT[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [buyingNFT, setBuyingNFT] = useState<string>();
+  const [actionNFT, setActionNFT] = useState<string>();
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("price-asc");
+  const [updatePriceDialogOpen, setUpdatePriceDialogOpen] = useState(false);
+  const [selectedNFT, setSelectedNFT] = useState<ListedNFT | null>(null);
+  const [newPrice, setNewPrice] = useState("");
   const { client } = useWalletClient();
   const { toast } = useToast();
+  const { account } = useWallet();
 
   // Create a ref for the observer target (last item)
   const observer = useRef<IntersectionObserver | null>(null);
@@ -150,7 +157,7 @@ export default function PagesListed() {
 
   const handleBuyNFT = async (id: string, tokenName: string, price: string, marketplace: string) => {
     try {
-      setBuyingNFT(id);
+      setActionNFT(id);
       const tx = await client?.submitTransaction({
         function: "0x7ccf0e6e871977c354c331aa0fccdffb562d9fceb27e3d7f61f8e12e470358e9::aggregator::purchase_many",
         typeArguments: ["0x1::aptos_coin::AptosCoin"],
@@ -171,7 +178,7 @@ export default function PagesListed() {
         description: (
           <div>
             <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
-              {tx?.hash}
+              {truncateAddress(tx?.hash)}
             </a>
           </div>
         ),
@@ -181,11 +188,94 @@ export default function PagesListed() {
       console.error("Failed to buy NFT:", error);
       toast({
         title: "Error Purchasing NFT",
-        description: "Failed to buy the NFT. Please try again later.",
+        description: `Failed to buy the NFT. ${error}.`,
         variant: "destructive",
       });
     } finally {
-      setBuyingNFT(undefined);
+      loadNFTs(1, true);
+      setActionNFT(undefined);
+    }
+  };
+
+  const handleactionNFT = async (listingId: string) => {
+    try {
+      setActionNFT(listingId);
+      const tx = await client?.submitTransaction({
+        function: "0x584b50b999c78ade62f8359c91b5165ff390338d45f8e55969a04e65d76258c9::coin_listing::end_fixed_price",
+        typeArguments: ["0x1::aptos_coin::AptosCoin"],
+        functionArguments: [listingId],
+      });
+
+      toast({
+        title: "Purchase Successful",
+        description: (
+          <div>
+            <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
+              {truncateAddress(tx?.hash)}
+            </a>
+          </div>
+        ),
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Failed to delist NFT:", error);
+      toast({
+        title: "Error delisting NFT",
+        description: `Failed to delist the NFT. ${error}.`,
+        variant: "destructive",
+      });
+    } finally {
+      loadNFTs(1, true);
+      setActionNFT(undefined);
+    }
+  };
+
+  const openUpdatePriceDialog = (nft: ListedNFT) => {
+    setSelectedNFT(nft);
+    setNewPrice(convertAmountFromOnChainToHumanReadable(parseInt(nft.price), APT_DECIMALS).toString());
+    setUpdatePriceDialogOpen(true);
+  };
+
+  // Modify the handleUpdatePriceNFT function
+  const handleUpdatePriceNFT = async () => {
+    if (!selectedNFT || !newPrice) return;
+
+    try {
+      setActionNFT(selectedNFT.tokenDataId);
+      const tx = await client?.submitTransaction({
+        function:
+          "0x584b50b999c78ade62f8359c91b5165ff390338d45f8e55969a04e65d76258c9::coin_listing::update_fixed_price",
+        typeArguments: ["0x1::aptos_coin::AptosCoin"],
+        functionArguments: [
+          selectedNFT.listingId,
+          convertAmountFromHumanReadableToOnChain(parseFloat(newPrice), APT_DECIMALS),
+        ],
+      });
+
+      toast({
+        title: "Price Updated Successfully",
+        description: (
+          <div>
+            <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
+              {truncateAddress(tx?.hash)}
+            </a>
+          </div>
+        ),
+        variant: "default",
+      });
+
+      // Close dialog after successful update
+      setUpdatePriceDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to update NFT price:", error);
+      toast({
+        title: "Error Updating Price",
+        description: `Failed to update the NFT price. ${error}.`,
+        variant: "destructive",
+      });
+    } finally {
+      loadNFTs(1, true);
+      setActionNFT(undefined);
     }
   };
 
@@ -313,27 +403,70 @@ export default function PagesListed() {
                       </p>
                     </CardContent>
                     <CardFooter className="p-4 pt-0">
-                      <Button
-                        className="w-full"
-                        onClick={() =>
-                          handleBuyNFT(
-                            nft.marketplace === "wapal" ? nft.listingId : nft.seller,
-                            nft.tokenName,
-                            nft.price,
-                            nft.marketplace,
-                          )
-                        }
-                        disabled={buyingNFT === nft.tokenDataId}
-                      >
-                        {buyingNFT === nft.tokenDataId ? (
-                          <>
-                            <Spinner className="mr-2" size="sm" />
-                            Buying...
-                          </>
-                        ) : (
-                          "Buy Now"
-                        )}
-                      </Button>
+                      {account?.address === nft.seller ? (
+                        <div className="flex justify-between w-full">
+                          {nft.marketplace === "wapal" ? (
+                            <>
+                              <Button
+                                className="flex-grow mr-2"
+                                onClick={() => openUpdatePriceDialog(nft)}
+                                disabled={actionNFT === nft.tokenDataId}
+                              >
+                                {actionNFT === nft.tokenDataId ? (
+                                  <>
+                                    <Spinner className="mr-2" size="sm" />
+                                    Updating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Update Price
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                onClick={() => handleactionNFT(nft.listingId)}
+                                disabled={actionNFT === nft.tokenDataId}
+                              >
+                                {actionNFT === nft.tokenDataId ? (
+                                  <>
+                                    <Spinner className="mr-2" size="sm" />
+                                    Delisting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 className="h-4 w-4" /> Delist
+                                  </>
+                                )}
+                              </Button>
+                            </>
+                          ) : (
+                            <p>Listed on {nft.marketplace}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <Button
+                          className="w-full"
+                          onClick={() =>
+                            handleBuyNFT(
+                              nft.marketplace === "wapal" ? nft.listingId : nft.seller,
+                              nft.tokenName,
+                              nft.price,
+                              nft.marketplace,
+                            )
+                          }
+                          disabled={actionNFT === nft.tokenDataId}
+                        >
+                          {actionNFT === nft.tokenDataId ? (
+                            <>
+                              <Spinner className="mr-2" size="sm" />
+                              Buying...
+                            </>
+                          ) : (
+                            "Buy Now"
+                          )}
+                        </Button>
+                      )}
                     </CardFooter>
                   </Card>
                 </div>
@@ -355,6 +488,43 @@ export default function PagesListed() {
           <div className="text-center py-6 text-gray-500">You've reached the end of the listings</div>
         )}
       </div>
+      <Dialog open={updatePriceDialogOpen} onOpenChange={setUpdatePriceDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update NFT Price</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="price" className="text-right">
+                Price (APT)
+              </Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleUpdatePriceNFT} disabled={actionNFT === selectedNFT?.tokenDataId}>
+              {actionNFT === selectedNFT?.tokenDataId ? (
+                <>
+                  <Spinner className="mr-2" size="sm" />
+                  Updating...
+                </>
+              ) : (
+                "Update Price"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

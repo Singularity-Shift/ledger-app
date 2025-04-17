@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Info } from "@/components/ui/info";
-import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { truncateAddress, useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useWalletClient } from "@thalalabs/surf/hooks";
 import { aptosClient } from "@/utils/aptosClient";
@@ -31,7 +31,7 @@ export default function MyPages() {
   const { client } = useWalletClient();
   const aptos = aptosClient();
 
-  const { account, signAndSubmitTransaction, connected } = useWallet();
+  const { account, connected } = useWallet();
   const { toast } = useToast();
 
   const listNFT = async (nftId: string, price: string) => {
@@ -46,8 +46,6 @@ export default function MyPages() {
           convertAmountFromHumanReadableToOnChain(parseFloat(price), APT_DECIMALS),
         ],
       });
-
-      await signAndSubmitTransaction(tx);
 
       // Update the NFT in the state
       setOwnedNFTs((prev) =>
@@ -64,7 +62,7 @@ export default function MyPages() {
         description: (
           <div>
             <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
-              {tx?.hash}
+              {truncateAddress(tx?.hash)}
             </a>
           </div>
         ),
@@ -81,6 +79,7 @@ export default function MyPages() {
       });
       return false;
     } finally {
+      fetchMyNFTs();
       setProcessingAction(false);
       setIsListingDialogOpen(false);
       setSelectedNFT(null);
