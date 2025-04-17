@@ -12,8 +12,9 @@ export const SOCIAL_DISCORD = import.meta.env.VITE_SOCIAL_DISCORD;
 export const SOCIAL_TELEGRAM = import.meta.env.VITE_SOCIAL_TELEGRAM;
 export const SOCIAL_HOMEPAGE = import.meta.env.VITE_SOCIAL_HOMEPAGE;
 
-// Secondary marketplace 
+// Secondary marketplace
 export const SECONDARY_MARKETPLACE = import.meta.env.VITE_SECONDARY_MARKETPLACE;
 
 // Buy Ledger button URL
 export const BUY_LEDGER = import.meta.env.VITE_BUY_LEDGER;
+export const CREATOR_ADDRESS = import.meta.env.VITE_CREATOR_ADDRESS;
