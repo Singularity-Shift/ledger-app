@@ -1,46 +1,64 @@
 import { WebUploader } from "@irys/web-upload";
 import { WebAptos } from "@irys/web-upload-aptos";
-import { AptosSignMessageInput, WalletContextState } from "@aptos-labs/wallet-adapter-react";
-import { Aptos } from "@aptos-labs/ts-sdk";
-import { InjectedAptosSigner } from "@irys/bundles";
+import { WalletContextState } from "@aptos-labs/wallet-adapter-react";
+import { Aptos, Ed25519Account, Ed25519PrivateKey, PrivateKey, PrivateKeyVariants } from "@aptos-labs/ts-sdk";
+import { aptosClient } from "./aptosClient";
+import { WalletSigner } from "./walletSigner";
 
-const getWebIrys = async (aptosWallet: WalletContextState) => {
-  const signMessage = aptosWallet.signMessage;
+const getWebIrys = async (provider: WalletContextState | WalletSigner) => {
+  const irysUploader = await WebUploader(WebAptos).withProvider(provider);
+  return irysUploader;
+};
 
-  aptosWallet.signMessage = async (message: AptosSignMessageInput) => {
-    const result = await signMessage({
-      ...message,
-      address: undefined,
-      chainId: undefined,
-      application: undefined,
+const getPairAccount = async (aptosWallet: WalletContextState, privatePairKey: string | null) => {
+  const aptos = aptosClient();
+
+  const account = privatePairKey
+    ? await aptos.deriveAccountFromPrivateKey({
+        privateKey: new Ed25519PrivateKey(
+          PrivateKey.formatPrivateKey(privatePairKey as string, PrivateKeyVariants.Ed25519),
+        ),
+      })
+    : Ed25519Account.generate();
+
+  if (!privatePairKey) {
+    const tx = await aptosWallet.signAndSubmitTransaction({
+      data: {
+        function: "0x1::aptos_account::transfer_coins",
+        typeArguments: ["0x1::aptos_coin::AptosCoin"],
+        functionArguments: [account.accountAddress, 1000],
+      },
     });
 
-    let signature = undefined;
-    if ((result.signature as any).data) {
-      return result;
-    }
+    console.log(`Transaction sent: ${tx.hash}`);
 
-    signature = (result.signature as any).signature.ephemeralSignature as any;
-    const publicKey = ((result.signature as any).signature.ephemeralPublicKey.publicKey as any).key.data;
+    localStorage.setItem("privatePairKey", (account as Ed25519Account).privateKey.toHexString());
+  }
 
-    console.log(
-      "signature valid by Irys?",
-      await InjectedAptosSigner.verify(
-        Buffer.from(publicKey),
-        Buffer.from(message.message, "hex"),
-        signature.signature.data.data,
-      ),
-    );
-    return signature;
-  };
-
-  const irysUploader = await WebUploader(WebAptos).withProvider(aptosWallet);
-  return irysUploader;
+  return new WalletSigner(account, aptos.config.network);
 };
 
 export const checkIfFund = async (aptosWallet: WalletContextState, files: File[], aptos: Aptos) => {
   // 1. estimate the gas cost based on the data size https://docs.irys.xyz/developer-docs/irys-sdk/api/getPrice
-  const webIrys = await getWebIrys(aptosWallet);
+  let pairAccount: WalletSigner | undefined;
+
+  if (aptosWallet.wallet?.name === "Continue with Google" || aptosWallet.wallet?.name === "Continue with Apple") {
+    const privatePairKey = await localStorage.getItem("privatePairKey");
+
+    pairAccount = await getPairAccount(aptosWallet, privatePairKey);
+
+    const tx = await pairAccount.signAndSubmitTransaction({
+      data: {
+        function: "0x1::aptos_account::transfer_coins",
+        typeArguments: ["0x1::aptos_coin::AptosCoin"],
+        functionArguments: [aptosWallet.account?.address, 1000],
+      },
+    });
+
+    console.log(`Transaction sent by Pair Account: ${tx.hash}`);
+  }
+
+  const webIrys = await getWebIrys(pairAccount || aptosWallet);
   const costToUpload = await webIrys.utils.estimateFolderPrice(files.map((f) => f.size));
   // 2. check the wallet balance on the irys node: irys.getLoadedBalance()
   const irysBalance = await webIrys.getBalance();
@@ -50,7 +68,7 @@ export const checkIfFund = async (aptosWallet: WalletContextState, files: File[]
     return true;
   }
   // 4. if balance is not enough,  check the payer balance
-  const currentAccountAddress = aptosWallet.account!.address.toString();
+  const currentAccountAddress = pairAccount?.getAddress() || aptosWallet.account!.address.toString();
 
   const currentAccountBalance = await aptos.account.getAccountCoinAmount({
     accountAddress: currentAccountAddress,
@@ -60,19 +78,38 @@ export const checkIfFund = async (aptosWallet: WalletContextState, files: File[]
   // 5. if payer balance > the amount based on the estimation, fund the irys node irys.fund, then upload
   if (currentAccountBalance > costToUpload.toNumber()) {
     try {
-      await fundNode(aptosWallet, costToUpload.toNumber());
+      await fundNode(aptosWallet, costToUpload.toNumber(), pairAccount);
       return true;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw new Error(`Error funding node ${error}`);
+    }
+  } else if (pairAccount) {
+    const mainAccountBalance = await aptos.account.getAccountCoinAmount({
+      accountAddress: aptosWallet.account!.address,
+      coinType: "0x1::aptos_coin::AptosCoin",
+    });
+
+    if (mainAccountBalance > costToUpload.toNumber()) {
+      const tx = await aptosWallet.signAndSubmitTransaction({
+        data: {
+          function: "0x1::aptos_account::transfer_coins",
+          typeArguments: ["0x1::aptos_coin::AptosCoin"],
+          functionArguments: [pairAccount.getAddress(), costToUpload.toNumber()],
+        },
+      });
+
+      await fundNode(aptosWallet, costToUpload.toNumber(), pairAccount);
+
+      console.log(`Transaction sent: ${tx.hash}`);
     }
   }
   // 6. if payer balance < the amount, replenish the payer balance*/
   return false;
 };
 
-export const fundNode = async (aptosWallet: WalletContextState, amount?: number) => {
-  const webIrys = await getWebIrys(aptosWallet);
+export const fundNode = async (aptosWallet: WalletContextState, amount?: number, pairAccount?: WalletSigner) => {
+  const webIrys = await getWebIrys(pairAccount || aptosWallet);
 
   try {
     const fundTx = await webIrys.fund(amount ?? 1000000);
