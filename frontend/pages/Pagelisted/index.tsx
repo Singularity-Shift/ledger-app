@@ -281,32 +281,34 @@ export default function PagesListed() {
 
   if (loading) {
     return (
-      <div className="max-w-screen-xl mx-auto p-4">
+      <div className="min-h-screen">
         <Header />
-        <div className="flex flex-col space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold">Pages Listed for Sale</h1>
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-40" />
-              <Skeleton className="h-10 w-32" />
+        <div className="max-w-screen-xl mx-auto">
+          <div className="flex flex-col space-y-6">
+            <div className="flex justify-between items-center">
+              <h1 className="text-3xl font-bold">Pages Listed for Sale</h1>
+              <div className="flex gap-2">
+                <Skeleton className="h-10 w-40" />
+                <Skeleton className="h-10 w-32" />
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, index) => (
-              <Card key={index} className="overflow-hidden">
-                <Skeleton className="h-64 w-full" />
-                <CardContent className="p-4">
-                  <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-full mb-1" />
-                  <Skeleton className="h-4 w-2/3 mb-4" />
-                  <Skeleton className="h-6 w-1/3" />
-                </CardContent>
-                <CardFooter className="p-4 pt-0">
-                  <Skeleton className="h-10 w-full" />
-                </CardFooter>
-              </Card>
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, index) => (
+                <Card key={index} className="overflow-hidden">
+                  <Skeleton className="h-64 w-full" />
+                  <CardContent className="p-4">
+                    <Skeleton className="h-6 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-full mb-1" />
+                    <Skeleton className="h-4 w-2/3 mb-4" />
+                    <Skeleton className="h-6 w-1/3" />
+                  </CardContent>
+                  <CardFooter className="p-4 pt-0">
+                    <Skeleton className="h-10 w-full" />
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -315,216 +317,219 @@ export default function PagesListed() {
 
   if (listedNFTs.length === 0) {
     return (
-      <div className="max-w-screen-xl mx-auto p-4">
+      <div className="min-h-screen">
         <Header />
-        <div className="flex flex-col items-center justify-center py-16 space-y-6">
-          <div className="bg-muted rounded-full p-6">
-            <Tag className="h-12 w-12 text-muted-foreground" />
+        <div className="max-w-screen-xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-16 space-y-6">
+            <div className="bg-muted rounded-full p-6">
+              <Tag className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h1 className="text-3xl font-bold">No Pages Listed for Sale</h1>
+            <p className="text-muted-foreground text-center max-w-md">
+              There are currently no NFTs listed for sale in this collection. Check back later or mint your own!
+            </p>
+            <Button asChild>
+              <a href="/">Go to Mint Page</a>
+            </Button>
           </div>
-          <h1 className="text-3xl font-bold">No Pages Listed for Sale</h1>
-          <p className="text-muted-foreground text-center max-w-md">
-            There are currently no NFTs listed for sale in this collection. Check back later or mint your own!
-          </p>
-          <Button asChild>
-            <a href="/">Go to Mint Page</a>
-          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-screen-xl mx-auto p-4">
+    <div className="min-h-screen">
       <Header />
-
-      <div className="flex flex-col space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex flex-col">
-            <h1 className="text-3xl font-bold mb-2 text-gray-700">Pages Listed for Sale</h1>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by page"
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+      <div className="max-w-screen-xl mx-auto">
+        <div className="flex flex-col space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col">
+              <h1 className="text-3xl font-bold mb-2 text-gray-700">Pages Listed for Sale</h1>
             </div>
 
-            <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-full sm:w-40">
-                <div className="flex items-center">
-                  <ArrowUpDown className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Sort by" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="price-asc">Price: Low to High</SelectItem>
-                <SelectItem value="price-desc">Price: High to Low</SelectItem>
-                <SelectItem value="name-asc">Page: Low to High</SelectItem>
-                <SelectItem value="name-desc">Page: High to Low</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by page"
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
 
-        {filteredAndSortedNFTs.length === 0 && searchTerm ? (
-          <div className="text-center py-12 border rounded-lg">
-            <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No results found for &quot;{searchTerm}&quot;</p>
+              <Select value={sortOption} onValueChange={setSortOption}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <div className="flex items-center">
+                    <ArrowUpDown className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Sort by" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                  <SelectItem value="name-asc">Page: Low to High</SelectItem>
+                  <SelectItem value="name-desc">Page: High to Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {filteredAndSortedNFTs.map((nft, index) => {
-              // Check if this is the last element
-              const isLastElement = index === filteredAndSortedNFTs.length - 1;
 
-              return (
-                <div key={nft.tokenDataId} ref={isLastElement ? lastNFTElementRef : null}>
-                  <Card className="overflow-hidden h-full flex flex-col">
-                    <CardHeader className="p-0">
-                      <div className="aspect-square w-full">
-                        <img
-                          src={nft.tokenImageUri}
-                          alt={nft.tokenName}
-                          className="w-full h-full object-cover"
-                          loading="lazy" // Add lazy loading for better performance
-                        />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 flex-grow">
-                      <CardTitle className="text-xl mb-2">Page Nº {nft.tokenName}</CardTitle>
-                      <p className="text-sm text-gray-500 mb-2">{nft.description}</p>
-                      <p className="font-bold text-lg">
-                        {convertAmountFromOnChainToHumanReadable(parseInt(nft.price), APT_DECIMALS)} APT
-                      </p>
-                    </CardContent>
-                    <CardFooter className="p-4 pt-0">
-                      {account?.address === nft.seller ? (
-                        <div className="flex justify-between w-full">
-                          {nft.marketplace === "wapal" ? (
-                            <>
-                              <Button
-                                className="flex-grow mr-2"
-                                onClick={() => openUpdatePriceDialog(nft)}
-                                disabled={actionNFT === nft.tokenDataId}
-                              >
-                                {actionNFT === nft.tokenDataId ? (
-                                  <>
-                                    <Spinner className="mr-2" size="sm" />
-                                    Updating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Update Price
-                                  </>
-                                )}
-                              </Button>
-                              <Button
-                                onClick={() => handleactionNFT(nft.listingId)}
-                                disabled={actionNFT === nft.tokenDataId}
-                              >
-                                {actionNFT === nft.tokenDataId ? (
-                                  <>
-                                    <Spinner className="mr-2" size="sm" />
-                                    Delisting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Trash2 className="h-4 w-4" /> Delist
-                                  </>
-                                )}
-                              </Button>
-                            </>
-                          ) : (
-                            <p>Listed on {nft.marketplace}</p>
-                          )}
+          {filteredAndSortedNFTs.length === 0 && searchTerm ? (
+            <div className="text-center py-12 border rounded-lg">
+              <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No results found for &quot;{searchTerm}&quot;</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {filteredAndSortedNFTs.map((nft, index) => {
+                // Check if this is the last element
+                const isLastElement = index === filteredAndSortedNFTs.length - 1;
+
+                return (
+                  <div key={nft.tokenDataId} ref={isLastElement ? lastNFTElementRef : null}>
+                    <Card className="overflow-hidden h-full flex flex-col">
+                      <CardHeader className="p-0">
+                        <div className="aspect-square w-full">
+                          <img
+                            src={nft.tokenImageUri}
+                            alt={nft.tokenName}
+                            className="w-full h-full object-cover"
+                            loading="lazy" // Add lazy loading for better performance
+                          />
                         </div>
-                      ) : (
-                        <Button
-                          className="w-full"
-                          onClick={() =>
-                            handleBuyNFT(
-                              nft.marketplace === "wapal" ? nft.listingId : nft.seller,
-                              nft.tokenName,
-                              nft.price,
-                              nft.marketplace,
-                            )
-                          }
-                          disabled={actionNFT === nft.tokenDataId}
-                        >
-                          {actionNFT === nft.tokenDataId ? (
-                            <>
-                              <Spinner className="mr-2" size="sm" />
-                              Buying...
-                            </>
-                          ) : (
-                            "Buy Now"
-                          )}
-                        </Button>
-                      )}
-                    </CardFooter>
-                  </Card>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Loading indicator for infinite scroll */}
-        {loadingMore && (
-          <div className="flex justify-center items-center py-6">
-            <Spinner size="md" />
-            <span className="ml-2">Loading more...</span>
-          </div>
-        )}
-
-        {/* End of results message */}
-        {!hasMore && filteredAndSortedNFTs.length > 0 && (
-          <div className="text-center py-6 text-gray-500">You've reached the end of the listings</div>
-        )}
-      </div>
-      <Dialog open={updatePriceDialogOpen} onOpenChange={setUpdatePriceDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Update NFT Price</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="price" className="text-right">
-                Price (APT)
-              </Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                className="col-span-3"
-              />
+                      </CardHeader>
+                      <CardContent className="p-4 flex-grow">
+                        <CardTitle className="text-xl mb-2">Page Nº {nft.tokenName}</CardTitle>
+                        <p className="text-sm text-gray-500 mb-2">{nft.description}</p>
+                        <p className="font-bold text-lg">
+                          {convertAmountFromOnChainToHumanReadable(parseInt(nft.price), APT_DECIMALS)} APT
+                        </p>
+                      </CardContent>
+                      <CardFooter className="p-4 pt-0">
+                        {account?.address === nft.seller ? (
+                          <div className="flex justify-between w-full">
+                            {nft.marketplace === "wapal" ? (
+                              <>
+                                <Button
+                                  className="flex-grow mr-2"
+                                  onClick={() => openUpdatePriceDialog(nft)}
+                                  disabled={actionNFT === nft.tokenDataId}
+                                >
+                                  {actionNFT === nft.tokenDataId ? (
+                                    <>
+                                      <Spinner className="mr-2" size="sm" />
+                                      Updating...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Update Price
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  onClick={() => handleactionNFT(nft.listingId)}
+                                  disabled={actionNFT === nft.tokenDataId}
+                                >
+                                  {actionNFT === nft.tokenDataId ? (
+                                    <>
+                                      <Spinner className="mr-2" size="sm" />
+                                      Delisting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Trash2 className="h-4 w-4" /> Delist
+                                    </>
+                                  )}
+                                </Button>
+                              </>
+                            ) : (
+                              <p>Listed on {nft.marketplace}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <Button
+                            className="w-full"
+                            onClick={() =>
+                              handleBuyNFT(
+                                nft.marketplace === "wapal" ? nft.listingId : nft.seller,
+                                nft.tokenName,
+                                nft.price,
+                                nft.marketplace,
+                              )
+                            }
+                            disabled={actionNFT === nft.tokenDataId}
+                          >
+                            {actionNFT === nft.tokenDataId ? (
+                              <>
+                                <Spinner className="mr-2" size="sm" />
+                                Buying...
+                              </>
+                            ) : (
+                              "Buy Now"
+                            )}
+                          </Button>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleUpdatePriceNFT} disabled={actionNFT === selectedNFT?.tokenDataId}>
-              {actionNFT === selectedNFT?.tokenDataId ? (
-                <>
-                  <Spinner className="mr-2" size="sm" />
-                  Updating...
-                </>
-              ) : (
-                "Update Price"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          )}
+
+          {/* Loading indicator for infinite scroll */}
+          {loadingMore && (
+            <div className="flex justify-center items-center py-6">
+              <Spinner size="md" />
+              <span className="ml-2">Loading more...</span>
+            </div>
+          )}
+
+          {/* End of results message */}
+          {!hasMore && filteredAndSortedNFTs.length > 0 && (
+            <div className="text-center py-6 text-gray-500">You've reached the end of the listings</div>
+          )}
+        </div>
+        <Dialog open={updatePriceDialogOpen} onOpenChange={setUpdatePriceDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Update NFT Price</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="price" className="text-right">
+                  Price (APT)
+                </Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button onClick={handleUpdatePriceNFT} disabled={actionNFT === selectedNFT?.tokenDataId}>
+                {actionNFT === selectedNFT?.tokenDataId ? (
+                  <>
+                    <Spinner className="mr-2" size="sm" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Price"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
