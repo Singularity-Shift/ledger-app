@@ -29,6 +29,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAppManagement } from "@/contexts/AppManagement";
 import { InsufficientBalanceModal } from "@/pages/Mint/components/InsufficientBalance";
 import { APT_DECIMALS, LEDGER_COIN_TYPE } from "@/utils/helpers";
+import { MintStepsModal, MintStep } from "@/components/MintStepsModal";
+import { processMintWithSteps } from "@/utils/irys";
 
 // Time formatting utility
 const formatTimeToHMS = (seconds: number): string => {
@@ -62,8 +64,16 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const { client } = useWalletClient();
   const { abi, ledgeABI } = useAbiClient();
   const { hasSubscription } = useAppManagement();
+  const [showMintStepsModal, setShowMintStepsModal] = useState(false);
+  const [mintSteps, setMintSteps] = useState<MintStep[]>([]);
+  const [currentStepId, setCurrentStepId] = useState<string>("");
 
   const { collection } = data ?? {};
+
+  const updateSteps = (steps: MintStep[], currentId: string) => {
+    setMintSteps(steps);
+    setCurrentStepId(currentId);
+  };
 
   const mintNFT = async () => {
     if (!collection?.collection_id) return;
@@ -86,7 +96,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       try {
         // Get current balance
         const balanceResult = await aptos.account.getAccountCoinAmount({
-          accountAddress: account.address,
+          accountAddress: account.address.toString(),
           coinType: LEDGER_COIN_TYPE,
         });
 
@@ -110,6 +120,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
     }
 
     setIsMinting(true);
+    setShowMintStepsModal(true); // Show the steps modal
 
     try {
       const tokenData = JSON.parse(atob(securityToken));
@@ -123,6 +134,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         });
         setDrawnImage(null);
         setSecurityToken(null);
+        setShowMintStepsModal(false);
         return;
       }
 
@@ -148,27 +160,36 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       const jsonString = JSON.stringify(jsonData, null, 2);
       const imageJsonFile = new File([jsonString], `${mintId}.json`, { type: "application/json" });
 
-      const responseUrl = await updateMintData(mintId, wallet, [drawnImage as File, imageJsonFile], aptos);
+      // Use processMintWithSteps to handle the upload and minting process
+      await processMintWithSteps(
+        wallet,
+        [drawnImage as File, imageJsonFile],
+        updateSteps,
+        async (manifestUrl: string) => {
+          // This is the mintPageCallback that will be called after files are uploaded
+          const tx = await client?.useABI(ledgeABI).mint_nft({
+            type_arguments: [coinMintFees],
+            arguments: [COLLECTION_ADDRESS, manifestUrl],
+          });
 
-      const tx = await client?.useABI(ledgeABI).mint_nft({
-        type_arguments: [coinMintFees],
-        arguments: [COLLECTION_ADDRESS, responseUrl.imageUrl],
-      });
+          toast({
+            title: "Minted!",
+            description: (
+              <div>
+                <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
+                  {tx?.hash}
+                </a>
+              </div>
+            ),
+          });
 
-      toast({
-        title: "Minted!",
-        description: (
-          <div>
-            <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
-              {tx?.hash}
-            </a>
-          </div>
-        ),
-      });
+          // Clear the drawing state after successful minting
+          clearDrawingState();
+          setSecurityToken(null);
 
-      // Clear the drawing state after successful minting
-      clearDrawingState();
-      setSecurityToken(null);
+          return Promise.resolve();
+        },
+      );
     } catch (error) {
       console.error("Error processing mint transaction:", error);
       toast({
@@ -178,6 +199,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
       });
     } finally {
       setIsMinting(false);
+      // We don't close the modal here so users can see the completed steps
     }
   };
 
@@ -365,6 +387,13 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         requiredAmount={mintFee}
         currentBalance={currentTokenBalance}
         mintNFT={mintNFT}
+      />
+      {/* Mint Steps Modal */}
+      <MintStepsModal
+        isOpen={showMintStepsModal}
+        onClose={() => setShowMintStepsModal(false)}
+        steps={mintSteps}
+        currentStepId={currentStepId}
       />
     </section>
   );
