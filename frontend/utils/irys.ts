@@ -397,22 +397,15 @@ export const processMintWithSteps = async (
           steps = steps.map((s) => (s.id === "mint-page" ? { ...s, status: "completed" } : s));
           updateSteps([...steps], "mint-page");
         } catch (error) {
-          // Even if minting fails, upload sources was still successful
-          // So we keep the upload-sources step as completed
-          steps = steps.map((s) => {
-            if (s.id === "mint-page") {
-              return {
-                ...s,
-                status: "error",
-                errorMessage: error instanceof Error ? error.message : "Failed to mint page",
-              };
-            }
-            // Ensure upload-sources remains completed
-            if (s.id === "upload-sources") {
-              return { ...s, status: "completed" };
-            }
-            return s;
-          });
+          steps = steps.map((s) =>
+            s.id === "mint-page"
+              ? {
+                  ...s,
+                  status: "error",
+                  errorMessage: error instanceof Error ? error.message : "Failed to mint page",
+                }
+              : s,
+          );
           updateSteps([...steps], "mint-page");
           throw error;
         }
