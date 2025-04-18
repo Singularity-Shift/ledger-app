@@ -2,11 +2,21 @@ import { WebUploader } from "@irys/web-upload";
 import { Aptos as AptosNode } from "@irys/upload-aptos";
 import { WebAptos } from "@irys/web-upload-aptos";
 import { WalletContextState } from "@aptos-labs/wallet-adapter-react";
-import { Account, Aptos, Ed25519Account, Ed25519PrivateKey, PrivateKey, PrivateKeyVariants } from "@aptos-labs/ts-sdk";
+import {
+  Account,
+  Aptos,
+  convertAmountFromHumanReadableToOnChain,
+  convertAmountFromOnChainToHumanReadable,
+  Ed25519Account,
+  Ed25519PrivateKey,
+  PrivateKey,
+  PrivateKeyVariants,
+} from "@aptos-labs/ts-sdk";
 import { aptosClient } from "./aptosClient";
 import { MintStep } from "@/components/MintStepsModal";
 import { BigNumber } from "bignumber.js";
 import { updateMintData } from "./assetsUploader";
+import { APT_DECIMALS } from "./helpers";
 // import { WalletSigner } from "./walletSigner";
 
 const getWebIrys = async (provider: WalletContextState | string) => {
@@ -98,15 +108,18 @@ export const checkIfFund = async (aptosWallet: WalletContextState, files: File[]
     });
 
     if (mainAccountBalance > costToUpload.toNumber()) {
-      const gasfees = (await webIrys.tokenConfig.getFee(costToUpload)) as BigNumber;
+      const gasfees = (await webIrys.tokenConfig.getFee(costToUpload)) as {
+        gasUnitPrice: number;
+        maxGasAmount: number;
+      };
 
-      const fees = costToUpload.toNumber() + gasfees.toNumber();
+      const fees = costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount;
 
       const tx = await aptosWallet.signAndSubmitTransaction({
         data: {
           function: "0x1::aptos_account::transfer_coins",
           typeArguments: ["0x1::aptos_coin::AptosCoin"],
-          functionArguments: [pairAccount.accountAddress, fees + fees * 0.1],
+          functionArguments: [pairAccount.accountAddress, fees],
         },
       });
 
@@ -186,7 +199,7 @@ export const processMintWithSteps = async (
   const isAptosConnect = checkIsAptosConnectWallet(aptosWallet);
 
   // Check if private key already exists for Aptos Connect
-  const privatePairKey = isAptosConnect ? localStorage.getItem("privatePairKey") : null;
+  let privatePairKey = isAptosConnect ? localStorage.getItem("privatePairKey") : null;
   const pairWalletExists = isAptosConnect && privatePairKey;
 
   // Define all possible steps
@@ -240,6 +253,10 @@ export const processMintWithSteps = async (
 
         try {
           pairAccount = await getPairAccount(aptosWallet, privatePairKey);
+
+          if (!privatePairKey) {
+            privatePairKey = (pairAccount as Ed25519Account).privateKey.toHexString();
+          }
 
           steps = steps.map((s) => (s.id === "create-pair-wallet" ? { ...s, status: "completed" } : s));
           // Find the next step after create-pair-wallet
@@ -343,6 +360,32 @@ export const processMintWithSteps = async (
 
             if (currentAccountBalance > costToUpload.toNumber()) {
               await fundNode(aptosWallet, costToUpload.toNumber(), privatePairKey);
+            } else if (pairAccount) {
+              const mainAccountBalance = await aptos.account.getAccountCoinAmount({
+                accountAddress: aptosWallet.account!.address,
+                coinType: "0x1::aptos_coin::AptosCoin",
+              });
+
+              if (mainAccountBalance > costToUpload.toNumber()) {
+                const gasfees = (await webIrys.tokenConfig.getFee(costToUpload)) as {
+                  gasUnitPrice: number;
+                  maxGasAmount: number;
+                };
+
+                const fees = costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount;
+
+                const tx = await aptosWallet.signAndSubmitTransaction({
+                  data: {
+                    function: "0x1::aptos_account::transfer_coins",
+                    typeArguments: ["0x1::aptos_coin::AptosCoin"],
+                    functionArguments: [pairAccount.accountAddress, fees],
+                  },
+                });
+
+                await fundNode(aptosWallet, costToUpload.toNumber(), privatePairKey);
+
+                console.log(`Transaction sent: ${tx.hash}`);
+              }
             } else {
               throw new Error("Insufficient funds in the account to cover the upload cost.");
             }
