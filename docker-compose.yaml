@@ -3,7 +3,7 @@ services:
     image: node:latest
     container_name: ledger_app
     working_dir: /usr/src/ledger_app
-    command: sh -c "pnpm install && pnpm build && pnpm preview -- --host 0.0.0.0 --no-open"
+    command: sh -c "npm i -g pnpm && pnpm install && pnpm build && pnpm preview -- --host 0.0.0.0 --no-open"
     ports:
       - "4173:4173"
     environment:
