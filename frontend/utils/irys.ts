@@ -439,7 +439,7 @@ export const processMintWithSteps = async (
       try {
         // Use updateMintData instead of directly calling webIrys.uploadFolder
         const mintId = files.find((file) => file.name.endsWith(".json"))?.name.replace(".json", "") || "default";
-        const { imageUrl } = await updateMintData(mintId, aptosWallet, files, aptos);
+        const { imageUrl } = await updateMintData(mintId, aptosWallet, files);
 
         steps = steps.map((s) => (s.id === "upload-sources" ? { ...s, status: "completed" } : s));
         updateSteps([...steps], "mint-page");

@@ -105,7 +105,6 @@ export const updateMintData = async (
   id: string,
   aptosWallet: WalletContextState,
   files: File[],
-  aptos: Aptos,
 ): Promise<{
   imageUrl: string;
 }> => {
