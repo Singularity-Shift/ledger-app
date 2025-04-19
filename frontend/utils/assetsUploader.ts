@@ -140,47 +140,40 @@ export const updateMintData = async (
     throw new Error("Files size should not exceed 2GB");
   }
 
-  // Check if need to first fund an Irys node
-  const funded = await checkIfFund(aptosWallet, files, aptos);
+  let imageFolderReceipt: string;
+  try {
+    // Upload collection thumbnail image and all NFT images as a folder
+    imageFolderReceipt = await uploadFolder(aptosWallet, [...imageFiles]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    throw new Error(`Error uploading collection image and NFT images ${error}`);
+  }
 
-  if (funded) {
-    let imageFolderReceipt: string;
-    try {
-      // Upload collection thumbnail image and all NFT images as a folder
-      imageFolderReceipt = await uploadFolder(aptosWallet, [...imageFiles]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      throw new Error(`Error uploading collection image and NFT images ${error}`);
-    }
+  // Update collection metadata with the cover imag
 
-    // Update collection metadata with the cover imag
+  // Update each image metadata with the related image URL
+  const updatedImageMetadatas = await Promise.all(
+    nftImageMetadatas.map(async (file) => {
+      const metadata: ImageMetadata = JSON.parse(await file.text());
+      const imageUrl = `${imageFolderReceipt}/${file.name.replace("json", "png")}`;
 
-    // Update each image metadata with the related image URL
-    const updatedImageMetadatas = await Promise.all(
-      nftImageMetadatas.map(async (file) => {
-        const metadata: ImageMetadata = JSON.parse(await file.text());
-        const imageUrl = `${imageFolderReceipt}/${file.name.replace("json", "png")}`;
+      metadata.image = imageUrl;
+      const fileMetadata = new File([JSON.stringify(metadata)], file.name, {
+        type: file.type,
+      });
 
-        metadata.image = imageUrl;
-        const fileMetadata = new File([JSON.stringify(metadata)], file.name, {
-          type: file.type,
-        });
+      return fileMetadata;
+    }),
+  );
 
-        return fileMetadata;
-      }),
-    );
+  try {
+    const metadataFolderReceipt = await uploadFolder(aptosWallet, [...updatedImageMetadatas]);
 
-    try {
-      const metadataFolderReceipt = await uploadFolder(aptosWallet, [...updatedImageMetadatas]);
-
-      return {
-        imageUrl: `${metadataFolderReceipt}/${id}.json`,
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      throw new Error(`Error uploading collection metadata and NFTs' metadata ${error}`);
-    }
-  } else {
-    throw new Error("Current account balance is not enough to fund a decentralized asset node");
+    return {
+      imageUrl: `${metadataFolderReceipt}/${id}.json`,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    throw new Error(`Error uploading collection metadata and NFTs' metadata ${error}`);
   }
 };

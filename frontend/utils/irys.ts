@@ -112,9 +112,14 @@ export const checkIfFund = async (aptosWallet: WalletContextState, files: File[]
         maxGasAmount: number;
       };
 
-      const fees =
-        (costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount) *
-        convertAmountFromHumanReadableToOnChain(0.1, APT_DECIMALS);
+      const fundFees = convertAmountFromOnChainToHumanReadable(
+        costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount,
+        APT_DECIMALS,
+      );
+
+      const saveFees = fundFees + fundFees * 0.2;
+
+      const fees = Math.ceil(convertAmountFromHumanReadableToOnChain(saveFees, APT_DECIMALS));
 
       const tx = await aptosWallet.signAndSubmitTransaction({
         data: {
@@ -379,7 +384,7 @@ export const processMintWithSteps = async (
                   APT_DECIMALS,
                 );
 
-                const saveFees = fundFees + fundFees * 0.1;
+                const saveFees = fundFees + fundFees * 0.2;
 
                 const fees = Math.ceil(convertAmountFromHumanReadableToOnChain(saveFees, APT_DECIMALS));
 
