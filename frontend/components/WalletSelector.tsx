@@ -2,7 +2,6 @@ import {
   APTOS_CONNECT_ACCOUNT_URL,
   AboutAptosConnect,
   AboutAptosConnectEducationScreen,
-  AnyAptosWallet,
   AptosPrivacyPolicy,
   WalletItem,
   groupAndSortWallets,
@@ -10,6 +9,8 @@ import {
   isInstallRequired,
   truncateAddress,
   useWallet,
+  AdapterWallet,
+  AdapterNotDetectedWallet,
 } from "@aptos-labs/wallet-adapter-react";
 import { useLocation } from "react-router-dom";
 import { ArrowLeft, ArrowRight, ChevronDown, Copy, LogOut, User, Wallet } from "lucide-react";
@@ -36,7 +37,7 @@ export function WalletSelector() {
   const copyAddress = useCallback(async () => {
     if (!account?.address) return;
     try {
-      await navigator.clipboard.writeText(account.address);
+      await navigator.clipboard.writeText(account.address.toString());
       toast({
         title: "Success",
         description: "Copied wallet address to clipboard.",
@@ -55,7 +56,9 @@ export function WalletSelector() {
       <DropdownMenuTrigger asChild>
         <Button className="h-8 w-8 p-0 sm:w-auto sm:h-10 sm:px-4">
           <User className="h-4 w-4 sm:hidden" />
-          <span className="hidden sm:inline">{account?.ansName || truncateAddress(account?.address) || "Unknown"}</span>
+          <span className="hidden sm:inline">
+            {account?.ansName || truncateAddress(account?.address.toString()) || "Unknown"}
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -173,7 +176,7 @@ function ConnectWalletDialog({ close }: ConnectWalletDialogProps) {
 }
 
 interface WalletRowProps {
-  wallet: AnyAptosWallet;
+  wallet: AdapterWallet | AdapterNotDetectedWallet;
   onConnect?: () => void;
 }
 

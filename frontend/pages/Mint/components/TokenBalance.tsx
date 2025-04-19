@@ -22,7 +22,7 @@ export function TokenBalance() {
       setIsLoading(true);
       try {
         const balanceResult = await aptos.account.getAccountCoinAmount({
-          accountAddress: account.address,
+          accountAddress: account.address.toString(),
           coinType: LEDGER_COIN_TYPE,
         });
 

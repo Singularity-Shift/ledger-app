@@ -27,16 +27,16 @@ export const AppManagementProvider = ({ children }: { children: ReactNode }) => 
 
       const admin = adminResult[0];
 
-      setIsAdmin(account.address === AccountAddress.from(admin).toString());
+      setIsAdmin(account.address.toString() === AccountAddress.from(admin).toString());
 
       const [_starTime, _endTime, _upgrades, trial_version] = await abi.useABI(subscriptionABI).view.get_plan({
         typeArguments: [],
-        functionArguments: [account.address as `0x${string}`],
+        functionArguments: [account.address.toString() as `0x${string}`],
       });
 
       const responseHasSubscription = await abi.useABI(subscriptionABI).view.has_subscription_active({
         typeArguments: [],
-        functionArguments: [account.address as `0x${string}`],
+        functionArguments: [account.address.toString() as `0x${string}`],
       });
 
       setHasSubscription(responseHasSubscription[0] && !trial_version);

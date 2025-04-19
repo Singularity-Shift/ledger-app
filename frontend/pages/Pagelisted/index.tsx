@@ -407,7 +407,7 @@ export default function PagesListed() {
                         </p>
                       </CardContent>
                       <CardFooter className="p-4 pt-0">
-                        {account?.address === nft.seller ? (
+                        {account?.address.toString() === nft.seller ? (
                           <div className="flex justify-between w-full">
                             {nft.marketplace === "wapal" ? (
                               <>

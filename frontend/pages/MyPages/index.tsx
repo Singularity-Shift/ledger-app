@@ -89,7 +89,7 @@ export default function MyPages() {
   const fetchMyNFTs = async () => {
     const result = await aptos.getAccountOwnedTokensFromCollectionAddress({
       collectionAddress: COLLECTION_ADDRESS,
-      accountAddress: account?.address as string,
+      accountAddress: account?.address.toString() as `0x${string}`,
     });
 
     const resultMapped = await Promise.all(
