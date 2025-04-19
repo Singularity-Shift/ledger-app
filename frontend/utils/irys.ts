@@ -14,7 +14,6 @@ import {
 } from "@aptos-labs/ts-sdk";
 import { aptosClient } from "./aptosClient";
 import { MintStep } from "@/components/MintStepsModal";
-import { BigNumber } from "bignumber.js";
 import { updateMintData } from "./assetsUploader";
 import { APT_DECIMALS } from "./helpers";
 // import { WalletSigner } from "./walletSigner";
@@ -85,7 +84,7 @@ export const checkIfFund = async (aptosWallet: WalletContextState, files: File[]
     return true;
   }
   // 4. if balance is not enough,  check the payer balance
-  const currentAccountAddress = pairAccount?.accountAddress || aptosWallet.account!.address.toString();
+  const currentAccountAddress = pairAccount?.accountAddress.toString() || aptosWallet.account!.address.toString();
 
   const currentAccountBalance = await aptos.account.getAccountCoinAmount({
     accountAddress: currentAccountAddress,
@@ -113,7 +112,9 @@ export const checkIfFund = async (aptosWallet: WalletContextState, files: File[]
         maxGasAmount: number;
       };
 
-      const fees = costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount;
+      const fees =
+        (costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount) *
+        convertAmountFromHumanReadableToOnChain(0.1, APT_DECIMALS);
 
       const tx = await aptosWallet.signAndSubmitTransaction({
         data: {
@@ -352,7 +353,8 @@ export const processMintWithSteps = async (
               costToUpload = await webIrys.utils.estimateFolderPrice(files.map((f) => f.size));
             }
 
-            const currentAccountAddress = pairAccount?.accountAddress || aptosWallet.account!.address.toString();
+            const currentAccountAddress =
+              pairAccount?.accountAddress.toString() || aptosWallet.account!.address.toString();
             const currentAccountBalance = await aptos.account.getAccountCoinAmount({
               accountAddress: currentAccountAddress,
               coinType: "0x1::aptos_coin::AptosCoin",
@@ -372,7 +374,14 @@ export const processMintWithSteps = async (
                   maxGasAmount: number;
                 };
 
-                const fees = costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount;
+                const fundFees = convertAmountFromOnChainToHumanReadable(
+                  costToUpload.toNumber() + gasfees.gasUnitPrice * gasfees.maxGasAmount,
+                  APT_DECIMALS,
+                );
+
+                const saveFees = fundFees + fundFees * 0.1;
+
+                const fees = Math.ceil(convertAmountFromHumanReadableToOnChain(saveFees, APT_DECIMALS));
 
                 const tx = await aptosWallet.signAndSubmitTransaction({
                   data: {

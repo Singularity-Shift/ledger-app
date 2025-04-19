@@ -20,7 +20,6 @@ import { PencilSketchPortal } from "@/components/PencilSketchPortal";
 import { COIN_TYPE, COLLECTION_ADDRESS, NETWORK, SECONDARY_MARKETPLACE } from "@/constants";
 // Internal config
 import { config } from "@/config";
-import { updateMintData } from "@/utils/assetsUploader";
 import { aptosClient } from "@/utils/aptosClient";
 import { useWalletClient } from "@thalalabs/surf/hooks";
 import { useAbiClient } from "@/contexts/AbiProvider";
