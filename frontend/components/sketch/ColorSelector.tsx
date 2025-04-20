@@ -6,6 +6,8 @@ interface ColorSelectorProps {
   setBaseColor: (color: string) => void;
   customColor: string;
   setCustomColor: (color: string) => void;
+  isDropperMode?: boolean;
+  setIsDropperMode?: (active: boolean) => void;
 }
 
 export const ColorSelector: React.FC<ColorSelectorProps> = ({
@@ -13,6 +15,8 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
   setBaseColor,
   customColor,
   setCustomColor,
+  isDropperMode,
+  setIsDropperMode,
 }) => {
   const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomColor(e.target.value);
@@ -26,13 +30,24 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
 
   return (
     <>
-      {/* Selected Color Display */}
-      <div>
-        <label className="text-xs font-medium mb-1 block">Selected Color:</label>
-        <div className="flex items-center gap-2 px-2 py-1 border rounded bg-white">
+      {/* Selected Color Display + Dropper Button Row */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 px-2 py-1 border rounded bg-white min-w-0" style={{ flex: '1 1 0', maxWidth: 160 }}>
           <div className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: baseColor }} />
-          <span className="text-xs sm:text-sm">{getCurrentColorName()}</span>
+          <span className="text-xs sm:text-sm truncate">{getCurrentColorName()}</span>
         </div>
+        {setIsDropperMode && (
+          <button
+            type="button"
+            onClick={() => setIsDropperMode(!isDropperMode)}
+            className={`px-2 py-1 rounded border text-xs flex items-center gap-1 ${isDropperMode ? 'bg-blue-100 border-blue-400' : 'bg-white border-gray-300'} transition-all`}
+            title="Pick color from canvas"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            <span role="img" aria-label="Dropper">🎨</span> {isDropperMode ? 'Dropper' : 'Pick'}
+          </button>
+        )}
+        {isDropperMode && <span className="text-xs text-blue-600 ml-2">Click canvas to pick</span>}
       </div>
 
       {/* Color Palette */}

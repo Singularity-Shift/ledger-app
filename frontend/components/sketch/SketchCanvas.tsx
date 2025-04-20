@@ -21,6 +21,7 @@ interface SketchCanvasProps {
   onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
   onPointerLeave?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  dropperMode?: boolean;
 }
 
 export interface SketchCanvasHandle {
@@ -48,6 +49,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       onPointerMove,
       onPointerUp,
       onPointerLeave,
+      dropperMode,
     },
     ref,
   ) => {
@@ -124,7 +126,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           borderRadius: "4px",
           position: "relative",
           overflow: "hidden",
-          cursor: isAdjustMode && tracingActive ? "move" : isEraser ? eraserCursor : pencilCursor,
+          cursor: dropperMode ? 'crosshair' : (isAdjustMode && tracingActive ? "move" : isEraser ? eraserCursor : pencilCursor),
         }}
       >
         {/* Background layer (paper) */}

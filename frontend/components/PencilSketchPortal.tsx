@@ -46,6 +46,9 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [imageScale, setImageScale] = useState(drawingState?.traceConfig?.scale ?? 1);
   const [isAdjustMode, setIsAdjustMode] = useState(false);
 
+  // Add state for dropper mode
+  const [isDropperMode, setIsDropperMode] = useState(false);
+
   // Initialize timer hook
   const { elapsedTime, setElapsedTime, drawingStartTime, getSecurityToken } = useSketchTimer(
     isOpen,
@@ -489,6 +492,44 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   };
 
+  // Improved dropper handler: await image load and correct coordinate mapping
+  const handleDropperPick = useCallback(async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDropperMode || !sketchCanvasRef.current?.canvasRef.current || !sketchCanvasRef.current.canvasContainerRef.current) return;
+    // Compute click position relative to displayed canvas
+    const rect = sketchCanvasRef.current.canvasContainerRef.current.getBoundingClientRect();
+    const x = Math.floor(e.clientX - rect.left);
+    const y = Math.floor(e.clientY - rect.top);
+    try {
+      // Export drawing layer as PNG data URL
+      const dataUrl = await sketchCanvasRef.current.canvasRef.current.exportImage("png");
+      const img = new window.Image();
+      // Wait for image to load
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to load image for dropper"));
+        img.src = dataUrl;
+      });
+      // Draw onto a temp canvas matching display size
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = canvasSize;
+      tempCanvas.height = canvasSize;
+      const ctx = tempCanvas.getContext("2d");
+      if (!ctx) throw new Error("Failed to get canvas context");
+      ctx.drawImage(img, 0, 0, canvasSize, canvasSize);
+      // Sample pixel color
+      const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+      const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+      setBaseColor(hex);
+      setCustomColor(hex);
+      toast({ title: "Color Picked", description: hex });
+    } catch (err) {
+      console.error("Dropper error:", err);
+      toast({ variant: "destructive", title: "Dropper Error", description: "Could not pick color." });
+    } finally {
+      setIsDropperMode(false);
+    }
+  }, [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode]);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -522,9 +563,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               cursorPosition={cursorPosition}
               scaledStrokeWidth={scaledStrokeWidth}
               setImagePosition={setImagePosition}
-              onPointerDown={handlePointerDown}
+              onPointerDown={isDropperMode ? handleDropperPick : handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
+              dropperMode={isDropperMode}
             />
           </div>
         </div>
@@ -568,6 +610,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               setBaseColor={setBaseColor}
               customColor={customColor}
               setCustomColor={setCustomColor}
+              isDropperMode={isDropperMode}
+              setIsDropperMode={setIsDropperMode}
             />
 
             {/* Stroke Width Control (Pencil Size) */}
