@@ -144,7 +144,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         attributes: [
           {
             trait_type: "Created by",
-            value: account.address,
+            value: account.ansName || account.address.toString(),
           },
           {
             trait_type: "Time taken drawing",
