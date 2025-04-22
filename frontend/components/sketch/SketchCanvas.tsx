@@ -112,13 +112,36 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     };
     // --- End Adjust Mode Handlers ---
 
+    // --- Dropper Mode Handlers ---
+    const handleDropperPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+      onPointerDown(e);
+      e.stopPropagation(); // Prevent event from bubbling to canvas
+    };
+
+    const handleDropperPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+      onPointerMove(e);
+      e.stopPropagation(); // Prevent event from bubbling to canvas
+    };
+
+    const handleDropperPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+      onPointerUp(e);
+      e.stopPropagation(); // Prevent event from bubbling to canvas
+    };
+
+    const handleDropperPointerLeave = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (onPointerLeave) onPointerLeave(e);
+      else onPointerUp(e);
+      e.stopPropagation(); // Prevent event from bubbling to canvas
+    };
+    // --- End Dropper Mode Handlers ---
+
     return (
       <div
         ref={canvasContainerRef}
-        onPointerDown={isAdjustMode ? undefined : onPointerDown}
-        onPointerMove={isAdjustMode ? undefined : onPointerMove}
-        onPointerUp={isAdjustMode ? undefined : onPointerUp}
-        onPointerLeave={isAdjustMode ? undefined : (onPointerLeave || onPointerUp)}
+        onPointerDown={isAdjustMode || dropperMode ? undefined : onPointerDown}
+        onPointerMove={isAdjustMode || dropperMode ? undefined : onPointerMove}
+        onPointerUp={isAdjustMode || dropperMode ? undefined : onPointerUp}
+        onPointerLeave={isAdjustMode || dropperMode ? undefined : (onPointerLeave || onPointerUp)}
         style={{
           width: `${canvasSize}px`,
           height: `${canvasSize}px`,
@@ -188,6 +211,25 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
               height: "100%",
               zIndex: 10,
               cursor: "move",
+            }}
+          />
+        )}
+
+        {/* Block overlay to prevent drawing when in dropper mode */}
+        {dropperMode && (
+          <div
+            onPointerDown={handleDropperPointerDown}
+            onPointerMove={handleDropperPointerMove}
+            onPointerUp={handleDropperPointerUp}
+            onPointerLeave={handleDropperPointerLeave}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              zIndex: 10,
+              cursor: "crosshair",
             }}
           />
         )}
