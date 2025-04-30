@@ -35,3 +35,6 @@ example-collection/
 .env.*.local
 
 .aptos
+
+dev-brief.md
+plan-updated-for-frontend.md

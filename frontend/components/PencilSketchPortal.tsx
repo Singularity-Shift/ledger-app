@@ -19,6 +19,8 @@ import DrawingTimer from "./sketch/DrawingTimer";
 import useSketchTimer from "./sketch/useSketchTimer";
 import useSketchExport from "./sketch/useSketchExport";
 import { moderateImage } from "@/utils/imageModeration";
+import { fetchAutoDraw } from '@/utils/autoDraw';
+import Paper from '@/assets/placeholders/paper.png';
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
@@ -58,6 +60,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Initialize export hook
   const { exportMergedSketch } = useSketchExport();
+
+  // Add new states for auto functionality
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Calculate the actual stroke color based on the base color and opacity
   const strokeColor = useMemo(() => {
@@ -253,6 +259,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const handlePointerUp = useCallback(() => {
     setIsErasing(false);
     saveCurrentState(); // Save after drawing action completes
+    setHasDrawn(true);
   }, [saveCurrentState]);
 
   // Save state before the window unloads
@@ -530,6 +537,24 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   }, [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode]);
 
+  // handleAuto implementation
+  const handleAuto = async () => {
+    const fd = new FormData();
+    fd.append('paper', await fetch(Paper).then(r => r.blob()), 'paper.png');
+    const dataUrl = sketchCanvasRef.current!.canvasRef.current!.exportImage('png');
+    fd.append('sketch', await (await fetch(dataUrl)).blob(), 'sketch.png');
+    // add subject.png here if you capture it
+    setIsSending(true);
+    try {
+      const aiImg = await fetchAutoDraw(fd);
+      const ctx = sketchCanvasRef.current!.canvasRef.current!.ctx!;
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.drawImage(aiImg, 0, 0, ctx.canvas.width, ctx.canvas.height);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -596,6 +621,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                 handleToggleTracing={handleToggleTracing}
                 handleScaleIncrease={handleScaleIncrease}
                 handleScaleDecrease={handleScaleDecrease}
+                handleAuto={handleAuto}
+                autoDisabled={!hasDrawn || isSending}
                 onImageSelect={handleImageSelect}
                 fileInputRef={sketchCanvasRef.current?.fileInputRef || { current: null }}
               />
@@ -624,6 +651,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               handleClear={handleClear}
               handleSubmit={handleSubmit}
               onClose={onClose}
+              handleAuto={handleAuto}
+              autoDisabled={!hasDrawn || isSending}
             />
           </div>
         </div>

@@ -10,6 +10,12 @@ export default defineConfig({
   },
   server: {
     open: true,
+    proxy: {
+      '/api/auto': {
+        target: 'http://localhost:3050',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     allowedHosts: ["ledgerapp.fun"],
