@@ -38,3 +38,7 @@ example-collection/
 
 dev-brief.md
 plan-updated-for-frontend.md
+
+# Google Cloud credentials
+*-ai-*.json
+auto-backend/sshiftdao-ai-*.json

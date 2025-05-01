@@ -18,7 +18,6 @@ export class AutoController {
   constructor(private readonly autoSvc: AutoService) {}
 
   @Post()
-  @Header('Content-Type', 'image/png')
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -36,11 +35,20 @@ export class AutoController {
       if (!files[k]?.[0])
         throw new BadRequestException(`${k}.png required`);
 
-    const buffers = Object.fromEntries(
-      Object.entries(files).map(([k, [f]]) => [k, f.buffer]),
-    );
+    // Create a map of all file buffers
+    const buffers: Record<string, Buffer> = {};
+    
+    // Add required files
+    buffers.paper = files.paper[0].buffer;
+    buffers.sketch = files.sketch[0].buffer;
+    
+    // Add optional subject file if provided
+    if (files.subject?.[0]) {
+      buffers.subject = files.subject[0].buffer;
+    }
 
-    return this.autoSvc.generate(buffers); // → Buffer of PNG
+    const imageUrl = await this.autoSvc.generate(buffers);
+    return { imageUrl };
   }
 }
  

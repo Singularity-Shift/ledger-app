@@ -1,8 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+  
+  // Validate required environment variables
+  if (!process.env.OPENAI_API_KEY) {
+    logger.error('Missing required environment variable: OPENAI_API_KEY');
+    process.exit(1);
+  }
+  
+  // Validate Google credentials file exists
+  const credentialsPath = path.resolve(process.cwd(), 'sshiftdao-ai-8c84658189d0.json');
+  if (!fs.existsSync(credentialsPath)) {
+    logger.error(`Google Cloud credentials file not found at: ${credentialsPath}`);
+    process.exit(1);
+  }
+  
   const app = await NestFactory.create(AppModule, { bodyParser: false });
 
   // CORS
@@ -21,5 +38,6 @@ async function bootstrap() {
   );
 
   await app.listen(process.env.PORT ?? 3050, '0.0.0.0');
+  logger.log(`Application is running on port ${process.env.PORT ?? 3050}`);
 }
 bootstrap();
