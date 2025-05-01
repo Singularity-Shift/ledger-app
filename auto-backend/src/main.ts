@@ -7,9 +7,10 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: process.env.NODE_ENV === 'development'
-      ? ['http://localhost:5173', 'http://127.0.0.1:5173']
-      : process.env.ALLOW_ORIGIN ?? '*',
+    origin:
+      process.env.NODE_ENV === 'development'
+        ? ['http://localhost:5173', 'http://127.0.0.1:5173']
+        : (process.env.ALLOW_ORIGIN ?? '*'),
     methods: ['POST', 'OPTIONS'],
     maxAge: 86_400,
   });
