@@ -43,3 +43,4 @@ export class AutoController {
     return this.autoSvc.generate(buffers); // → Buffer of PNG
   }
 }
+ 

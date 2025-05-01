@@ -11,8 +11,6 @@ interface TracingControlsProps {
   handleScaleDecrease: () => void;
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
-  handleAuto: () => void;
-  autoDisabled: boolean;
 }
 
 export const TracingControls: React.FC<TracingControlsProps> = ({
@@ -26,8 +24,6 @@ export const TracingControls: React.FC<TracingControlsProps> = ({
   handleScaleDecrease,
   onImageSelect,
   fileInputRef,
-  handleAuto,
-  autoDisabled,
 }) => {
   return (
     <>
@@ -49,13 +45,6 @@ export const TracingControls: React.FC<TracingControlsProps> = ({
             } hover:bg-gray-100 transition-colors ${!traceImage ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {tracingActive ? "Hide" : "Show"}
-          </button>
-          <button
-            onClick={handleAuto}
-            disabled={autoDisabled}
-            className="flex-1 px-1 sm:px-2 py-1 text-xs sm:text-sm border rounded-r bg-white hover:bg-gray-100 transition-colors"
-          >
-            Auto
           </button>
         </div>
       </div>
