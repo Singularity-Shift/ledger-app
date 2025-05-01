@@ -1,5 +1,5 @@
 #[test_only]
-module ledge_addr::test {
+module ledge_addr::message_minter_test {
     use std::string::{Self, String};
     use std::signer;
     use std::option;
