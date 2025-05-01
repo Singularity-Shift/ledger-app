@@ -26,7 +26,7 @@ export const TraceImageLayer: React.FC<TraceImageLayerProps> = ({
         width: "100%",
         height: "100%",
         opacity: 0.35,
-        zIndex: 2,
+        zIndex: 4,
         pointerEvents: "none",
         overflow: "hidden",
       }}

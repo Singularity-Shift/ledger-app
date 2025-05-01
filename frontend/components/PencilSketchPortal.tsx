@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { toast } from "@/components/ui/use-toast";
 import { useDrawingState } from "@/hooks/useDrawingState";
+import { UploadSpinner } from '@/components/UploadSpinner';
 
 // Import types and sub-components
 import { PencilSketchPortalProps, PencilGrade } from "./sketch/sketchTypes";
@@ -21,6 +22,9 @@ import useSketchExport from "./sketch/useSketchExport";
 import { moderateImage } from "@/utils/imageModeration";
 import { fetchAutoDraw } from '@/utils/autoDraw';
 import Paper from '@/assets/placeholders/paper.png';
+
+// Add a helper delay function
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
@@ -537,127 +541,163 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   }, [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode]);
 
-  // handleAuto implementation
+  // handleAuto implementation with delays for debugging spinner
   const handleAuto = async () => {
+    console.log('[Auto] Button clicked. Current state:', { hasDrawn, isSending });
+
+    if (!hasDrawn || isSending) {
+      console.log('[Auto] Aborting: Already sending or nothing drawn.');
+      return;
+    }
+
     const fd = new FormData();
-    fd.append('paper', await fetch(Paper).then(r => r.blob()), 'paper.png');
-    const dataUrl = sketchCanvasRef.current!.canvasRef.current!.exportImage('png');
-    fd.append('sketch', await (await fetch(dataUrl)).blob(), 'sketch.png');
-    // add subject.png here if you capture it
-    setIsSending(true);
     try {
-      const aiImg = await fetchAutoDraw(fd);
-      const ctx = sketchCanvasRef.current!.canvasRef.current!.ctx!;
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      ctx.drawImage(aiImg, 0, 0, ctx.canvas.width, ctx.canvas.height);
+      console.log('[Auto] Preparing FormData...');
+      const paperBlob = await fetch(Paper).then(r => r.blob());
+      console.log(`[Auto] Paper blob size: ${paperBlob.size}`);
+      fd.append('paper', paperBlob, 'paper.png');
+
+      const dataUrl = sketchCanvasRef.current!.canvasRef.current!.exportImage('png');
+      const sketchBlob = await (await fetch(dataUrl)).blob();
+      console.log(`[Auto] Sketch blob size: ${sketchBlob.size}`);
+      fd.append('sketch', sketchBlob, 'sketch.png');
+
+      // Add subject.png here if you capture it
+      console.log('[Auto] FormData prepared.');
+
+      await delay(100); // Small delay BEFORE setting isSending true
+      console.log('[Auto] Setting isSending to true...');
+      setIsSending(true); // Spinner should appear now
+
+      console.log('[Auto] Calling fetchAutoDraw...');
+      const aiUrl = await fetchAutoDraw(fd); // Returns blob URL string
+      console.log(`[Auto] Received AI URL: ${aiUrl}`);
+
+      console.log('[Auto] Setting traceImage and tracingActive...');
+      setTraceImage(aiUrl); // Overlay the AI image
+      setTracingActive(true); // Ensure overlay is visible
+      console.log('[Auto] Trace image state updated.');
+
+    } catch (error) {
+      console.error('[Auto] Error during fetch or state update:', error);
+      toast({
+        variant: "destructive",
+        title: "Auto-Draw Error",
+        description: `Failed to process image: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
-      setIsSending(false);
+      await delay(500); // Longer delay BEFORE setting isSending false
+      console.log('[Auto] Setting isSending to false.');
+      setIsSending(false); // Spinner should disappear now
     }
   };
 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 overflow-y-auto">
-      <div
-        ref={containerRef}
-        className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col my-1 sm:my-2 max-h-[98vh]"
-      >
-        {/* Header */}
-        <div className="p-1 sm:p-2 bg-gray-100 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Sketch Your Page</h2>
-            <DrawingTimer elapsedTime={elapsedTime} />
+    <>
+      <UploadSpinner on={isSending} />
+      <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 overflow-y-auto">
+        <div
+          ref={containerRef}
+          className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col my-1 sm:my-2 max-h-[98vh]"
+        >
+          {/* Header */}
+          <div className="p-1 sm:p-2 bg-gray-100 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Sketch Your Page</h2>
+              <DrawingTimer elapsedTime={elapsedTime} />
+            </div>
           </div>
-        </div>
 
-        {/* Canvas Container */}
-        <div className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50">
-          <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm">
-            <SketchCanvas
-              ref={sketchCanvasRef}
-              canvasSize={canvasSize}
-              strokeColor={strokeColor}
-              isEraser={isEraser}
-              isErasing={isErasing}
-              isAdjustMode={isAdjustMode}
-              tracingActive={tracingActive}
-              traceImage={traceImage}
-              imagePosition={imagePosition}
-              imageScale={imageScale}
-              cursorPosition={cursorPosition}
-              scaledStrokeWidth={scaledStrokeWidth}
-              setImagePosition={setImagePosition}
-              onPointerDown={isDropperMode ? handleDropperPick : handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              dropperMode={isDropperMode}
-            />
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="p-1 sm:p-2 bg-gray-100 border-t border-gray-200 overflow-y-auto">
-          <div className="max-w-[500px] mx-auto space-y-1">
-            {/* Top Row - Mode Controls */}
-            <div className="grid grid-cols-2 gap-1">
-              {/* Draw/Adjust/Erase Toggle */}
-              <DrawingModeControls
+          {/* Canvas Container */}
+          <div className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50">
+            <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm">
+              <SketchCanvas
+                ref={sketchCanvasRef}
+                canvasSize={canvasSize}
+                strokeColor={strokeColor}
                 isEraser={isEraser}
+                isErasing={isErasing}
                 isAdjustMode={isAdjustMode}
                 tracingActive={tracingActive}
                 traceImage={traceImage}
-                setIsEraser={setIsEraser}
-                setIsAdjustMode={setIsAdjustMode}
-              />
-
-              {/* Trace Button */}
-              <TracingControls
-                traceImage={traceImage}
-                tracingActive={tracingActive}
+                imagePosition={imagePosition}
                 imageScale={imageScale}
-                isAdjustMode={isAdjustMode}
-                handleTraceButtonClick={handleTraceButtonClick}
-                handleToggleTracing={handleToggleTracing}
-                handleScaleIncrease={handleScaleIncrease}
-                handleScaleDecrease={handleScaleDecrease}
-                handleAuto={handleAuto}
-                autoDisabled={!hasDrawn || isSending}
-                onImageSelect={handleImageSelect}
-                fileInputRef={sketchCanvasRef.current?.fileInputRef || { current: null }}
+                cursorPosition={cursorPosition}
+                scaledStrokeWidth={scaledStrokeWidth}
+                setImagePosition={setImagePosition}
+                onPointerDown={isDropperMode ? handleDropperPick : handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                dropperMode={isDropperMode}
               />
             </div>
+          </div>
 
-            {/* Pencil Grade Selector - Moved Up */}
-            <PencilGradeSelector selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
+          {/* Controls */}
+          <div className="p-1 sm:p-2 bg-gray-100 border-t border-gray-200 overflow-y-auto">
+            <div className="max-w-[500px] mx-auto space-y-1">
+              {/* Top Row - Mode Controls */}
+              <div className="grid grid-cols-2 gap-1">
+                {/* Draw/Adjust/Erase Toggle */}
+                <DrawingModeControls
+                  isEraser={isEraser}
+                  isAdjustMode={isAdjustMode}
+                  tracingActive={tracingActive}
+                  traceImage={traceImage}
+                  setIsEraser={setIsEraser}
+                  setIsAdjustMode={setIsAdjustMode}
+                />
 
-            {/* Color Selector */}
-            <ColorSelector
-              baseColor={baseColor}
-              setBaseColor={setBaseColor}
-              customColor={customColor}
-              setCustomColor={setCustomColor}
-              isDropperMode={isDropperMode}
-              setIsDropperMode={setIsDropperMode}
-            />
+                {/* Trace Button */}
+                <TracingControls
+                  traceImage={traceImage}
+                  tracingActive={tracingActive}
+                  imageScale={imageScale}
+                  isAdjustMode={isAdjustMode}
+                  handleTraceButtonClick={handleTraceButtonClick}
+                  handleToggleTracing={handleToggleTracing}
+                  handleScaleIncrease={handleScaleIncrease}
+                  handleScaleDecrease={handleScaleDecrease}
+                  handleAuto={handleAuto}
+                  autoDisabled={!hasDrawn || isSending}
+                  onImageSelect={handleImageSelect}
+                  fileInputRef={sketchCanvasRef.current?.fileInputRef || { current: null }}
+                />
+              </div>
 
-            {/* Stroke Width Control (Pencil Size) */}
-            <StrokeWidthControl strokeWidth={strokeWidth} setStrokeWidth={setStrokeWidth} />
+              {/* Pencil Grade Selector - Moved Up */}
+              <PencilGradeSelector selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
 
-            {/* Action Buttons */}
-            <ActionButtons
-              handleUndo={handleUndo}
-              handleRedo={handleRedo}
-              handleClear={handleClear}
-              handleSubmit={handleSubmit}
-              onClose={onClose}
-              handleAuto={handleAuto}
-              autoDisabled={!hasDrawn || isSending}
-            />
+              {/* Color Selector */}
+              <ColorSelector
+                baseColor={baseColor}
+                setBaseColor={setBaseColor}
+                customColor={customColor}
+                setCustomColor={setCustomColor}
+                isDropperMode={isDropperMode}
+                setIsDropperMode={setIsDropperMode}
+              />
+
+              {/* Stroke Width Control (Pencil Size) */}
+              <StrokeWidthControl strokeWidth={strokeWidth} setStrokeWidth={setStrokeWidth} />
+
+              {/* Action Buttons */}
+              <ActionButtons
+                handleUndo={handleUndo}
+                handleRedo={handleRedo}
+                handleClear={handleClear}
+                handleSubmit={handleSubmit}
+                onClose={onClose}
+                handleAuto={handleAuto}
+                autoDisabled={!hasDrawn || isSending}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>,
+    </>,
     document.body,
   );
 };

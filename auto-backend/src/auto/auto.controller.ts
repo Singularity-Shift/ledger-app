@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Controller,
   Header,
-  ParseFilePipeBuilder,
   Post,
   UploadedFiles,
   UseInterceptors,
@@ -10,10 +9,9 @@ import {
 import {
   FileFieldsInterceptor,
 } from '@nestjs/platform-express';
-import { MaxFileSizeValidator, FileTypeValidator } from '@nestjs/common';
 import { AutoService } from './auto.service';
 
-const MAX_FILE_SIZE = 8 * 1024 * 1024;
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 @Controller('api/auto')
 export class AutoController {
@@ -32,13 +30,7 @@ export class AutoController {
     ),
   )
   async handle(
-    @UploadedFiles(
-      new ParseFilePipeBuilder()
-        .addValidator(new MaxFileSizeValidator({ maxSize: MAX_FILE_SIZE }))
-        .addValidator(new FileTypeValidator({ fileType: /^image\/(png|jpeg)$/ }))
-        .build(),
-    )
-    files: Record<string, { buffer: Buffer }[]>,
+    @UploadedFiles() files: Record<string, { buffer: Buffer }[]>,
   ) {
     for (const k of ['paper', 'sketch'])
       if (!files[k]?.[0])
