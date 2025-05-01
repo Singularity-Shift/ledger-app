@@ -17,7 +17,6 @@ interface DrawingState {
     gradeLabel: string; // Store the label to find the grade object later
     isEraser: boolean;
   } | null;
-  aiGeneratedImage: string | null; // Add AI-generated image property
   signature?: string; // Cryptographic signature to prevent tampering
 }
 
@@ -49,8 +48,7 @@ const calculateSignature = (state: Omit<DrawingState, 'signature'>): string => {
       lastActiveTimestamp: state.lastActiveTimestamp,
       traceImage: state.traceImage ? '[TRACE_IMAGE_DATA]' : null, // Replace actual image data with placeholder to keep signature shorter
       traceConfig: state.traceConfig,
-      pencilConfig: state.pencilConfig,
-      aiGeneratedImage: state.aiGeneratedImage ? '[AI_IMAGE_DATA]' : null, // Add AI image to signature
+      pencilConfig: state.pencilConfig
     });
     
     // Use a combination of the data, session secret, and timestamp for the signature
@@ -100,39 +98,11 @@ const loadStateFromStorage = (): DrawingState | null => {
   return null;
 };
 
-// In-memory storage for large AI images
-let inMemoryAiImage: string | null = null;
-
-// Helper function to clean up blob URLs
-const cleanupBlobUrl = (url: string | null) => {
-  if (url && url.startsWith('blob:')) {
-    try {
-      URL.revokeObjectURL(url);
-      console.log('[UseDrawingState] Revoked blob URL:', url);
-    } catch (e) {
-      console.error('[UseDrawingState] Failed to revoke blob URL:', e);
-    }
-  }
-};
-
 // Helper function to save state to localStorage
 const saveStateToStorage = (state: DrawingState) => {
   try {
     // Add a signature to the state to prevent tampering
     const stateToSave = { ...state };
-    
-    // Don't store large AI images in localStorage - they can exceed quota
-    if (stateToSave.aiGeneratedImage) {
-      // If it's a blob URL, we need to handle it specially
-      if (stateToSave.aiGeneratedImage.startsWith('blob:')) {
-        // Store a placeholder for blob URLs
-        stateToSave.aiGeneratedImage = '[AI_IMAGE_BLOB_URL]';
-      } else if (stateToSave.aiGeneratedImage.length > 1000) {
-        // For data URLs or other long strings, use the placeholder
-        stateToSave.aiGeneratedImage = '[AI_IMAGE_STORED_IN_MEMORY]';
-      }
-    }
-    
     // Generate signature from state without existing signature
     delete stateToSave.signature;
     stateToSave.signature = calculateSignature(stateToSave);
@@ -160,43 +130,15 @@ export const useDrawingState = () => {
   useEffect(() => {
     const loadedState = loadStateFromStorage();
     if (loadedState) {
-      // Restore the in-memory AI image if we have it
-      if (inMemoryAiImage && 
-          (loadedState.aiGeneratedImage === '[AI_IMAGE_STORED_IN_MEMORY]' ||
-           loadedState.aiGeneratedImage === '[AI_IMAGE_BLOB_URL]')) {
-        loadedState.aiGeneratedImage = inMemoryAiImage;
-      }
-      setState(loadedState);
+        setState(loadedState);
     }
     setIsLoaded(true); // Mark as loaded even if no state was found
-
-    // Cleanup function to revoke any blob URLs when the component unmounts
-    return () => {
-      if (state?.aiGeneratedImage && state.aiGeneratedImage.startsWith('blob:')) {
-        cleanupBlobUrl(state.aiGeneratedImage);
-      }
-    };
   }, []);
 
   // Function to update and save the state
   const saveDrawingState = useCallback((newState: Partial<DrawingState>) => {
     setState(prevState => {
       const updatedState = { ...(prevState || {} as DrawingState), ...newState };
-      
-      // Save the AI image in memory if it exists and is different from the previous one
-      if (updatedState.aiGeneratedImage && 
-          updatedState.aiGeneratedImage !== inMemoryAiImage &&
-          updatedState.aiGeneratedImage !== '[AI_IMAGE_STORED_IN_MEMORY]' &&
-          updatedState.aiGeneratedImage !== '[AI_IMAGE_BLOB_URL]') {
-        
-        // Clean up any previous blob URL
-        if (inMemoryAiImage && inMemoryAiImage.startsWith('blob:')) {
-          cleanupBlobUrl(inMemoryAiImage);
-        }
-        
-        inMemoryAiImage = updatedState.aiGeneratedImage;
-      }
-      
       saveStateToStorage(updatedState);
       return updatedState;
     });
@@ -204,10 +146,6 @@ export const useDrawingState = () => {
 
   // Function to clear the state
   const clearDrawingState = useCallback(() => {
-    if (inMemoryAiImage && inMemoryAiImage.startsWith('blob:')) {
-      cleanupBlobUrl(inMemoryAiImage);
-    }
-    inMemoryAiImage = null; // Clear the in-memory image
     setState(null);
     clearStateFromStorage();
   }, []);
