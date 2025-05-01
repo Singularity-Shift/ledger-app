@@ -7,6 +7,8 @@ interface ActionButtonsProps {
   handleClear: () => void;
   handleSubmit: () => void;
   onClose: () => void;
+  handleAuto?: () => void;
+  autoDisabled?: boolean;
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -15,6 +17,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   handleClear,
   handleSubmit,
   onClose,
+  handleAuto,
+  autoDisabled,
 }) => {
   return (
     <div className="flex justify-end gap-1 mt-2">

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "@/components/ui/use-toast";
 import { useDrawingState } from "@/hooks/useDrawingState";
@@ -26,6 +26,102 @@ import Paper from '@/assets/placeholders/paper.png';
 // Add a helper delay function
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Wrap the SketchCanvas component with memo to reduce re-renders
+const MemoizedSketchCanvas = memo(SketchCanvas);
+
+// Add a similar memo wrapper for the AI Image component with better error handling
+const AIImageLayer = memo(({ image, canvasSize, onLoad, onError }: { 
+  image: string | null, 
+  canvasSize: number,
+  onLoad?: () => void,
+  onError?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void
+}) => {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    // Reset state when image changes
+    setImgLoaded(false);
+    setImgError(false);
+  }, [image]);
+
+  if (!image) return null;
+  
+  const handleImageLoad = () => {
+    console.log('[AI Image] Successfully loaded image');
+    setImgLoaded(true);
+    setImgError(false);
+    if (onLoad) onLoad();
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.error('[AI Image] Failed to load image:', e);
+    setImgLoaded(false);
+    setImgError(true);
+    if (onError) onError(e);
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: `${canvasSize}px`,
+        height: `${canvasSize}px`,
+        zIndex: 2,
+        pointerEvents: "none",
+        backgroundColor: "#ffffff",
+        border: imgError ? "2px solid red" : "none",
+      }}
+    >
+      <img
+        ref={imgRef}
+        key={typeof image === 'string' ? image.substring(0, 20) : 'ai-image'} 
+        src={image}
+        alt="AI Generated"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          display: "block",
+          visibility: imgLoaded ? 'visible' : 'hidden',
+        }}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        crossOrigin="anonymous" // Add this to help with CORS issues
+      />
+      {!imgLoaded && !imgError && (
+        <div style={{ 
+          position: 'absolute', 
+          top: '50%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)',
+          color: '#333',
+          fontSize: '14px'
+        }}>
+          Loading AI image...
+        </div>
+      )}
+      {imgError && (
+        <div style={{ 
+          position: 'absolute', 
+          top: '50%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)',
+          color: 'red',
+          fontSize: '14px',
+          textAlign: 'center',
+          padding: '10px'
+        }}>
+          Failed to load AI image
+        </div>
+      )}
+    </div>
+  );
+});
+
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
   const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
@@ -52,6 +148,9 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [imageScale, setImageScale] = useState(drawingState?.traceConfig?.scale ?? 1);
   const [isAdjustMode, setIsAdjustMode] = useState(false);
 
+  // Add new state for AI generated image
+  const [aiGeneratedImage, setAiGeneratedImage] = useState<string | null>(null);
+
   // Add state for dropper mode
   const [isDropperMode, setIsDropperMode] = useState(false);
 
@@ -68,6 +167,20 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Add new states for auto functionality
   const [hasDrawn, setHasDrawn] = useState(false);
   const [isSending, setIsSending] = useState(false);
+
+  // Add state for AI image loading
+  const [isAiImageLoading, setIsAiImageLoading] = useState(false);
+  const [aiImageError, setAiImageError] = useState<string | null>(null);
+  
+  // Use a ref to track unmounting and prevent saving during it
+  const isMounted = useRef(true);
+  
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Calculate the actual stroke color based on the base color and opacity
   const strokeColor = useMemo(() => {
@@ -190,6 +303,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setTracingActive(drawingState.traceConfig?.active ?? false);
       setImagePosition(drawingState.traceConfig?.position ?? { x: 0, y: 0 });
       setImageScale(drawingState.traceConfig?.scale ?? 1);
+      
+      // Restore AI-generated image if it exists
+      if (drawingState.aiGeneratedImage) {
+        setAiGeneratedImage(drawingState.aiGeneratedImage);
+        console.log("AI-generated image restored.");
+      }
 
       // Mark that state has been restored
       setIsRestored(true);
@@ -211,10 +330,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   }, [isOpen, isDrawingStateLoaded, isRestored, drawingState, clearDrawingState, toast, setElapsedTime]);
 
-  // Auto-save drawing state periodically and on drawing actions
+  // Update save current state to check for mounted status
   const saveCurrentState = useCallback(async () => {
-    // Only save if the initial restoration attempt is complete
-    if (!isRestored || !sketchCanvasRef.current?.canvasRef.current) {
+    // Only save if component is still mounted and the initial restoration is complete
+    if (!isMounted.current || !isRestored || !sketchCanvasRef.current?.canvasRef.current) {
       return;
     }
 
@@ -238,6 +357,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           gradeLabel: selectedGrade.label,
           isEraser: isEraser,
         },
+        aiGeneratedImage: aiGeneratedImage,
       });
       console.log("State saved.");
     } catch (error) {
@@ -255,6 +375,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     strokeWidth,
     selectedGrade,
     isEraser,
+    aiGeneratedImage,
     saveDrawingState,
     toast,
   ]);
@@ -298,6 +419,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setImagePosition({ x: 0, y: 0 });
       setImageScale(1);
       setElapsedTime(0);
+      setAiGeneratedImage(null); // Clear AI-generated image
       clearDrawingState();
       setIsRestored(true); // Set to true because the 'restored' state is now empty canvas
       console.log("State cleared.");
@@ -541,12 +663,19 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   }, [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode]);
 
-  // handleAuto implementation with delays for debugging spinner
-  const handleAuto = async () => {
+  // Completely revamp the handleAuto function
+  const handleAuto = useCallback(async () => {
     console.log('[Auto] Button clicked. Current state:', { hasDrawn, isSending });
 
     if (!hasDrawn || isSending) {
       console.log('[Auto] Aborting: Already sending or nothing drawn.');
+      return;
+    }
+
+    // Use a single canvas ref for clarity
+    const canvas = sketchCanvasRef.current?.canvasRef.current;
+    if (!canvas) {
+      console.error('[Auto] Canvas ref not available');
       return;
     }
 
@@ -557,40 +686,200 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       console.log(`[Auto] Paper blob size: ${paperBlob.size}`);
       fd.append('paper', paperBlob, 'paper.png');
 
-      const dataUrl = sketchCanvasRef.current!.canvasRef.current!.exportImage('png');
-      const sketchBlob = await (await fetch(dataUrl)).blob();
+      // Ensure we properly await the exportImage result
+      const dataUrl = await canvas.exportImage('png');
+      const sketchBlob = await fetch(dataUrl).then(r => r.blob());
       console.log(`[Auto] Sketch blob size: ${sketchBlob.size}`);
       fd.append('sketch', sketchBlob, 'sketch.png');
 
-      // Add subject.png here if you capture it
       console.log('[Auto] FormData prepared.');
 
       await delay(100); // Small delay BEFORE setting isSending true
       console.log('[Auto] Setting isSending to true...');
       setIsSending(true); // Spinner should appear now
+      setIsAiImageLoading(true);
+      setAiImageError(null);
 
-      console.log('[Auto] Calling fetchAutoDraw...');
-      const aiUrl = await fetchAutoDraw(fd); // Returns blob URL string
-      console.log(`[Auto] Received AI URL: ${aiUrl}`);
+      console.log('[Auto] Calling fetch...');
+      console.log('[Auto] Backend URL from env:', import.meta.env.VITE_AUTO_BACKEND_URL);
+      
+      // Get the response
+      const response = await fetch(import.meta.env.VITE_AUTO_BACKEND_URL || '/api/auto', { 
+        method: 'POST', 
+        body: fd 
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}: ${await response.text()}`);
+      }
+      
+      console.log(`[Auto] Response status: ${response.status} ${response.statusText}`);
 
-      console.log('[Auto] Setting traceImage and tracingActive...');
-      setTraceImage(aiUrl); // Overlay the AI image
-      setTracingActive(true); // Ensure overlay is visible
-      console.log('[Auto] Trace image state updated.');
+      // Get the image as a blob
+      const imageBlob = await response.blob();
+      console.log(`[Auto] Image blob received: ${imageBlob.type}, size: ${imageBlob.size}`);
+      
+      if (imageBlob.size === 0) {
+        throw new Error('Received empty image from server');
+      }
+
+      // Create a temporary image object to load the AI result
+      const img = new Image();
+      img.onload = async () => {
+        // Only proceed if component is still mounted
+        if (!isMounted.current) {
+          console.log('[Auto] Component unmounted, aborting image render');
+          URL.revokeObjectURL(img.src);
+          return;
+        }
+
+        console.log('[Auto] AI image loaded, size:', img.width, 'x', img.height);
+        
+        // First, clear the canvas completely
+        canvas.clearCanvas();
+
+        // We'll draw the AI image directly onto the canvas
+        // This is done by creating a canvas element and passing it to loadPaths
+        try {
+          // Use the react-sketch-canvas importPath method to draw the AI image
+          // First, create a data URL representation of the image
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = img.width;
+          tempCanvas.height = img.height;
+          const ctx = tempCanvas.getContext('2d');
+          if (!ctx) throw new Error('Could not get canvas context');
+          
+          // Draw the original paper background
+          const paperImg = new Image();
+          paperImg.src = Paper;
+          
+          // Wait for paper to load
+          if (!paperImg.complete) {
+            await new Promise(resolve => {
+              paperImg.onload = resolve;
+            });
+          }
+          
+          ctx.drawImage(paperImg, 0, 0, tempCanvas.width, tempCanvas.height);
+          ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+          
+          // Now we have the combined image on the temp canvas
+          // Let's import it as a single SVG path into the canvas
+          const imageDataUrl = tempCanvas.toDataURL('image/png');
+          
+          // Create a simple div we can use to position the image
+          const imgContainer = document.createElement('div');
+          imgContainer.style.width = `${canvasSize}px`;
+          imgContainer.style.height = `${canvasSize}px`;
+          imgContainer.style.position = 'relative';
+          
+          const imgElement = document.createElement('img');
+          imgElement.src = imageDataUrl;
+          imgElement.style.width = '100%';
+          imgElement.style.height = '100%';
+          imgElement.style.position = 'absolute';
+          imgElement.style.top = '0';
+          imgElement.style.left = '0';
+          
+          imgContainer.appendChild(imgElement);
+          document.body.appendChild(imgContainer);
+
+          // Now we can draw this to our sketch canvas
+          // We'll use a timeout to ensure the DOM has updated
+          setTimeout(() => {
+            // Remove the temporary elements
+            document.body.removeChild(imgContainer);
+
+            // Set the AI image in the state
+            setAiGeneratedImage(imageDataUrl);
+            
+            // Now notify UI that we've finished
+            setIsAiImageLoading(false);
+            setIsSending(false);
+            console.log('[Auto] AI image processing complete');
+
+            // Save the state
+            saveDrawingState({
+              aiGeneratedImage: imageDataUrl,
+              drawingPaths: [], // Explicitly set empty drawing paths
+            });
+          }, 100);
+
+        } catch (renderError: unknown) {
+          const errorMessage = renderError instanceof Error 
+            ? renderError.message 
+            : 'Unknown error rendering image';
+          
+          console.error('[Auto] Error rendering AI image:', renderError);
+          setAiImageError(`Error rendering: ${errorMessage}`);
+          setIsAiImageLoading(false);
+          setIsSending(false);
+        }
+      };
+
+      img.onerror = (e) => {
+        console.error('[Auto] Failed to load AI image:', e);
+        setAiImageError('Failed to load AI image');
+        setIsAiImageLoading(false);
+        setIsSending(false);
+      };
+
+      // Create a blob URL for the image - we'll clean this up immediately after loading
+      img.src = URL.createObjectURL(imageBlob);
 
     } catch (error) {
       console.error('[Auto] Error during fetch or state update:', error);
+      setAiImageError(error instanceof Error ? error.message : String(error));
+      setIsAiImageLoading(false);
+      setIsSending(false);
+      
       toast({
         variant: "destructive",
         title: "Auto-Draw Error",
         description: `Failed to process image: ${error instanceof Error ? error.message : String(error)}`,
       });
-    } finally {
-      await delay(500); // Longer delay BEFORE setting isSending false
-      console.log('[Auto] Setting isSending to false.');
-      setIsSending(false); // Spinner should disappear now
     }
-  };
+  }, [hasDrawn, isSending, saveDrawingState, toast, canvasSize]);
+
+  // Memoize the canvas rendering
+  const renderedCanvas = useMemo(() => (
+    <MemoizedSketchCanvas
+      ref={sketchCanvasRef}
+      canvasSize={canvasSize}
+      strokeColor={strokeColor}
+      isEraser={isEraser}
+      isErasing={isErasing}
+      isAdjustMode={isAdjustMode}
+      tracingActive={tracingActive}
+      traceImage={traceImage}
+      imagePosition={imagePosition}
+      imageScale={imageScale}
+      cursorPosition={cursorPosition}
+      scaledStrokeWidth={scaledStrokeWidth}
+      setImagePosition={setImagePosition}
+      onPointerDown={isDropperMode ? handleDropperPick : handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      dropperMode={isDropperMode}
+    />
+  ), [
+    canvasSize,
+    strokeColor,
+    isEraser,
+    isErasing,
+    isAdjustMode,
+    tracingActive,
+    traceImage,
+    imagePosition,
+    imageScale,
+    cursorPosition,
+    scaledStrokeWidth,
+    isDropperMode,
+    handleDropperPick,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp
+  ]);
 
   if (!isOpen) return null;
 
@@ -612,7 +901,24 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
           {/* Canvas Container */}
           <div className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50">
-            <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm">
+            <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm" style={{ position: "relative" }}>
+              {/* Use the background image approach */}
+              {aiGeneratedImage && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: `${canvasSize}px`,
+                    height: `${canvasSize}px`,
+                    backgroundImage: `url(${aiGeneratedImage})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    zIndex: 2,
+                  }}
+                />
+              )}
+              
               <SketchCanvas
                 ref={sketchCanvasRef}
                 canvasSize={canvasSize}
@@ -634,6 +940,20 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               />
             </div>
           </div>
+          
+          {/* Error display */}
+          {aiImageError && (
+            <div className="p-1 text-xs text-red-500">
+              Error: {aiImageError}
+            </div>
+          )}
+          
+          {/* AI image status */}
+          {isAiImageLoading && (
+            <div className="p-1 text-xs text-blue-500">
+              Loading AI image...
+            </div>
+          )}
 
           {/* Controls */}
           <div className="p-1 sm:p-2 bg-gray-100 border-t border-gray-200 overflow-y-auto">
