@@ -598,6 +598,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const handleAuto = useCallback(async () => {
     if (isAutoProcessing) return;
     setIsAutoProcessing(true);
+    toast({ title: 'Auto Submission Started', description: 'Your request has been submitted. Please wait while the AI generates your image...' });
     try {
       // 1. Pause save state loop (by flag)
       // (Assume saveCurrentState checks isAutoProcessing and skips if true)
