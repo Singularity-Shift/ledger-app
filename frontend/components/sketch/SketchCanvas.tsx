@@ -22,6 +22,7 @@ interface SketchCanvasProps {
   onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
   onPointerLeave?: (e: React.PointerEvent<HTMLDivElement>) => void;
   dropperMode?: boolean;
+  autoImageUrl?: string | null;
 }
 
 export interface SketchCanvasHandle {
@@ -50,6 +51,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       onPointerUp,
       onPointerLeave,
       dropperMode,
+      autoImageUrl,
     },
     ref,
   ) => {
@@ -165,6 +167,25 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
             zIndex: 1,
           }}
         />
+
+        {/* Auto image layer (AI result) */}
+        {autoImageUrl && (
+          <img
+            src={autoImageUrl}
+            alt="AI Result"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+            draggable={false}
+          />
+        )}
 
         {/* Trace image layer */}
         <TraceImageLayer

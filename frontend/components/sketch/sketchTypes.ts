@@ -18,6 +18,7 @@ export interface DrawingState {
   drawingPaths?: any[];
   elapsedTime?: number;
   lastActiveTimestamp?: number;
+  drawingStartTime?: number;
   traceImage?: string | null;
   traceConfig?: {
     active?: boolean;

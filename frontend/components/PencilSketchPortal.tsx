@@ -49,11 +49,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Add state for dropper mode
   const [isDropperMode, setIsDropperMode] = useState(false);
 
+  // Place this at the top of the state declarations, before any function that uses autoImageUrl
+  const [autoImageUrl, setAutoImageUrl] = useState<string | null>(null);
+
   // Initialize timer hook
   const { elapsedTime, setElapsedTime, drawingStartTime, getSecurityToken } = useSketchTimer(
     isOpen,
     isRestored,
-    drawingState?.elapsedTime ?? 0
+    drawingState?.elapsedTime ?? 0,
+    drawingState?.drawingStartTime // pass restored start time if available
   );
 
   // Initialize export hook
@@ -180,7 +184,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setTracingActive(drawingState.traceConfig?.active ?? false);
       setImagePosition(drawingState.traceConfig?.position ?? { x: 0, y: 0 });
       setImageScale(drawingState.traceConfig?.scale ?? 1);
-
+      // No need to set drawingStartTime here, it's handled by useSketchTimer
       // Mark that state has been restored
       setIsRestored(true);
       console.log("Drawing state restored.");
@@ -216,6 +220,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         drawingPaths: paths,
         elapsedTime: elapsedTime,
         lastActiveTimestamp: Date.now(),
+        drawingStartTime: drawingStartTime, // persist start time
         traceImage: traceImage,
         traceConfig: {
           active: tracingActive,
@@ -247,6 +252,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     isEraser,
     saveDrawingState,
     toast,
+    drawingStartTime, // include in deps
   ]);
 
   // Save state on drawing/erasing actions
@@ -277,22 +283,23 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     };
   }, [isOpen, isRestored, elapsedTime, saveCurrentState]);
 
-  // Clear state handlers
-  const handleClear = useCallback(() => {
+  // Unified clear handler: always confirm, always clear both sketch and auto image, always show toast
+  const handleClearUnified = useCallback(() => {
     if (window.confirm("Are you sure you want to clear your drawing? This cannot be undone.")) {
-      console.log("Clearing canvas and state...");
-      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
+      setAutoImageUrl(null);
       setTraceImage(null);
       setTracingActive(false);
+      if (sketchCanvasRef.current?.canvasRef.current) {
+        sketchCanvasRef.current.canvasRef.current.clearCanvas();
+      }
       setImagePosition({ x: 0, y: 0 });
       setImageScale(1);
       setElapsedTime(0);
       clearDrawingState();
-      setIsRestored(true); // Set to true because the 'restored' state is now empty canvas
-      console.log("State cleared.");
-      toast({ title: "Canvas Cleared", description: "Your drawing has been cleared." });
+      setIsRestored(true);
+      toast({ title: 'Canvas Cleared', description: 'Your drawing has been cleared.' });
     }
-  }, [clearDrawingState, setElapsedTime, toast]);
+  }, [clearDrawingState, setIsRestored, toast]);
 
   const handleUndo = () => {
     sketchCanvasRef.current?.canvasRef.current?.undo();
@@ -306,6 +313,60 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const handleSubmit = useCallback(async () => {
     let moderationPassed = false; // Flag to track moderation status
     try {
+      if (autoImageUrl) {
+        // If auto image is present, fetch it as a blob and submit only that
+        const response = await fetch(autoImageUrl);
+        const blob = await response.blob();
+        // Resize to 1000x1000 using a canvas
+        const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
+        const file = new File([resizedBlob], 'auto-image.png', { type: 'image/png' });
+
+        // Moderation step (reuse existing logic)
+        const fileToDataUrl = (file: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
+        let isFlagged = true;
+        try {
+          const imageDataUrl = await fileToDataUrl(file);
+          isFlagged = await moderateImage(imageDataUrl);
+        } catch (moderationError) {
+          console.error("Error during image moderation:", moderationError);
+          toast({
+            variant: "destructive",
+            title: "Moderation Error",
+            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ''}`,
+          });
+          return;
+        }
+        if (isFlagged) {
+          console.warn("Image failed moderation check.");
+          toast({
+            variant: "destructive",
+            title: "Moderation Failed",
+            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
+          });
+          return;
+        }
+        moderationPassed = true;
+        const securityToken = getSecurityToken();
+        onSubmit(
+          file,
+          elapsedTime,
+          autoImageUrl,
+          '', // id not available for auto image
+          !!traceImage, // usedTracing: true if traceImage was present
+          securityToken // now passing security token for auto image
+        );
+        toast({ title: "Success", description: "Your drawing has been submitted!" });
+        setIsRestored(false);
+        onClose();
+        return;
+      }
       if (sketchCanvasRef.current?.canvasRef.current && onSubmit) {
         console.log("Submitting drawing...");
 
@@ -391,7 +452,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         });
       }
     }
-  }, [onSubmit, elapsedTime, traceImage, onClose, getSecurityToken, exportMergedSketch, canvasSize, toast, drawingStartTime]);
+  }, [onSubmit, elapsedTime, traceImage, onClose, getSecurityToken, exportMergedSketch, canvasSize, toast, drawingStartTime, autoImageUrl]);
 
   // Tracing image handlers
   const handleTraceButtonClick = () => {
@@ -530,6 +591,122 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   }, [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode]);
 
+  // --- AUTO BUTTON LOGIC ---
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+
+  const handleAuto = useCallback(async () => {
+    if (isAutoProcessing) return;
+    setIsAutoProcessing(true);
+    try {
+      // 1. Pause save state loop (by flag)
+      // (Assume saveCurrentState checks isAutoProcessing and skips if true)
+
+      // 2. Export required layers
+      // a) Paper background (static asset)
+      const fetchPaperBlob = async () => {
+        const response = await fetch('/frontend/assets/placeholders/paper.png');
+        return await response.blob();
+      };
+      const paperBlob = await fetchPaperBlob();
+
+      // b) User sketch (export as PNG, no transparency)
+      const sketchBlob = sketchCanvasRef.current?.canvasRef.current
+        ? await sketchCanvasRef.current.canvasRef.current.exportImage('png').then(dataUrlToBlob)
+        : null;
+      if (!sketchBlob) throw new Error('Failed to export sketch layer');
+
+      // c) Trace image (if present)
+      let subjectBlob: Blob | null = null;
+      if (traceImage) {
+        subjectBlob = await exportTraceImageAsBlob();
+      }
+
+      // 3. Prepare FormData and call backend
+      const formData = new FormData();
+      formData.append('paper', paperBlob, 'paper.png');
+      formData.append('sketch', sketchBlob, 'sketch.png');
+      if (subjectBlob) formData.append('subject', subjectBlob, 'subject.png');
+
+      const response = await fetch('/api/auto', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) throw new Error('Auto-backend failed');
+      const { imageUrl } = await response.json();
+      if (!imageUrl) throw new Error('No image URL returned from backend');
+
+      // 4. Replace sketch (and trace) layer with returned image
+      setAutoImageUrl(imageUrl); // Overlay the image
+      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
+      setTraceImage(null); // Remove trace image if present
+      setTracingActive(false);
+      toast({ title: 'Auto complete', description: 'AI-enhanced image applied.' });
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Auto Error', description: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setIsAutoProcessing(false);
+      // 5. Resume save state loop (flag resets)
+    }
+  }, [isAutoProcessing, traceImage, sketchCanvasRef, toast]);
+
+  // Helper: Convert dataURL to Blob
+  function dataUrlToBlob(dataUrl: string): Blob {
+    const arr = dataUrl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+    return new Blob([u8arr], { type: mime });
+  }
+
+  // Helper: Export trace image as displayed (square, full opacity)
+  async function exportTraceImageAsBlob(): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const size = canvasSize;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Failed to get canvas context'));
+      const img = new window.Image();
+      img.onload = () => {
+        // Draw trace image as displayed (with position/scale)
+        const scaledW = img.width * imageScale;
+        const scaledH = img.height * imageScale;
+        const x = imagePosition.x;
+        const y = imagePosition.y;
+        ctx.clearRect(0, 0, size, size);
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(img, x, y, scaledW, scaledH);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to export trace image as blob'));
+        }, 'image/png');
+      };
+      img.onerror = () => reject(new Error('Failed to load trace image for export'));
+      img.src = traceImage!;
+    });
+  }
+
+  // Helper: Resize image blob to target size using canvas
+  async function resizeImageBlob(blob: Blob, width: number, height: number): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Failed to get canvas context for resizing'));
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((resizedBlob) => {
+          if (resizedBlob) resolve(resizedBlob);
+          else reject(new Error('Failed to export resized image as blob'));
+        }, 'image/png');
+      };
+      img.onerror = () => reject(new Error('Failed to load image for resizing'));
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -567,6 +744,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               dropperMode={isDropperMode}
+              autoImageUrl={autoImageUrl}
             />
           </div>
         </div>
@@ -622,8 +800,9 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
             <ActionButtons
               handleUndo={handleUndo}
               handleRedo={handleRedo}
-              handleClear={handleClear}
+              handleClear={handleClearUnified}
               handleSubmit={handleSubmit}
+              handleAuto={handleAuto}
               onClose={onClose}
             />
           </div>

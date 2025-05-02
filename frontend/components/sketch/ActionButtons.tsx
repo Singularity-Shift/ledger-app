@@ -6,6 +6,7 @@ interface ActionButtonsProps {
   handleRedo: () => void;
   handleClear: () => void;
   handleSubmit: () => void;
+  handleAuto: () => void;
   onClose: () => void;
 }
 
@@ -14,6 +15,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   handleRedo,
   handleClear,
   handleSubmit,
+  handleAuto,
   onClose,
 }) => {
   return (
@@ -26,6 +28,9 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
       </Button>
       <Button variant="outline" size="sm" onClick={handleClear} className="min-w-[50px] h-8 text-xs">
         Clear
+      </Button>
+      <Button variant="outline" size="sm" onClick={handleAuto} className="min-w-[50px] h-8 text-xs">
+        Auto
       </Button>
       <Button variant="outline" size="sm" onClick={handleSubmit} className="min-w-[50px] h-8 text-xs">
         Submit
