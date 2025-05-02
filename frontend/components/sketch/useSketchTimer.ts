@@ -3,11 +3,16 @@ import { useState, useRef, useEffect } from 'react';
 export const useSketchTimer = (
   isOpen: boolean,
   isRestored: boolean,
-  initialElapsedTime: number = 0
+  initialElapsedTime: number = 0,
+  initialDrawingStartTime?: number
 ) => {
   const [elapsedTime, setElapsedTime] = useState(initialElapsedTime);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [drawingStartTime] = useState<number>(Date.now());
+  const [drawingStartTime] = useState<number>(
+    typeof initialDrawingStartTime === 'number' && !isNaN(initialDrawingStartTime)
+      ? initialDrawingStartTime
+      : Date.now()
+  );
 
   // Timer management
   useEffect(() => {

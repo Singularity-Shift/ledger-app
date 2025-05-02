@@ -50,14 +50,7 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
           </button>
         )}
         {showAutoButton && (
-          <button
-            type="button"
-            disabled
-            className="px-2 py-1 rounded border text-xs bg-white text-gray-700 cursor-default opacity-70"
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            Auto
-          </button>
+          <></>
         )}
         {isDropperMode && <span className="text-xs text-blue-600 ml-2">Click canvas to pick</span>}
       </div>

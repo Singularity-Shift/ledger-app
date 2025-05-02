@@ -114,6 +114,7 @@ export class AutoService {
         model: 'gpt-image-1',
         image: imageFiles, // Pass array of images instead of just one
         prompt: this.PROMPT,
+        size: '1024x1024', // Always request a square image
       });
       this.logger.log('OpenAI call successful.');
 

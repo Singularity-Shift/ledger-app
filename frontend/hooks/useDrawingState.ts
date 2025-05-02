@@ -5,6 +5,7 @@ interface DrawingState {
   drawingPaths: any[] | null; // Store paths from react-sketch-canvas
   elapsedTime: number;
   lastActiveTimestamp: number | null;
+  drawingStartTime?: number; // Persist drawing session start time
   traceImage: string | null;
   traceConfig: {
     active: boolean;
@@ -46,6 +47,7 @@ const calculateSignature = (state: Omit<DrawingState, 'signature'>): string => {
       drawingPaths: state.drawingPaths,
       elapsedTime: state.elapsedTime,
       lastActiveTimestamp: state.lastActiveTimestamp,
+      drawingStartTime: state.drawingStartTime, // Include in signature
       traceImage: state.traceImage ? '[TRACE_IMAGE_DATA]' : null, // Replace actual image data with placeholder to keep signature shorter
       traceConfig: state.traceConfig,
       pencilConfig: state.pencilConfig
