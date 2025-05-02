@@ -8,6 +8,7 @@ interface ColorSelectorProps {
   setCustomColor: (color: string) => void;
   isDropperMode?: boolean;
   setIsDropperMode?: (active: boolean) => void;
+  showAutoButton?: boolean;
 }
 
 export const ColorSelector: React.FC<ColorSelectorProps> = ({
@@ -17,6 +18,7 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
   setCustomColor,
   isDropperMode,
   setIsDropperMode,
+  showAutoButton = false,
 }) => {
   const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomColor(e.target.value);
@@ -45,6 +47,16 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
             style={{ whiteSpace: 'nowrap' }}
           >
             <span role="img" aria-label="Dropper">🎨</span> {isDropperMode ? 'Dropper' : 'Pick'}
+          </button>
+        )}
+        {showAutoButton && (
+          <button
+            type="button"
+            disabled
+            className="px-2 py-1 rounded border text-xs bg-white text-gray-700 cursor-default opacity-70"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            Auto
           </button>
         )}
         {isDropperMode && <span className="text-xs text-blue-600 ml-2">Click canvas to pick</span>}

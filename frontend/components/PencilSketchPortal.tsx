@@ -612,6 +612,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               setCustomColor={setCustomColor}
               isDropperMode={isDropperMode}
               setIsDropperMode={setIsDropperMode}
+              showAutoButton={true}
             />
 
             {/* Stroke Width Control (Pencil Size) */}

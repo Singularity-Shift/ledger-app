@@ -35,3 +35,10 @@ example-collection/
 .env.*.local
 
 .aptos
+
+dev-brief.md
+plan-updated-for-frontend.md
+
+# Google Cloud credentials
+*-ai-*.json
+auto-backend/sshiftdao-ai-*.json
