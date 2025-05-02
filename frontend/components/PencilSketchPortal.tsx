@@ -14,6 +14,7 @@ import PencilGradeSelector from "./sketch/PencilGradeSelector";
 import StrokeWidthControl from "./sketch/StrokeWidthControl";
 import ActionButtons from "./sketch/ActionButtons";
 import DrawingTimer from "./sketch/DrawingTimer";
+import { Spinner } from "@/components/ui/spinner";
 
 // Import custom hooks
 import useSketchTimer from "./sketch/useSketchTimer";
@@ -640,7 +641,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
       setTraceImage(null); // Remove trace image if present
       setTracingActive(false);
-      toast({ title: 'Auto complete', description: 'AI-enhanced image applied.' });
+      toast({ title: 'Auto Complete', description: 'AI-enhanced image has been applied. Please review and submit if satisfied.' });
     } catch (err) {
       toast({ variant: 'destructive', title: 'Auto Error', description: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -724,7 +725,24 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         </div>
 
         {/* Canvas Container */}
-        <div className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50">
+        <div className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50" style={{ position: 'relative' }}>
+          {/* Spinner overlay when auto-processing */}
+          {isAutoProcessing && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'rgba(255,255,255,0.7)',
+              zIndex: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Spinner size="lg" />
+            </div>
+          )}
           <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm">
             <SketchCanvas
               ref={sketchCanvasRef}
