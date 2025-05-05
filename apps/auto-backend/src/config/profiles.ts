@@ -51,6 +51,6 @@ export const Profiles = {
       project_id: process.env.PROJECT_ID,
       storageCredentials: process.env.STORAGE_CREDENTIALS,
     },
-    devMode: process.env.VITE_DEV_MODE,
+    devMode: process.env.VITE_DEV_MODE || false,
   },
 };

@@ -8,7 +8,7 @@ import {
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '../config/config.module';
 import { ConfigService } from '../config/config.service';
-import { getAptosClient } from 'src/aptos/aptos';
+import { getAptosClient } from '../aptos/aptos';
 
 export type ServerAccountProvider = Account;
 

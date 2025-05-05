@@ -8,7 +8,7 @@ import { Readable } from 'stream';
 import { Storage } from '@google-cloud/storage';
 import * as path from 'path';
 import * as fs from 'fs';
-import { ConfigService } from 'src/config/config.service';
+import { ConfigService } from '../config/config.service';
 
 type ImageMap = Record<string, Buffer>;
 interface PromptConfig {

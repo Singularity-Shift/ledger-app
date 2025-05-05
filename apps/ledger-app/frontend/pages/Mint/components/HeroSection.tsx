@@ -51,6 +51,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const [drawingTime, setDrawingTime] = useState<number | null>(null);
   const [drawPath, setDrawPath] = useState<string>("");
   const [usedTracing, setUsedTracing] = useState<boolean>(false);
+  const [usedAutoComplete, setUsedAutoComplete] = useState<boolean>(false);
   const [mintId, setMintId] = useState<string>("");
   const [securityToken, setSecurityToken] = useState<string | null>(null);
   const [mintFee, setMintFee] = useState<number>(0);
@@ -154,6 +155,10 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             trait_type: "Traced from image",
             value: usedTracing ? "Yes" : "No",
           },
+          {
+            trait_type: "Autocompleted",
+            value: usedAutoComplete ? "Yes" : "No",
+          },
         ],
       };
       const jsonString = JSON.stringify(jsonData, null, 2);
@@ -208,6 +213,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
     path: string,
     id: string,
     tracingUsed: boolean = false,
+    autocompleteUsed: boolean = false,
     token: string,
   ) => {
     setDrawnImage(image);
@@ -215,6 +221,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
     setDrawPath(path);
     setMintId(id);
     setUsedTracing(tracingUsed);
+    setUsedAutoComplete(autocompleteUsed);
     setSecurityToken(token);
   };
 

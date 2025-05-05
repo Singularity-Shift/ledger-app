@@ -9,7 +9,7 @@ services:
     ports:
       - "${LEDGER_APP_PORT}:${LEDGER_APP_PORT}"
       - "3050:3050"
-      - "9229:9229"
+
     environment:
       VITE_APP_NETWORK: ${VITE_APP_NETWORK}
       VITE_COLLECTION_ADDRESS: ${VITE_COLLECTION_ADDRESS}

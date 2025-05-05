@@ -16,40 +16,45 @@ export const StatsSection: React.FC<StatsSectionProps> = () => {
   const { totalMinted = 0, uniqueHolders = 0 } = data ?? {};
   const aptos = aptosClient();
 
-  useEffect(() => {
-    (async () => {
-      const result = await aptos.queryIndexer<any>({
-        query: {
-          query: `query MyQuery {
-            account_transactions(
-              where: {account_address: {_eq: "0x3212ed354e3d5b17ed6e3f7e8fb3066325b54be80d61d0d5d01dbc23d95f34d5"}}
-            ) {
-              coin_activities(order_by: {transaction_timestamp: desc}) {
-                amount
-                activity_type
-                coin_type
-                owner_address
-                transaction_timestamp
-                transaction_version
-                entry_function_id_str
-              }
+  const getMarket = async () => {
+    const result = await aptos.queryIndexer<any>({
+      query: {
+        query: `query MyQuery {
+          account_transactions(
+            where: {coin_activities: {event_account_address: {_eq: "0x3212ed354e3d5b17ed6e3f7e8fb3066325b54be80d61d0d5d01dbc23d95f34d5"}}}
+            order_by: {coin_activities_aggregate: {variance: {block_height: desc}}}
+          ) {
+            coin_activities(order_by: {transaction_timestamp: desc}) {
+              amount
+              activity_type
+              coin_type
+              owner_address
+              transaction_timestamp
+              transaction_version
+              entry_function_id_str
             }
-          }`,
-        },
-      });
+          }
+        }`,
+      },
+    });
 
-      const amount = result.account_transactions
-        .flatMap((t: any) => t.coin_activities)
-        .filter(
-          (r: any) =>
-            r.activity_type === "0x1::coin::WithdrawEvent" &&
-            r.entry_function_id_str ===
-              "0x7ccf0e6e871977c354c331aa0fccdffb562d9fceb27e3d7f61f8e12e470358e9::aggregator::purchase_many",
-        )
-        .reduce((acc: number, curr: any) => acc + curr.amount, 0);
+    const amount = result.account_transactions
+      .flatMap((t: any) => t.coin_activities)
+      .filter(
+        (r: any) =>
+          r.activity_type === "0x1::coin::WithdrawEvent" &&
+          r.entry_function_id_str ===
+            "0x7ccf0e6e871977c354c331aa0fccdffb562d9fceb27e3d7f61f8e12e470358e9::aggregator::purchase_many",
+      )
+      .reduce((acc: number, curr: any) => acc + curr.amount, 0);
 
-      setMarketVolume(convertAmountFromOnChainToHumanReadable(amount, 8));
-    })();
+    setMarketVolume(convertAmountFromOnChainToHumanReadable(amount, 8));
+  };
+  useEffect(() => {
+    getMarket();
+    setInterval(() => {
+      getMarket();
+    }, 300000);
   }, []);
 
   return (

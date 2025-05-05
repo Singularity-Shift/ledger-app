@@ -22,10 +22,14 @@ import useSketchExport from "./sketch/useSketchExport";
 import { moderateImage } from "@/utils/imageModeration";
 import { AutoPaymentModal } from "./AutoPaymentModal";
 import { useAuth } from "@/contexts/AuthProvider";
+import paperBackground from "../assets/placeholders/paper.png";
+import { useAbiClient } from "@/contexts/AbiProvider";
+import { COLLECTION_ADDRESS } from "@/constants";
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
   const { jwt } = useAuth();
+  const { abi, ledgeABI } = useAbiClient();
   const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -363,12 +367,20 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           toast({ title: "Error submitting", description: "Please try again", variant: "destructive" });
           return;
         }
+
+        const idResult = await abi?.useABI(ledgeABI).view.get_nft_minted({
+          typeArguments: [],
+          functionArguments: [COLLECTION_ADDRESS],
+        });
+        const id = parseInt(idResult?.[0] || "0") + 1;
+
         onSubmit(
           file,
           elapsedTime,
           autoImageUrl,
-          "", // id not available for auto image
+          id.toString(),
           !!traceImage, // usedTracing: true if traceImage was present
+          true,
           securityToken, // now passing security token for auto image
         );
         toast({ title: "Success", description: "Your drawing has been submitted!" });
@@ -442,6 +454,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           exportResult.drawPath,
           exportResult.id,
           exportResult.usedTracing,
+          false,
           exportResult.securityToken,
         );
 
@@ -657,7 +670,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       // 2. Export required layers
       // a) Paper background (static asset)
       const fetchPaperBlob = async () => {
-        const response = await fetch("/frontend/assets/placeholders/paper.png");
+        const response = await fetch(paperBackground);
         return await response.blob();
       };
       const paperBlob = await fetchPaperBlob();

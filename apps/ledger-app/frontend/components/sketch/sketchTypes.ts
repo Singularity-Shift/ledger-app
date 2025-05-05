@@ -43,6 +43,7 @@ export interface PencilSketchPortalProps {
     drawPath: string,
     id: string,
     usedTracing: boolean,
+    usedAutoComplete: boolean,
     securityToken: string,
   ) => void;
-} 
+}
