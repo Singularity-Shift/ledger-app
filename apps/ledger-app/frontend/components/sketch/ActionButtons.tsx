@@ -8,6 +8,10 @@ interface ActionButtonsProps {
   handleSubmit: () => void;
   handleAuto: () => void;
   onClose: () => void;
+  disabled?: boolean;
+  pixelCount?: number;
+  requiredPixels?: number;
+  autoDisabled?: boolean;
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -17,7 +21,20 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   handleSubmit,
   handleAuto,
   onClose,
+  disabled = false,
+  pixelCount = 0,
+  requiredPixels = 0,
+  autoDisabled = false,
 }) => {
+  const validationTooltip = disabled && requiredPixels > 0 
+    ? `Please draw more. Currently ${pixelCount.toLocaleString()} of ${requiredPixels.toLocaleString()} required pixels.`
+    : '';
+    
+  // Auto button tooltip - show different message when an AI image is already loaded
+  const autoTooltip = autoDisabled 
+    ? 'AI image already applied' 
+    : validationTooltip;
+    
   return (
     <>
       <style>{`
@@ -39,6 +56,11 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           will-change: transform;
         }
       `}</style>
+      {disabled && requiredPixels > 0 && (
+        <div className="text-sm text-red-500 font-medium mb-1">
+          {validationTooltip}
+        </div>
+      )}
       <div className="flex justify-end gap-1 mt-2">
         <Button variant="outline" size="sm" onClick={handleUndo} className="min-w-[50px] h-8 text-xs">
           Undo
@@ -49,10 +71,24 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         <Button variant="outline" size="sm" onClick={handleClear} className="min-w-[50px] h-8 text-xs">
           Clear
         </Button>
-        <Button variant="outline" size="sm" onClick={handleAuto} className="min-w-[50px] h-8 text-xs jiggle-anim">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleAuto} 
+          className={`min-w-[50px] h-8 text-xs ${!disabled && !autoDisabled ? "jiggle-anim" : ""}`}
+          disabled={disabled || autoDisabled}
+          title={autoTooltip}
+        >
           Auto
         </Button>
-        <Button variant="outline" size="sm" onClick={handleSubmit} className="min-w-[50px] h-8 text-xs">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleSubmit} 
+          className="min-w-[50px] h-8 text-xs"
+          disabled={disabled}
+          title={validationTooltip}
+        >
           Submit
         </Button>
         <Button variant="default" size="sm" onClick={onClose} className="min-w-[50px] h-8 text-xs">

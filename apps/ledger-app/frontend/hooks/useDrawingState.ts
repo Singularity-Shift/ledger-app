@@ -7,6 +7,7 @@ interface DrawingState {
   lastActiveTimestamp: number | null;
   drawingStartTime?: number; // Persist drawing session start time
   traceImage: string | null;
+  autoImageUrl?: string | null; // Store the AI-generated image URL
   traceConfig: {
     active: boolean;
     position: { x: number; y: number };
@@ -49,6 +50,7 @@ const calculateSignature = (state: Omit<DrawingState, 'signature'>): string => {
       lastActiveTimestamp: state.lastActiveTimestamp,
       drawingStartTime: state.drawingStartTime, // Include in signature
       traceImage: state.traceImage ? '[TRACE_IMAGE_DATA]' : null, // Replace actual image data with placeholder to keep signature shorter
+      autoImageUrl: state.autoImageUrl,
       traceConfig: state.traceConfig,
       pencilConfig: state.pencilConfig
     });

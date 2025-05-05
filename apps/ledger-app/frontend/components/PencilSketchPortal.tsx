@@ -25,6 +25,8 @@ import { useAuth } from "@/contexts/AuthProvider";
 import paperBackground from "../assets/placeholders/paper.png";
 import { useAbiClient } from "@/contexts/AbiProvider";
 import { COLLECTION_ADDRESS } from "@/constants";
+// Import validation utilities
+import { countDrawnPixels, MIN_DRAWN_PIXELS } from "@/utils/validation";
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
@@ -58,7 +60,14 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [isDropperMode, setIsDropperMode] = useState(false);
 
   // Place this at the top of the state declarations, before any function that uses autoImageUrl
-  const [autoImageUrl, setAutoImageUrl] = useState<string | null>(null);
+  const [autoImageUrl, setAutoImageUrl] = useState<string | null>(drawingState?.autoImageUrl ?? null);
+  
+  // Add state for validation
+  const [hasMinimumPixels, setHasMinimumPixels] = useState<boolean>(false);
+  const [pixelCount, setPixelCount] = useState<number>(0);
+
+  // State for tracking if we're currently checking pixel count
+  const [isCheckingPixelCount, setIsCheckingPixelCount] = useState<boolean>(false);
 
   // Initialize timer hook
   const { elapsedTime, setElapsedTime, drawingStartTime, getSecurityToken } = useSketchTimer(
@@ -97,6 +106,66 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     const scaleFactor = canvasSize / baseSize;
     return strokeWidth * scaleFactor;
   }, [strokeWidth, canvasSize]);
+
+  // Add a function to check if the minimum pixel count is met
+  const checkMinimumPixelsDrawn = useCallback(async () => {
+    if (!sketchCanvasRef.current?.canvasRef.current || isCheckingPixelCount) return;
+    
+    setIsCheckingPixelCount(true);
+    
+    try {
+      // Export the canvas as an image to a temporary canvas to count pixels
+      const dataUrl = await sketchCanvasRef.current.canvasRef.current.exportImage("png");
+      
+      // Create a temporary canvas to analyze the image
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      if (!tempCtx) {
+        console.error("Failed to get 2D context for pixel analysis");
+        return;
+      }
+      
+      // Set canvas size
+      tempCanvas.width = 1000;
+      tempCanvas.height = 1000;
+      
+      // Load the exported image
+      const img = new Image();
+      img.onload = () => {
+        // Draw the image to our temp canvas
+        tempCtx.drawImage(img, 0, 0);
+        
+        // Count the pixels
+        const count = countDrawnPixels(tempCanvas);
+        setPixelCount(count);
+        setHasMinimumPixels(count >= MIN_DRAWN_PIXELS);
+        setIsCheckingPixelCount(false);
+      };
+      
+      img.onerror = () => {
+        console.error("Failed to load image for pixel counting");
+        setIsCheckingPixelCount(false);
+      };
+      
+      img.src = dataUrl;
+    } catch (error) {
+      console.error("Error checking minimum pixels:", error);
+      setIsCheckingPixelCount(false);
+    }
+  }, [sketchCanvasRef, isCheckingPixelCount]);
+
+  // Check for minimum pixels when we make changes to the canvas
+  useEffect(() => {
+    // Only when open and restored
+    if (isOpen && isRestored && sketchCanvasRef.current?.canvasRef.current) {
+      const checkTimer = setTimeout(() => {
+        checkMinimumPixelsDrawn();
+      }, 1000); // Debounce to not check too frequently
+      
+      return () => clearTimeout(checkTimer);
+    }
+  }, [isOpen, isRestored, checkMinimumPixelsDrawn]);
 
   // Adjust canvas size based on available height and width
   useEffect(() => {
@@ -192,11 +261,19 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setTracingActive(drawingState.traceConfig?.active ?? false);
       setImagePosition(drawingState.traceConfig?.position ?? { x: 0, y: 0 });
       setImageScale(drawingState.traceConfig?.scale ?? 1);
-      // No need to set drawingStartTime here, it's handled by useSketchTimer
+      
+      // Restore autoImageUrl if it exists
+      setAutoImageUrl(drawingState.autoImageUrl ?? null);
+      
       // Mark that state has been restored
       setIsRestored(true);
       console.log("Drawing state restored.");
       toast({ title: "Drawing Restored", description: "Your previous drawing progress has been loaded." });
+      
+      // Check pixels after restoration
+      setTimeout(() => {
+        checkMinimumPixelsDrawn();
+      }, 500);
     } else if (isOpen && isDrawingStateLoaded && !drawingState && !isRestored) {
       // Condition for: Portal is open, state is loaded, NO saved state exists, and we haven't initialized yet.
       console.log("No saved state found, clearing canvas.");
@@ -211,7 +288,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         console.log("Portal closed, reset isRestored flag.");
       }
     }
-  }, [isOpen, isDrawingStateLoaded, isRestored, drawingState, clearDrawingState, toast, setElapsedTime]);
+  }, [isOpen, isDrawingStateLoaded, isRestored, drawingState, clearDrawingState, toast, setElapsedTime, checkMinimumPixelsDrawn]);
 
   // Auto-save drawing state periodically and on drawing actions
   const saveCurrentState = useCallback(async () => {
@@ -230,6 +307,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         lastActiveTimestamp: Date.now(),
         drawingStartTime: drawingStartTime, // persist start time
         traceImage: traceImage,
+        autoImageUrl: autoImageUrl, // Save the autoImageUrl
         traceConfig: {
           active: tracingActive,
           position: imagePosition,
@@ -251,6 +329,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     isRestored,
     elapsedTime,
     traceImage,
+    autoImageUrl, // Add to dependency array
     tracingActive,
     imagePosition,
     imageScale,
@@ -263,11 +342,16 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     drawingStartTime, // include in deps
   ]);
 
-  // Save state on drawing/erasing actions
+  // Handle pointer up to check minimum pixels after drawing actions
   const handlePointerUp = useCallback(() => {
     setIsErasing(false);
     saveCurrentState(); // Save after drawing action completes
-  }, [saveCurrentState]);
+    
+    // Check minimum pixels after drawing actions
+    setTimeout(() => {
+      checkMinimumPixelsDrawn();
+    }, 500);
+  }, [saveCurrentState, checkMinimumPixelsDrawn]);
 
   // Save state before the window unloads
   useEffect(() => {
@@ -319,172 +403,71 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Handle submission
   const handleSubmit = useCallback(async () => {
-    let moderationPassed = false; // Flag to track moderation status
-    try {
-      if (autoImageUrl) {
-        // If auto image is present, fetch it as a blob and submit only that
-        const response = await fetch(autoImageUrl);
-        const blob = await response.blob();
-        // Resize to 1000x1000 using a canvas
-        const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
-        const file = new File([resizedBlob], "auto-image.png", { type: "image/png" });
+    // Check for minimum pixels before proceeding with submission
+    await checkMinimumPixelsDrawn();
+    
+    if (!hasMinimumPixels && !autoImageUrl) {
+      toast({
+        variant: "destructive",
+        title: "Not Enough Drawing",
+        description: `Please draw more before submitting. You need at least ${MIN_DRAWN_PIXELS.toLocaleString()} pixels (currently ${pixelCount.toLocaleString()}).`,
+      });
+      return;
+    }
 
-        // Moderation step (reuse existing logic)
-        const fileToDataUrl = (file: File): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        };
-        let isFlagged = true;
-        try {
-          const imageDataUrl = await fileToDataUrl(file);
-          isFlagged = await moderateImage(imageDataUrl);
-        } catch (moderationError) {
-          console.error("Error during image moderation:", moderationError);
-          toast({
-            variant: "destructive",
-            title: "Moderation Error",
-            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
-          });
-          return;
-        }
-        if (isFlagged) {
-          console.warn("Image failed moderation check.");
-          toast({
-            variant: "destructive",
-            title: "Moderation Failed",
-            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
-          });
-          return;
-        }
-        moderationPassed = true;
-        const securityToken = getSecurityToken();
-
-        if (!onSubmit) {
-          toast({ title: "Error submitting", description: "Please try again", variant: "destructive" });
-          return;
-        }
-
-        const idResult = await abi?.useABI(ledgeABI).view.get_nft_minted({
-          typeArguments: [],
-          functionArguments: [COLLECTION_ADDRESS],
-        });
-        const id = parseInt(idResult?.[0] || "0") + 1;
-
-        onSubmit(
-          file,
-          elapsedTime,
-          autoImageUrl,
-          id.toString(),
-          !!traceImage, // usedTracing: true if traceImage was present
-          true,
-          securityToken, // now passing security token for auto image
-        );
-        toast({ title: "Success", description: "Your drawing has been submitted!" });
-        setIsRestored(false);
-        onClose();
-        return;
-      }
-      if (sketchCanvasRef.current?.canvasRef.current && onSubmit) {
-        console.log("Submitting drawing...");
-
-        // Use the export hook to handle the export and merge
-        const exportResult = await exportMergedSketch(
-          sketchCanvasRef.current.canvasRef,
+    if (window.confirm("Are you ready to submit your drawing? This action cannot be undone.")) {
+      // Export the drawing for preview
+      try {
+        const { file, token } = await exportMergedSketch(
+          sketchCanvasRef.current?.canvasRef.current ? sketchCanvasRef.current.canvasRef.current : null,
           canvasSize,
           elapsedTime,
-          drawingStartTime,
+          drawingStartTime ? drawingStartTime : Date.now(),
           traceImage,
-          getSecurityToken,
+          getSecurityToken
         );
 
-        if (!exportResult || !exportResult.file) {
-          console.error("Export failed or file missing");
-          toast({ variant: "destructive", title: "Export Error", description: "Could not generate the image file." });
-          return;
-        }
+        if (file && token) {
+          // Generate a random ID for the drawing
+          const randomId = `drawing_${Math.floor(Math.random() * 1000000)}`;
+          const path = JSON.stringify([]); // Empty path as we're not tracking it for submission
 
-        console.log("Image exported, proceeding to moderation...");
+          onSubmit(file, elapsedTime, path, randomId, tracingActive, autoImageUrl !== null, token);
+          onClose();
 
-        // --- Moderation Step --- START
-        const fileToDataUrl = (file: File): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        };
-
-        let isFlagged = true; // Default to flagged to be safe
-        try {
-          const imageDataUrl = await fileToDataUrl(exportResult.file);
-          isFlagged = await moderateImage(imageDataUrl);
-        } catch (moderationError) {
-          console.error("Error during image moderation:", moderationError);
+          // Clear drawing state if successful (the minting process will handle this)
+        } else {
           toast({
             variant: "destructive",
-            title: "Moderation Error",
-            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
+            title: "Submission Error",
+            description: "Failed to prepare the drawing for submission.",
           });
-          return; // Stop submission if moderation API fails
         }
-
-        if (isFlagged) {
-          console.warn("Image failed moderation check.");
-          toast({
-            variant: "destructive",
-            title: "Moderation Failed",
-            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
-          });
-          return; // Stop submission if flagged
-        }
-        // --- Moderation Step --- END
-
-        console.log("Moderation passed. Submitting...");
-        moderationPassed = true; // Mark as passed
-
-        // Call onSubmit with the exported data
-        onSubmit(
-          exportResult.file,
-          elapsedTime,
-          exportResult.drawPath,
-          exportResult.id,
-          exportResult.usedTracing,
-          false,
-          exportResult.securityToken,
-        );
-
-        toast({ title: "Success", description: "Your drawing has been submitted!" });
-        setIsRestored(false); // Reset restored flag so next open checks storage again
-        console.log("Drawing submitted, state NOT cleared yet.");
-        onClose(); // Close the portal
-      }
-    } catch (error) {
-      console.error("Error submitting drawing:", error);
-      // Only show generic submission error if moderation hasn't already failed
-      if (!moderationPassed) {
+      } catch (error) {
+        console.error("Error during submission:", error);
         toast({
           variant: "destructive",
           title: "Submission Error",
-          description: `Failed to submit your drawing: ${error instanceof Error ? error.message : String(error)}`,
+          description: error instanceof Error ? error.message : String(error),
         });
       }
     }
   }, [
-    onSubmit,
-    elapsedTime,
-    traceImage,
-    onClose,
-    getSecurityToken,
-    exportMergedSketch,
-    canvasSize,
-    toast,
-    drawingStartTime,
+    checkMinimumPixelsDrawn,
+    hasMinimumPixels,
     autoImageUrl,
+    pixelCount,
+    exportMergedSketch,
+    sketchCanvasRef,
+    canvasSize,
+    elapsedTime,
+    drawingStartTime,
+    traceImage,
+    getSecurityToken,
+    onSubmit,
+    tracingActive,
+    onClose,
+    toast,
   ]);
 
   // Tracing image handlers
@@ -637,32 +620,33 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const AUTO_FEATURE_COST = 5; // Cost in Ledger tokens
 
-  const handleAutoButtonClick = useCallback(async () => {
-    // Open payment modal when Auto button is clicked
-    if (!jwt) {
-      toast({
-        title: "Not auth detected",
-        description: "Please log in to submit your drawing for Auto processing.",
-        variant: "destructive",
-      });
-
-      return;
-    }
-
-    if (import.meta.env.VITE_DEV_MODE) {
-      await handleAuto();
-      return;
-    }
-    setIsPaymentModalOpen(true);
-  }, [jwt]);
-
   const handleAuto = useCallback(async () => {
     if (isAutoProcessing) return;
+    
+    // Don't allow running auto if we already have an auto image
+    if (autoImageUrl) {
+      toast({
+        variant: "warning",
+        title: "AI Already Applied",
+        description: "You've already applied AI auto-complete to this drawing.",
+      });
+      return;
+    }
+    
+    // Check for minimum pixels before proceeding
+    await checkMinimumPixelsDrawn();
+    
+    if (!hasMinimumPixels) {
+      toast({
+        variant: "destructive",
+        title: "Not Enough Drawing",
+        description: `Please draw more before using AI autocomplete. You need at least ${MIN_DRAWN_PIXELS.toLocaleString()} pixels (currently ${pixelCount.toLocaleString()}).`,
+      });
+      return;
+    }
+
     setIsAutoProcessing(true);
-    toast({
-      title: "Auto Submission Started",
-      description: "Your request has been submitted. Please wait while the AI generates your image...",
-    });
+
     try {
       // 1. Pause save state loop (by flag)
       // (Assume saveCurrentState checks isAutoProcessing and skips if true)
@@ -709,6 +693,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
       setTraceImage(null); // Remove trace image if present
       setTracingActive(false);
+      
+      // Save the state immediately with the new autoImageUrl
+      setTimeout(() => {
+        saveCurrentState();
+      }, 100);
+      
       toast({
         title: "Auto Complete",
         description: "AI-enhanced image has been applied. Please review and submit if satisfied.",
@@ -723,7 +713,18 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setIsAutoProcessing(false);
       // 5. Resume save state loop (flag resets)
     }
-  }, [isAutoProcessing, traceImage, sketchCanvasRef, toast, jwt]);
+  }, [
+    isAutoProcessing,
+    autoImageUrl, 
+    traceImage, 
+    sketchCanvasRef, 
+    toast, 
+    jwt, 
+    checkMinimumPixelsDrawn, 
+    hasMinimumPixels, 
+    pixelCount, 
+    saveCurrentState
+  ]);
 
   const handlePaymentSuccess = useCallback(() => {
     // Process the auto feature after successful payment
@@ -917,8 +918,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               handleRedo={handleRedo}
               handleClear={handleClearUnified}
               handleSubmit={handleSubmit}
-              handleAuto={handleAutoButtonClick}
+              handleAuto={handleAuto}
               onClose={onClose}
+              disabled={!hasMinimumPixels && !autoImageUrl}
+              pixelCount={pixelCount}
+              requiredPixels={MIN_DRAWN_PIXELS}
+              autoDisabled={!!autoImageUrl}
             />
           </div>
         </div>
