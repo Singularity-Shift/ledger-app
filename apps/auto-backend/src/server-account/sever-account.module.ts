@@ -1,5 +1,6 @@
 import {
   Account,
+  Ed25519Account,
   Ed25519PrivateKey,
   HexInput,
   PrivateKey,
@@ -18,14 +19,18 @@ export const serverAccountProvider = {
   useFactory: async (configService: ConfigService) => {
     const aptos = getAptosClient();
 
-    const account = aptos.account.deriveAccountFromPrivateKey({
-      privateKey: new Ed25519PrivateKey(
-        PrivateKey.formatPrivateKey(
-          configService.get<HexInput>('serverAccount.key') as HexInput,
-          PrivateKeyVariants.Ed25519,
-        ),
-      ),
-    });
+    const isDevMode = configService.get<string>('devMode');
+
+    const account = isDevMode
+      ? Ed25519Account.generate()
+      : await aptos.account.deriveAccountFromPrivateKey({
+          privateKey: new Ed25519PrivateKey(
+            PrivateKey.formatPrivateKey(
+              configService.get<HexInput>('serverAccount.key') as HexInput,
+              PrivateKeyVariants.Ed25519,
+            ),
+          ),
+        });
 
     return account;
   },
