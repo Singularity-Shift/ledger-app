@@ -415,59 +415,177 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       return;
     }
 
-    if (window.confirm("Are you ready to submit your drawing? This action cannot be undone.")) {
-      // Export the drawing for preview
-      try {
-        const { file, token } = await exportMergedSketch(
-          sketchCanvasRef.current?.canvasRef.current ? sketchCanvasRef.current.canvasRef.current : null,
-          canvasSize,
-          elapsedTime,
-          drawingStartTime ? drawingStartTime : Date.now(),
-          traceImage,
-          getSecurityToken
-        );
+    let moderationPassed = false; // Flag to track moderation status
+    try {
+      if (autoImageUrl) {
+        // If auto image is present, fetch it as a blob and submit only that
+        const response = await fetch(autoImageUrl);
+        const blob = await response.blob();
+        // Resize to 1000x1000 using a canvas
+        const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
+        const file = new File([resizedBlob], "auto-image.png", { type: "image/png" });
 
-        if (file && token) {
-          // Generate a random ID for the drawing
-          const randomId = `drawing_${Math.floor(Math.random() * 1000000)}`;
-          const path = JSON.stringify([]); // Empty path as we're not tracking it for submission
-
-          onSubmit(file, elapsedTime, path, randomId, tracingActive, autoImageUrl !== null, token);
-          onClose();
-
-          // Clear drawing state if successful (the minting process will handle this)
-        } else {
+        // Moderation step (reuse existing logic)
+        const fileToDataUrl = (file: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
+        let isFlagged = true;
+        try {
+          const imageDataUrl = await fileToDataUrl(file);
+          isFlagged = await moderateImage(imageDataUrl);
+        } catch (moderationError) {
+          console.error("Error during image moderation:", moderationError);
           toast({
             variant: "destructive",
-            title: "Submission Error",
-            description: "Failed to prepare the drawing for submission.",
+            title: "Moderation Error",
+            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
           });
+          return;
         }
-      } catch (error) {
-        console.error("Error during submission:", error);
+        if (isFlagged) {
+          console.warn("Image failed moderation check.");
+          toast({
+            variant: "destructive",
+            title: "Moderation Failed",
+            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
+          });
+          return;
+        }
+        moderationPassed = true;
+        const securityToken = getSecurityToken();
+
+        if (!onSubmit) {
+          toast({ title: "Error submitting", description: "Please try again", variant: "destructive" });
+          return;
+        }
+
+        const idResult = await abi?.useABI(ledgeABI).view.get_nft_minted({
+          typeArguments: [],
+          functionArguments: [COLLECTION_ADDRESS],
+        });
+        const id = parseInt(idResult?.[0] || "0") + 1;
+
+        onSubmit(
+          file,
+          elapsedTime,
+          autoImageUrl,
+          id.toString(),
+          !!traceImage, // usedTracing: true if traceImage was present
+          true,
+          securityToken, // now passing security token for auto image
+        );
+        toast({ title: "Success", description: "Your drawing has been submitted!" });
+        setIsRestored(false);
+        onClose();
+        return;
+      }
+      if (sketchCanvasRef.current?.canvasRef.current && onSubmit) {
+        console.log("Submitting drawing...");
+
+        // Use the export hook to handle the export and merge
+        const exportResult = await exportMergedSketch(
+          sketchCanvasRef.current.canvasRef,
+          canvasSize,
+          elapsedTime,
+          drawingStartTime,
+          traceImage,
+          getSecurityToken,
+        );
+
+        if (!exportResult || !exportResult.file) {
+          console.error("Export failed or file missing");
+          toast({ variant: "destructive", title: "Export Error", description: "Could not generate the image file." });
+          return;
+        }
+
+        console.log("Image exported, proceeding to moderation...");
+
+        // --- Moderation Step --- START
+        const fileToDataUrl = (file: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
+
+        let isFlagged = true; // Default to flagged to be safe
+        try {
+          const imageDataUrl = await fileToDataUrl(exportResult.file);
+          isFlagged = await moderateImage(imageDataUrl);
+        } catch (moderationError) {
+          console.error("Error during image moderation:", moderationError);
+          toast({
+            variant: "destructive",
+            title: "Moderation Error",
+            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
+          });
+          return; // Stop submission if moderation API fails
+        }
+
+        if (isFlagged) {
+          console.warn("Image failed moderation check.");
+          toast({
+            variant: "destructive",
+            title: "Moderation Failed",
+            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
+          });
+          return; // Stop submission if flagged
+        }
+        // --- Moderation Step --- END
+
+        console.log("Moderation passed. Submitting...");
+        moderationPassed = true; // Mark as passed
+
+        // Call onSubmit with the exported data
+        onSubmit(
+          exportResult.file,
+          elapsedTime,
+          exportResult.drawPath,
+          exportResult.id,
+          exportResult.usedTracing,
+          false,
+          exportResult.securityToken,
+        );
+
+        toast({ title: "Success", description: "Your drawing has been submitted!" });
+        setIsRestored(false); // Reset restored flag so next open checks storage again
+        console.log("Drawing submitted, state NOT cleared yet.");
+        onClose(); // Close the portal
+      }
+    } catch (error) {
+      console.error("Error submitting drawing:", error);
+      // Only show generic submission error if moderation hasn't already failed
+      if (!moderationPassed) {
         toast({
           variant: "destructive",
           title: "Submission Error",
-          description: error instanceof Error ? error.message : String(error),
+          description: `Failed to submit your drawing: ${error instanceof Error ? error.message : String(error)}`,
         });
       }
     }
   }, [
-    checkMinimumPixelsDrawn,
-    hasMinimumPixels,
-    autoImageUrl,
-    pixelCount,
-    exportMergedSketch,
-    sketchCanvasRef,
-    canvasSize,
-    elapsedTime,
-    drawingStartTime,
-    traceImage,
-    getSecurityToken,
     onSubmit,
-    tracingActive,
+    elapsedTime,
+    traceImage,
     onClose,
+    getSecurityToken,
+    exportMergedSketch,
+    canvasSize,
     toast,
+    drawingStartTime,
+    autoImageUrl,
+    checkMinimumPixelsDrawn,
+    hasMinimumPixels, 
+    pixelCount,
+    abi,
+    ledgeABI,
   ]);
 
   // Tracing image handlers
@@ -632,7 +750,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       });
       return;
     }
-    
+
     // Check for minimum pixels before proceeding
     await checkMinimumPixelsDrawn();
     
