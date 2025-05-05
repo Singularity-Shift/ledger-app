@@ -69,6 +69,17 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // State for tracking if we're currently checking pixel count
   const [isCheckingPixelCount, setIsCheckingPixelCount] = useState<boolean>(false);
 
+  // Add new state for the processed auto image and submission loading
+  const [processedAutoImage, setProcessedAutoImage] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for auto processing
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const AUTO_FEATURE_COST = 5; // Cost in Ledger tokens
+  
+  // Note: Optimizations applied for AI image caching and loading indicators - 2024-05-05
+
   // Initialize timer hook
   const { elapsedTime, setElapsedTime, drawingStartTime, getSecurityToken } = useSketchTimer(
     isOpen,
@@ -401,7 +412,200 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     sketchCanvasRef.current?.canvasRef.current?.redo();
   };
 
-  // Handle submission
+  // Modify the handleAuto function to process and cache the image when received
+  const handleAuto = useCallback(async () => {
+    if (isAutoProcessing) return;
+    
+    // Don't allow running auto if we already have an auto image
+    if (autoImageUrl) {
+      toast({
+        variant: "warning",
+        title: "AI Already Applied",
+        description: "You've already applied AI auto-complete to this drawing.",
+      });
+      return;
+    }
+    
+    // Check for minimum pixels before proceeding
+    await checkMinimumPixelsDrawn();
+    
+    if (!hasMinimumPixels) {
+      toast({
+        variant: "destructive",
+        title: "Not Enough Drawing",
+        description: `Please draw more before using AI autocomplete. You need at least ${MIN_DRAWN_PIXELS.toLocaleString()} pixels (currently ${pixelCount.toLocaleString()}).`,
+      });
+      return;
+    }
+
+    setIsAutoProcessing(true);
+
+    try {
+      // 1. Pause save state loop (by flag)
+      // (Assume saveCurrentState checks isAutoProcessing and skips if true)
+
+      // 2. Export required layers
+      // a) Paper background (static asset)
+      const fetchPaperBlob = async () => {
+        const response = await fetch(paperBackground);
+        return await response.blob();
+      };
+      const paperBlob = await fetchPaperBlob();
+
+      // b) User sketch (export as PNG, no transparency)
+      const sketchBlob = sketchCanvasRef.current?.canvasRef.current
+        ? await sketchCanvasRef.current.canvasRef.current.exportImage("png").then(dataUrlToBlob)
+        : null;
+      if (!sketchBlob) throw new Error("Failed to export sketch layer");
+
+      // c) Trace image (if present)
+      let subjectBlob: Blob | null = null;
+      if (traceImage) {
+        subjectBlob = await exportTraceImageAsBlob();
+      }
+
+      // 3. Prepare FormData and call backend
+      const formData = new FormData();
+      formData.append("paper", paperBlob, "paper.png");
+      formData.append("sketch", sketchBlob, "sketch.png");
+      if (subjectBlob) formData.append("subject", subjectBlob, "subject.png");
+
+      const response = await fetch(`${import.meta.env.VITE_AUTO_BACKEND_URL}/auto`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Auto-backend failed");
+      const { imageUrl } = await response.json();
+      if (!imageUrl) throw new Error("No image URL returned from backend");
+
+      // 4. Replace sketch (and trace) layer with returned image
+      setAutoImageUrl(imageUrl); // Overlay the image
+      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
+      setTraceImage(null); // Remove trace image if present
+      setTracingActive(false);
+      
+      // Process and cache the image right away for faster submission later
+      try {
+        // Fetch the image
+        const imgResponse = await fetch(imageUrl);
+        const imgBlob = await imgResponse.blob();
+        
+        // Resize to 1000x1000 if needed
+        const resizedBlob = await resizeImageBlob(imgBlob, 1000, 1000);
+        const processedFile = new File([resizedBlob], "auto-image.png", { type: "image/png" });
+        
+        // Cache the processed file
+        setProcessedAutoImage(processedFile);
+        console.log("Auto-image processed and cached for submission");
+      } catch (processingError) {
+        console.error("Error pre-processing auto image:", processingError);
+        // Don't show error to user, as the main functionality worked
+        // We'll just process it again during submission
+      }
+      
+      // Save the state immediately with the new autoImageUrl
+      setTimeout(() => {
+        saveCurrentState();
+      }, 100);
+      
+      toast({
+        title: "Auto Complete",
+        description: "AI-enhanced image has been applied. Please review and submit if satisfied.",
+      });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Auto Error",
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setIsAutoProcessing(false);
+      // 5. Resume save state loop (flag resets)
+    }
+  }, [
+    isAutoProcessing,
+    autoImageUrl, 
+    traceImage, 
+    sketchCanvasRef, 
+    toast, 
+    jwt, 
+    checkMinimumPixelsDrawn, 
+    hasMinimumPixels, 
+    pixelCount, 
+    saveCurrentState
+  ]);
+
+  const handlePaymentSuccess = useCallback(() => {
+    // Process the auto feature after successful payment
+    handleAuto();
+  }, [handleAuto]);
+
+  // Helper: Convert dataURL to Blob
+  function dataUrlToBlob(dataUrl: string): Blob {
+    const arr = dataUrl.split(","),
+      mime = arr[0].match(/:(.*?);/)?.[1],
+      bstr = atob(arr[1]),
+      n = bstr.length,
+      u8arr = new Uint8Array(n);
+    for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+    return new Blob([u8arr], { type: mime });
+  }
+
+  // Helper: Export trace image as displayed (square, full opacity)
+  async function exportTraceImageAsBlob(): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const size = canvasSize;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Failed to get canvas context"));
+      const img = new window.Image();
+      img.onload = () => {
+        // Draw trace image as displayed (with position/scale)
+        const scaledW = img.width * imageScale;
+        const scaledH = img.height * imageScale;
+        const x = imagePosition.x;
+        const y = imagePosition.y;
+        ctx.clearRect(0, 0, size, size);
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(img, x, y, scaledW, scaledH);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Failed to export trace image as blob"));
+        }, "image/png");
+      };
+      img.onerror = () => reject(new Error("Failed to load trace image for export"));
+      img.src = traceImage!;
+    });
+  }
+
+  // Helper: Resize image blob to target size using canvas
+  async function resizeImageBlob(blob: Blob, width: number, height: number): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Failed to get canvas context for resizing"));
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((resizedBlob) => {
+          if (resizedBlob) resolve(resizedBlob);
+          else reject(new Error("Failed to export resized image as blob"));
+        }, "image/png");
+      };
+      img.onerror = () => reject(new Error("Failed to load image for resizing"));
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  // Modify the handleSubmit function to use the cached image and show loading state
   const handleSubmit = useCallback(async () => {
     // Check for minimum pixels before proceeding with submission
     await checkMinimumPixelsDrawn();
@@ -415,15 +619,28 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       return;
     }
 
+    // Set submitting state to show the spinner
+    setIsSubmitting(true);
+
     let moderationPassed = false; // Flag to track moderation status
     try {
       if (autoImageUrl) {
-        // If auto image is present, fetch it as a blob and submit only that
-        const response = await fetch(autoImageUrl);
-        const blob = await response.blob();
-        // Resize to 1000x1000 using a canvas
-        const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
-        const file = new File([resizedBlob], "auto-image.png", { type: "image/png" });
+        // If auto image is present, either use cached version or fetch and process it
+        let file: File;
+        
+        if (processedAutoImage) {
+          // Use the cached processed image if available
+          console.log("Using cached auto-image for submission");
+          file = processedAutoImage;
+        } else {
+          // Otherwise, process it now (this is the slow path)
+          console.log("Processing auto-image for submission");
+          const response = await fetch(autoImageUrl);
+          const blob = await response.blob();
+          // Resize to 1000x1000 using a canvas
+          const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
+          file = new File([resizedBlob], "auto-image.png", { type: "image/png" });
+        }
 
         // Moderation step (reuse existing logic)
         const fileToDataUrl = (file: File): Promise<string> => {
@@ -445,6 +662,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
             title: "Moderation Error",
             description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
           });
+          setIsSubmitting(false); // Reset submitting state
           return;
         }
         if (isFlagged) {
@@ -454,6 +672,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
             title: "Moderation Failed",
             description: "The generated image was flagged as potentially harmful and cannot be submitted.",
           });
+          setIsSubmitting(false); // Reset submitting state
           return;
         }
         moderationPassed = true;
@@ -461,6 +680,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
         if (!onSubmit) {
           toast({ title: "Error submitting", description: "Please try again", variant: "destructive" });
+          setIsSubmitting(false); // Reset submitting state
           return;
         }
 
@@ -500,6 +720,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         if (!exportResult || !exportResult.file) {
           console.error("Export failed or file missing");
           toast({ variant: "destructive", title: "Export Error", description: "Could not generate the image file." });
+          setIsSubmitting(false); // Reset submitting state
           return;
         }
 
@@ -526,6 +747,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
             title: "Moderation Error",
             description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
           });
+          setIsSubmitting(false); // Reset submitting state
           return; // Stop submission if moderation API fails
         }
 
@@ -536,6 +758,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
             title: "Moderation Failed",
             description: "The generated image was flagged as potentially harmful and cannot be submitted.",
           });
+          setIsSubmitting(false); // Reset submitting state
           return; // Stop submission if flagged
         }
         // --- Moderation Step --- END
@@ -569,6 +792,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           description: `Failed to submit your drawing: ${error instanceof Error ? error.message : String(error)}`,
         });
       }
+    } finally {
+      setIsSubmitting(false); // Always reset submitting state
     }
   }, [
     onSubmit,
@@ -586,6 +811,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     pixelCount,
     abi,
     ledgeABI,
+    processedAutoImage, // Add to dependencies
   ]);
 
   // Tracing image handlers
@@ -733,184 +959,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode],
   );
 
-  // --- AUTO BUTTON LOGIC ---
-  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const AUTO_FEATURE_COST = 5; // Cost in Ledger tokens
-
-  const handleAuto = useCallback(async () => {
-    if (isAutoProcessing) return;
-    
-    // Don't allow running auto if we already have an auto image
-    if (autoImageUrl) {
-      toast({
-        variant: "warning",
-        title: "AI Already Applied",
-        description: "You've already applied AI auto-complete to this drawing.",
-      });
-      return;
-    }
-
-    // Check for minimum pixels before proceeding
-    await checkMinimumPixelsDrawn();
-    
-    if (!hasMinimumPixels) {
-      toast({
-        variant: "destructive",
-        title: "Not Enough Drawing",
-        description: `Please draw more before using AI autocomplete. You need at least ${MIN_DRAWN_PIXELS.toLocaleString()} pixels (currently ${pixelCount.toLocaleString()}).`,
-      });
-      return;
-    }
-
-    setIsAutoProcessing(true);
-
-    try {
-      // 1. Pause save state loop (by flag)
-      // (Assume saveCurrentState checks isAutoProcessing and skips if true)
-
-      // 2. Export required layers
-      // a) Paper background (static asset)
-      const fetchPaperBlob = async () => {
-        const response = await fetch(paperBackground);
-        return await response.blob();
-      };
-      const paperBlob = await fetchPaperBlob();
-
-      // b) User sketch (export as PNG, no transparency)
-      const sketchBlob = sketchCanvasRef.current?.canvasRef.current
-        ? await sketchCanvasRef.current.canvasRef.current.exportImage("png").then(dataUrlToBlob)
-        : null;
-      if (!sketchBlob) throw new Error("Failed to export sketch layer");
-
-      // c) Trace image (if present)
-      let subjectBlob: Blob | null = null;
-      if (traceImage) {
-        subjectBlob = await exportTraceImageAsBlob();
-      }
-
-      // 3. Prepare FormData and call backend
-      const formData = new FormData();
-      formData.append("paper", paperBlob, "paper.png");
-      formData.append("sketch", sketchBlob, "sketch.png");
-      if (subjectBlob) formData.append("subject", subjectBlob, "subject.png");
-
-      const response = await fetch(`${import.meta.env.VITE_AUTO_BACKEND_URL}/auto`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: formData,
-      });
-      if (!response.ok) throw new Error("Auto-backend failed");
-      const { imageUrl } = await response.json();
-      if (!imageUrl) throw new Error("No image URL returned from backend");
-
-      // 4. Replace sketch (and trace) layer with returned image
-      setAutoImageUrl(imageUrl); // Overlay the image
-      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
-      setTraceImage(null); // Remove trace image if present
-      setTracingActive(false);
-      
-      // Save the state immediately with the new autoImageUrl
-      setTimeout(() => {
-        saveCurrentState();
-      }, 100);
-      
-      toast({
-        title: "Auto Complete",
-        description: "AI-enhanced image has been applied. Please review and submit if satisfied.",
-      });
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Auto Error",
-        description: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      setIsAutoProcessing(false);
-      // 5. Resume save state loop (flag resets)
-    }
-  }, [
-    isAutoProcessing,
-    autoImageUrl, 
-    traceImage, 
-    sketchCanvasRef, 
-    toast, 
-    jwt, 
-    checkMinimumPixelsDrawn, 
-    hasMinimumPixels, 
-    pixelCount, 
-    saveCurrentState
-  ]);
-
-  const handlePaymentSuccess = useCallback(() => {
-    // Process the auto feature after successful payment
-    handleAuto();
-  }, [handleAuto]);
-
-  // Helper: Convert dataURL to Blob
-  function dataUrlToBlob(dataUrl: string): Blob {
-    const arr = dataUrl.split(","),
-      mime = arr[0].match(/:(.*?);/)?.[1],
-      bstr = atob(arr[1]),
-      n = bstr.length,
-      u8arr = new Uint8Array(n);
-    for (let i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
-    return new Blob([u8arr], { type: mime });
-  }
-
-  // Helper: Export trace image as displayed (square, full opacity)
-  async function exportTraceImageAsBlob(): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const size = canvasSize;
-      const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Failed to get canvas context"));
-      const img = new window.Image();
-      img.onload = () => {
-        // Draw trace image as displayed (with position/scale)
-        const scaledW = img.width * imageScale;
-        const scaledH = img.height * imageScale;
-        const x = imagePosition.x;
-        const y = imagePosition.y;
-        ctx.clearRect(0, 0, size, size);
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(img, x, y, scaledW, scaledH);
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error("Failed to export trace image as blob"));
-        }, "image/png");
-      };
-      img.onerror = () => reject(new Error("Failed to load trace image for export"));
-      img.src = traceImage!;
-    });
-  }
-
-  // Helper: Resize image blob to target size using canvas
-  async function resizeImageBlob(blob: Blob, width: number, height: number): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("Failed to get canvas context for resizing"));
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((resizedBlob) => {
-          if (resizedBlob) resolve(resizedBlob);
-          else reject(new Error("Failed to export resized image as blob"));
-        }, "image/png");
-      };
-      img.onerror = () => reject(new Error("Failed to load image for resizing"));
-      img.src = URL.createObjectURL(blob);
-    });
-  }
-
   if (!isOpen) return null;
 
   return createPortal(
@@ -922,6 +970,17 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         onPaymentSuccess={handlePaymentSuccess}
         requiredAmount={AUTO_FEATURE_COST}
       />
+
+      {/* Full-page spinner overlay for submission */}
+      {isSubmitting && (
+        <div
+          className="absolute inset-0 bg-white/70 flex flex-col items-center justify-center z-50"
+          style={{ backdropFilter: "blur(2px)" }}
+        >
+          <Spinner size="lg" />
+          <p className="mt-4 font-medium text-gray-800">Submitting your artwork...</p>
+        </div>
+      )}
 
       <div
         ref={containerRef}
