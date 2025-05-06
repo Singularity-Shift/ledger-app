@@ -668,6 +668,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         // If auto image is present, either use cached version or fetch and process it
         let file: File;
 
+        const idResult = await abi?.useABI(ledgeABI).view.get_nft_minted({
+          typeArguments: [],
+          functionArguments: [COLLECTION_ADDRESS],
+        });
+        const id = parseInt(idResult?.[0] || "0") + 1;
+
         if (processedAutoImage) {
           // Use the cached processed image if available
           console.log("Using cached auto-image for submission");
@@ -679,7 +685,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           const blob = await response.blob();
           // Resize to 1000x1000 using a canvas
           const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
-          file = new File([resizedBlob], "auto-image.png", { type: "image/png" });
+          file = new File([resizedBlob], `${id}.png`, { type: "image/png" });
         }
 
         // Moderation step (reuse existing logic)
@@ -723,12 +729,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           setIsSubmitting(false); // Reset submitting state
           return;
         }
-
-        const idResult = await abi?.useABI(ledgeABI).view.get_nft_minted({
-          typeArguments: [],
-          functionArguments: [COLLECTION_ADDRESS],
-        });
-        const id = parseInt(idResult?.[0] || "0") + 1;
 
         onSubmit(
           file,
