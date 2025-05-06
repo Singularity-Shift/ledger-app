@@ -80,19 +80,23 @@ export const AutoPaymentModal = ({ isOpen, onClose, onPaymentSuccess }: AutoPaym
           type_arguments: [LEDGER_COIN_TYPE],
           arguments: [],
         });
+        toast({
+          title: "Payment Successful",
+          description: (
+            <>
+              <span>Payment sent successfully!</span>
+              <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
+                {truncateAddress(tx?.hash)}
+              </a>
+            </>
+          ),
+        });
+      } else {
+        toast({
+          title: "Payment Successful",
+          description: "You already have access to the Auto feature.",
+        });
       }
-
-      toast({
-        title: "Payment Successful",
-        description: (
-          <>
-            <span>Payment sent successfully!</span>
-            <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
-              {truncateAddress(tx?.hash)}
-            </a>
-          </>
-        ),
-      });
 
       onPaymentSuccess();
       onClose();

@@ -412,14 +412,38 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     sketchCanvasRef.current?.canvasRef.current?.redo();
   };
 
-  // Modify the handleAuto function to process and cache the image when received
+  // Restore the Auto button click handler to check pixels and open payment modal
+  const handleAutoButtonClick = useCallback(async () => {
+    // If an AI image is already present, show warning and do nothing
+    if (autoImageUrl) {
+      toast({
+        variant: "default",
+        title: "AI Already Applied",
+        description: "You've already applied AI auto-complete to this drawing.",
+      });
+      return;
+    }
+    // Check for minimum pixels before proceeding
+    await checkMinimumPixelsDrawn();
+    if (!hasMinimumPixels) {
+      toast({
+        variant: "default",
+        title: "Not Enough Drawing",
+        description: `Please draw more before using AI autocomplete. You need at least ${MIN_DRAWN_PIXELS.toLocaleString()} pixels (currently ${pixelCount.toLocaleString()}).`,
+      });
+      return;
+    }
+    setIsPaymentModalOpen(true);
+  }, [autoImageUrl, checkMinimumPixelsDrawn, hasMinimumPixels, pixelCount, toast]);
+
+  // ... keep handleAuto as the actual AI call, only called after payment ...
   const handleAuto = useCallback(async () => {
     if (isAutoProcessing) return;
     
     // Don't allow running auto if we already have an auto image
     if (autoImageUrl) {
       toast({
-        variant: "warning",
+        variant: "destructive",
         title: "AI Already Applied",
         description: "You've already applied AI auto-complete to this drawing.",
       });
@@ -431,7 +455,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     
     if (!hasMinimumPixels) {
       toast({
-        variant: "destructive",
+        variant: "default",
         title: "Not Enough Drawing",
         description: `Please draw more before using AI autocomplete. You need at least ${MIN_DRAWN_PIXELS.toLocaleString()} pixels (currently ${pixelCount.toLocaleString()}).`,
       });
@@ -538,11 +562,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     saveCurrentState
   ]);
 
-  const handlePaymentSuccess = useCallback(() => {
-    // Process the auto feature after successful payment
-    handleAuto();
-  }, [handleAuto]);
-
   // Helper: Convert dataURL to Blob
   function dataUrlToBlob(dataUrl: string): Blob {
     const arr = dataUrl.split(","),
@@ -635,10 +654,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         } else {
           // Otherwise, process it now (this is the slow path)
           console.log("Processing auto-image for submission");
-          const response = await fetch(autoImageUrl);
-          const blob = await response.blob();
-          // Resize to 1000x1000 using a canvas
-          const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
+        const response = await fetch(autoImageUrl);
+        const blob = await response.blob();
+        // Resize to 1000x1000 using a canvas
+        const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
           file = new File([resizedBlob], "auto-image.png", { type: "image/png" });
         }
 
@@ -967,7 +986,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       <AutoPaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
-        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentSuccess={handleAuto}
         requiredAmount={AUTO_FEATURE_COST}
       />
 
@@ -1095,7 +1114,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               handleRedo={handleRedo}
               handleClear={handleClearUnified}
               handleSubmit={handleSubmit}
-              handleAuto={handleAuto}
+              handleAuto={handleAutoButtonClick}
               onClose={onClose}
               disabled={!hasMinimumPixels && !autoImageUrl}
               pixelCount={pixelCount}
