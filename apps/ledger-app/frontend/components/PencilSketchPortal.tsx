@@ -27,11 +27,13 @@ import { useAbiClient } from "@/contexts/AbiProvider";
 import { COLLECTION_ADDRESS } from "@/constants";
 // Import validation utilities
 import { countDrawnPixels, MIN_DRAWN_PIXELS } from "@/utils/validation";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
   const { jwt } = useAuth();
-  const { abi, ledgeABI } = useAbiClient();
+  const { abi, ledgeABI, autocompleteABI } = useAbiClient();
+  const { account } = useWallet();
   const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +63,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Place this at the top of the state declarations, before any function that uses autoImageUrl
   const [autoImageUrl, setAutoImageUrl] = useState<string | null>(drawingState?.autoImageUrl ?? null);
-  
+
   // Add state for validation
   const [hasMinimumPixels, setHasMinimumPixels] = useState<boolean>(false);
   const [pixelCount, setPixelCount] = useState<number>(0);
@@ -72,12 +74,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Add new state for the processed auto image and submission loading
   const [processedAutoImage, setProcessedAutoImage] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // State for auto processing
   const [isAutoProcessing, setIsAutoProcessing] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const AUTO_FEATURE_COST = 5; // Cost in Ledger tokens
-  
+
   // Note: Optimizations applied for AI image caching and loading indicators - 2024-05-05
 
   // Initialize timer hook
@@ -121,44 +123,44 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Add a function to check if the minimum pixel count is met
   const checkMinimumPixelsDrawn = useCallback(async () => {
     if (!sketchCanvasRef.current?.canvasRef.current || isCheckingPixelCount) return;
-    
+
     setIsCheckingPixelCount(true);
-    
+
     try {
       // Export the canvas as an image to a temporary canvas to count pixels
       const dataUrl = await sketchCanvasRef.current.canvasRef.current.exportImage("png");
-      
+
       // Create a temporary canvas to analyze the image
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      
+      const tempCanvas = document.createElement("canvas");
+      const tempCtx = tempCanvas.getContext("2d");
+
       if (!tempCtx) {
         console.error("Failed to get 2D context for pixel analysis");
         return;
       }
-      
+
       // Set canvas size
       tempCanvas.width = 1000;
       tempCanvas.height = 1000;
-      
+
       // Load the exported image
       const img = new Image();
       img.onload = () => {
         // Draw the image to our temp canvas
         tempCtx.drawImage(img, 0, 0);
-        
+
         // Count the pixels
         const count = countDrawnPixels(tempCanvas);
         setPixelCount(count);
         setHasMinimumPixels(count >= MIN_DRAWN_PIXELS);
         setIsCheckingPixelCount(false);
       };
-      
+
       img.onerror = () => {
         console.error("Failed to load image for pixel counting");
         setIsCheckingPixelCount(false);
       };
-      
+
       img.src = dataUrl;
     } catch (error) {
       console.error("Error checking minimum pixels:", error);
@@ -173,7 +175,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       const checkTimer = setTimeout(() => {
         checkMinimumPixelsDrawn();
       }, 1000); // Debounce to not check too frequently
-      
+
       return () => clearTimeout(checkTimer);
     }
   }, [isOpen, isRestored, checkMinimumPixelsDrawn]);
@@ -272,15 +274,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setTracingActive(drawingState.traceConfig?.active ?? false);
       setImagePosition(drawingState.traceConfig?.position ?? { x: 0, y: 0 });
       setImageScale(drawingState.traceConfig?.scale ?? 1);
-      
+
       // Restore autoImageUrl if it exists
       setAutoImageUrl(drawingState.autoImageUrl ?? null);
-      
+
       // Mark that state has been restored
       setIsRestored(true);
       console.log("Drawing state restored.");
       toast({ title: "Drawing Restored", description: "Your previous drawing progress has been loaded." });
-      
+
       // Check pixels after restoration
       setTimeout(() => {
         checkMinimumPixelsDrawn();
@@ -299,7 +301,16 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         console.log("Portal closed, reset isRestored flag.");
       }
     }
-  }, [isOpen, isDrawingStateLoaded, isRestored, drawingState, clearDrawingState, toast, setElapsedTime, checkMinimumPixelsDrawn]);
+  }, [
+    isOpen,
+    isDrawingStateLoaded,
+    isRestored,
+    drawingState,
+    clearDrawingState,
+    toast,
+    setElapsedTime,
+    checkMinimumPixelsDrawn,
+  ]);
 
   // Auto-save drawing state periodically and on drawing actions
   const saveCurrentState = useCallback(async () => {
@@ -357,7 +368,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const handlePointerUp = useCallback(() => {
     setIsErasing(false);
     saveCurrentState(); // Save after drawing action completes
-    
+
     // Check minimum pixels after drawing actions
     setTimeout(() => {
       checkMinimumPixelsDrawn();
@@ -414,6 +425,16 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Restore the Auto button click handler to check pixels and open payment modal
   const handleAutoButtonClick = useCallback(async () => {
+    const hasAutocompleteResult = await abi?.useABI(autocompleteABI).view.get_autocomplete_payment({
+      typeArguments: [],
+      functionArguments: [account?.address.toString() as `0x${string}`],
+    });
+
+    if (hasAutocompleteResult?.[0]) {
+      await handleAuto();
+      return;
+    }
+
     // If an AI image is already present, show warning and do nothing
     if (autoImageUrl) {
       toast({
@@ -439,7 +460,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // ... keep handleAuto as the actual AI call, only called after payment ...
   const handleAuto = useCallback(async () => {
     if (isAutoProcessing) return;
-    
+
     // Don't allow running auto if we already have an auto image
     if (autoImageUrl) {
       toast({
@@ -449,10 +470,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       });
       return;
     }
-    
+
     // Check for minimum pixels before proceeding
     await checkMinimumPixelsDrawn();
-    
+
     if (!hasMinimumPixels) {
       toast({
         variant: "default",
@@ -510,17 +531,17 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
       setTraceImage(null); // Remove trace image if present
       setTracingActive(false);
-      
+
       // Process and cache the image right away for faster submission later
       try {
         // Fetch the image
         const imgResponse = await fetch(imageUrl);
         const imgBlob = await imgResponse.blob();
-        
+
         // Resize to 1000x1000 if needed
         const resizedBlob = await resizeImageBlob(imgBlob, 1000, 1000);
         const processedFile = new File([resizedBlob], "auto-image.png", { type: "image/png" });
-        
+
         // Cache the processed file
         setProcessedAutoImage(processedFile);
         console.log("Auto-image processed and cached for submission");
@@ -529,12 +550,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         // Don't show error to user, as the main functionality worked
         // We'll just process it again during submission
       }
-      
+
       // Save the state immediately with the new autoImageUrl
       setTimeout(() => {
         saveCurrentState();
       }, 100);
-      
+
       toast({
         title: "Auto Complete",
         description: "AI-enhanced image has been applied. Please review and submit if satisfied.",
@@ -551,15 +572,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     }
   }, [
     isAutoProcessing,
-    autoImageUrl, 
-    traceImage, 
-    sketchCanvasRef, 
-    toast, 
-    jwt, 
-    checkMinimumPixelsDrawn, 
-    hasMinimumPixels, 
-    pixelCount, 
-    saveCurrentState
+    autoImageUrl,
+    traceImage,
+    sketchCanvasRef,
+    toast,
+    jwt,
+    checkMinimumPixelsDrawn,
+    hasMinimumPixels,
+    pixelCount,
+    saveCurrentState,
   ]);
 
   // Helper: Convert dataURL to Blob
@@ -628,7 +649,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const handleSubmit = useCallback(async () => {
     // Check for minimum pixels before proceeding with submission
     await checkMinimumPixelsDrawn();
-    
+
     if (!hasMinimumPixels && !autoImageUrl) {
       toast({
         variant: "destructive",
@@ -646,7 +667,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       if (autoImageUrl) {
         // If auto image is present, either use cached version or fetch and process it
         let file: File;
-        
+
         if (processedAutoImage) {
           // Use the cached processed image if available
           console.log("Using cached auto-image for submission");
@@ -654,10 +675,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         } else {
           // Otherwise, process it now (this is the slow path)
           console.log("Processing auto-image for submission");
-        const response = await fetch(autoImageUrl);
-        const blob = await response.blob();
-        // Resize to 1000x1000 using a canvas
-        const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
+          const response = await fetch(autoImageUrl);
+          const blob = await response.blob();
+          // Resize to 1000x1000 using a canvas
+          const resizedBlob = await resizeImageBlob(blob, 1000, 1000);
           file = new File([resizedBlob], "auto-image.png", { type: "image/png" });
         }
 
@@ -826,7 +847,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     drawingStartTime,
     autoImageUrl,
     checkMinimumPixelsDrawn,
-    hasMinimumPixels, 
+    hasMinimumPixels,
     pixelCount,
     abi,
     ledgeABI,
