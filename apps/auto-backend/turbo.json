@@ -1,0 +1,10 @@
+{
+    "globalDependencies": [".env"],
+    "globalEnv": ["PRIVATE_KEY_SERVER"],
+    "extends": ["//"],
+    "tasks": {
+      "build": {
+        "outputs": ["dist/**"]
+      }
+    }
+  }

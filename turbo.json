@@ -1,0 +1,21 @@
+{
+    "$schema": "https://turborepo.com/schema.json",
+    "envMode": "loose",
+    "tasks": {
+      "build": {
+        "outputs": ["dist/frontend/**", "auto-backend/backend/**"]
+      },
+      "check-types": {
+        "dependsOn": ["^check-types"]
+      },
+      "dev": {
+        "persistent": true,
+        "cache": false
+      },
+      "prod": {
+        "dependsOn": ["build"],
+        "persistent": false,
+        "cache": true
+      }
+    }
+  }
