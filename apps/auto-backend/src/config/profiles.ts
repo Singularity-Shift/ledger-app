@@ -20,7 +20,7 @@ export const Profiles = {
       apiKey: process.env.OPENAI_API_KEY,
     },
     serverAccount: {
-      key: process.env.PRIVATE_KEY_SERVER,
+      key: process.env.PRIVATE_KEY_SERVER || "TEST",
     },
     storage: {
       project_id: process.env.PROJECT_ID,
@@ -45,7 +45,7 @@ export const Profiles = {
       apiKey: process.env.OPENAI_API_KEY,
     },
     serverAccount: {
-      key: process.env.PRIVATE_KEY_SERVER,
+      key: process.env.PRIVATE_KEY_SERVER || "TEST",
     },
     storage: {
       project_id: process.env.PROJECT_ID,

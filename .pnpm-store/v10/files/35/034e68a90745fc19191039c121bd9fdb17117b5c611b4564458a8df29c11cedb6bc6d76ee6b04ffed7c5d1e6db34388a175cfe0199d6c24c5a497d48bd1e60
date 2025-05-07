@@ -1,0 +1,6 @@
+declare function createInitiaUsernamesClient(rest: string, moduleAddress: string): {
+    rest: string;
+    getUsername: (address: string) => Promise<string | null>;
+    getAddress: (username: string) => Promise<string | null>;
+};
+export default createInitiaUsernamesClient;

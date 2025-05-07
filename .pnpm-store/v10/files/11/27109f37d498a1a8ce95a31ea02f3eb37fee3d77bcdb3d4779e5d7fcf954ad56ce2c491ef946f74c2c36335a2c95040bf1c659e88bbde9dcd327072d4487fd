@@ -1,0 +1,21 @@
+import { Chain } from '@initia/initia-registry-types';
+export default class LayerManager {
+    static chainRegistry: Chain[];
+    static defaultChainId: string;
+    static defaultLayer: Chain;
+    static layer1: Chain;
+    private static chainIdsSubject;
+    private static storageKey;
+    private static initialized;
+    private static get storedChainIds();
+    private static storeChainIds;
+    static initializeLayers(registryUrl: string): Promise<void>;
+    static get chainIds$(): import('rxjs').Observable<string[]>;
+    static get chainIds(): string[];
+    static get layers(): Chain[];
+    static findLayer(chainId?: string): Chain | undefined;
+    static findDefinedLayer(chainId: string): Chain;
+    static addLayer(chainId: string): void;
+    static removeLayer(chainId: string): void;
+    static get minitiaType(): "minimove" | "miniwasm" | "minievm" | "custom" | undefined;
+}

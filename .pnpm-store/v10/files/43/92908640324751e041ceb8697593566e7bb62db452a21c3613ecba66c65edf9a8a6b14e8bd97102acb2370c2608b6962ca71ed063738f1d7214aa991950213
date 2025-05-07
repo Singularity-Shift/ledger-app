@@ -1,0 +1,17 @@
+import { SvelteComponentTyped } from "svelte";
+declare const __propDef: {
+    props: {
+        size?: number | undefined;
+        color?: string | undefined;
+    };
+    events: {
+        [evt: string]: CustomEvent<any>;
+    };
+    slots: {};
+};
+export type SwapVertProps = typeof __propDef.props;
+export type SwapVertEvents = typeof __propDef.events;
+export type SwapVertSlots = typeof __propDef.slots;
+export default class SwapVert extends SvelteComponentTyped<SwapVertProps, SwapVertEvents, SwapVertSlots> {
+}
+export {};

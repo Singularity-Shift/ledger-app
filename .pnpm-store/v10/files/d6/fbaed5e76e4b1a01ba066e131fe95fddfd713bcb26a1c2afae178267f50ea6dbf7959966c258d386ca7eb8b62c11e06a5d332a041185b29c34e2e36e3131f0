@@ -1,0 +1,4 @@
+import WebAptos from './irys.js';
+export { WebAptos };
+export default WebAptos;
+//# sourceMappingURL=index.js.map

@@ -1,0 +1,8 @@
+declare function createInitiaDexClient(rest: string): {
+    rest: string;
+    getConfig: (liquidityToken: string) => Promise<{
+        swap_fee_rate: string;
+    }>;
+    getSpotPrice: (offerToken: string, liquidityToken: string) => Promise<string>;
+};
+export default createInitiaDexClient;

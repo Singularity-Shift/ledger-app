@@ -1,0 +1,4 @@
+import { Context } from 'react';
+import { WalletWidget } from '@initia/utils';
+declare const context: Context<WalletWidget>;
+export default context;

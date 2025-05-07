@@ -1,0 +1,8 @@
+import { TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { AminoTypes, SigningStargateClient, StdFee } from '@cosmjs/stargate';
+import { OfflineAminoSigner } from '@cosmjs/amino';
+export interface ProtoMsg {
+    typeUrl: string;
+    value: any;
+}
+export declare function getSignAmino(chainId: string, offlineSigner: OfflineAminoSigner, signingClient: SigningStargateClient, aminoTypes: AminoTypes): (address: string, msgs: ProtoMsg[], fee: StdFee, memo: string) => Promise<TxRaw>;

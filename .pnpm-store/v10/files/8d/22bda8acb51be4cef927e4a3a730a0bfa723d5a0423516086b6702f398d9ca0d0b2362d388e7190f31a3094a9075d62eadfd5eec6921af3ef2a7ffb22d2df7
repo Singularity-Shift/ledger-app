@@ -1,0 +1,612 @@
+import { z } from "zod";
+export declare const AssetListSchema: z.ZodObject<{
+    $schema: z.ZodOptional<z.ZodString>;
+    chain_name: z.ZodString;
+    assets: z.ZodArray<z.ZodObject<{
+        description: z.ZodOptional<z.ZodString>;
+        denom_units: z.ZodArray<z.ZodObject<{
+            denom: z.ZodString;
+            exponent: z.ZodNumber;
+            aliases: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        }, "strict", z.ZodTypeAny, {
+            denom: string;
+            exponent: number;
+            aliases?: string[] | undefined;
+        }, {
+            denom: string;
+            exponent: number;
+            aliases?: string[] | undefined;
+        }>, "many">;
+        type_asset: z.ZodDefault<z.ZodEnum<["sdk.coin", "cw20", "erc20", "ics20", "snip20", "snip25"]>>;
+        address: z.ZodOptional<z.ZodString>;
+        base: z.ZodString;
+        name: z.ZodString;
+        display: z.ZodString;
+        symbol: z.ZodString;
+        traces: z.ZodOptional<z.ZodArray<z.ZodUnion<[z.ZodObject<{
+            type: z.ZodLiteral<"ibc">;
+            counterparty: z.ZodObject<{
+                chain_name: z.ZodString;
+                base_denom: z.ZodString;
+                channel_id: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            }, {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            }>;
+            chain: z.ZodObject<{
+                channel_id: z.ZodString;
+                path: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                path: string;
+                channel_id: string;
+            }, {
+                path: string;
+                channel_id: string;
+            }>;
+        }, "strict", z.ZodTypeAny, {
+            chain: {
+                path: string;
+                channel_id: string;
+            };
+            type: "ibc";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            };
+        }, {
+            chain: {
+                path: string;
+                channel_id: string;
+            };
+            type: "ibc";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            };
+        }>, z.ZodObject<{
+            type: z.ZodLiteral<"ibc-cw20">;
+            counterparty: z.ZodObject<{
+                chain_name: z.ZodString;
+                base_denom: z.ZodString;
+                port: z.ZodString;
+                channel_id: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            }, {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            }>;
+            chain: z.ZodObject<{
+                port: z.ZodString;
+                channel_id: z.ZodString;
+                path: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                path: string;
+                channel_id: string;
+                port: string;
+            }, {
+                path: string;
+                channel_id: string;
+                port: string;
+            }>;
+        }, "strict", z.ZodTypeAny, {
+            chain: {
+                path: string;
+                channel_id: string;
+                port: string;
+            };
+            type: "ibc-cw20";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            };
+        }, {
+            chain: {
+                path: string;
+                channel_id: string;
+                port: string;
+            };
+            type: "ibc-cw20";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            };
+        }>, z.ZodObject<{
+            type: z.ZodEnum<["bridge", "liquid-stake", "synthetic", "wrapped", "additional-mintage", "test-mintage"]>;
+            counterparty: z.ZodObject<{
+                chain_name: z.ZodString;
+                base_denom: z.ZodString;
+                contract: z.ZodOptional<z.ZodString>;
+            }, "strict", z.ZodTypeAny, {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            }, {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            }>;
+            chain: z.ZodOptional<z.ZodObject<{
+                contract: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                contract: string;
+            }, {
+                contract: string;
+            }>>;
+            provider: z.ZodString;
+        }, "strict", z.ZodTypeAny, {
+            type: "bridge" | "liquid-stake" | "synthetic" | "wrapped" | "additional-mintage" | "test-mintage";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            };
+            provider: string;
+            chain?: {
+                contract: string;
+            } | undefined;
+        }, {
+            type: "bridge" | "liquid-stake" | "synthetic" | "wrapped" | "additional-mintage" | "test-mintage";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            };
+            provider: string;
+            chain?: {
+                contract: string;
+            } | undefined;
+        }>, z.ZodObject<{
+            type: z.ZodLiteral<"op">;
+            counterparty: z.ZodObject<{
+                chain_name: z.ZodString;
+                base_denom: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                chain_name: string;
+                base_denom: string;
+            }, {
+                chain_name: string;
+                base_denom: string;
+            }>;
+            chain: z.ZodObject<{
+                bridge_id: z.ZodString;
+            }, "strict", z.ZodTypeAny, {
+                bridge_id: string;
+            }, {
+                bridge_id: string;
+            }>;
+        }, "strict", z.ZodTypeAny, {
+            chain: {
+                bridge_id: string;
+            };
+            type: "op";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+            };
+        }, {
+            chain: {
+                bridge_id: string;
+            };
+            type: "op";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+            };
+        }>]>, "many">>;
+        ibc: z.ZodOptional<z.ZodObject<{
+            source_channel: z.ZodString;
+            dst_channel: z.ZodString;
+            source_denom: z.ZodString;
+        }, "strict", z.ZodTypeAny, {
+            source_channel: string;
+            dst_channel: string;
+            source_denom: string;
+        }, {
+            source_channel: string;
+            dst_channel: string;
+            source_denom: string;
+        }>>;
+        logo_URIs: z.ZodOptional<z.ZodObject<{
+            png: z.ZodOptional<z.ZodString>;
+        }, "strict", z.ZodTypeAny, {
+            png?: string | undefined;
+        }, {
+            png?: string | undefined;
+        }>>;
+        images: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            image_sync: z.ZodOptional<z.ZodObject<{
+                chain_name: z.ZodString;
+                base_denom: z.ZodOptional<z.ZodString>;
+            }, "strict", z.ZodTypeAny, {
+                chain_name: string;
+                base_denom?: string | undefined;
+            }, {
+                chain_name: string;
+                base_denom?: string | undefined;
+            }>>;
+            png: z.ZodOptional<z.ZodString>;
+            theme: z.ZodOptional<z.ZodObject<{
+                primary_color_hex: z.ZodOptional<z.ZodString>;
+                circle: z.ZodOptional<z.ZodBoolean>;
+                dark_mode: z.ZodOptional<z.ZodBoolean>;
+            }, "strict", z.ZodTypeAny, {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            }, {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            }>>;
+        }, "strict", z.ZodTypeAny, {
+            image_sync?: {
+                chain_name: string;
+                base_denom?: string | undefined;
+            } | undefined;
+            png?: string | undefined;
+            theme?: {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            } | undefined;
+        }, {
+            image_sync?: {
+                chain_name: string;
+                base_denom?: string | undefined;
+            } | undefined;
+            png?: string | undefined;
+            theme?: {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            } | undefined;
+        }>, "many">>;
+        coingecko_id: z.ZodOptional<z.ZodString>;
+        keywords: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    }, "strict", z.ZodTypeAny, {
+        symbol: string;
+        name: string;
+        denom_units: {
+            denom: string;
+            exponent: number;
+            aliases?: string[] | undefined;
+        }[];
+        type_asset: "sdk.coin" | "cw20" | "erc20" | "ics20" | "snip20" | "snip25";
+        base: string;
+        display: string;
+        description?: string | undefined;
+        address?: string | undefined;
+        traces?: ({
+            chain: {
+                path: string;
+                channel_id: string;
+            };
+            type: "ibc";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            };
+        } | {
+            chain: {
+                path: string;
+                channel_id: string;
+                port: string;
+            };
+            type: "ibc-cw20";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            };
+        } | {
+            type: "bridge" | "liquid-stake" | "synthetic" | "wrapped" | "additional-mintage" | "test-mintage";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            };
+            provider: string;
+            chain?: {
+                contract: string;
+            } | undefined;
+        } | {
+            chain: {
+                bridge_id: string;
+            };
+            type: "op";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+            };
+        })[] | undefined;
+        ibc?: {
+            source_channel: string;
+            dst_channel: string;
+            source_denom: string;
+        } | undefined;
+        logo_URIs?: {
+            png?: string | undefined;
+        } | undefined;
+        images?: {
+            image_sync?: {
+                chain_name: string;
+                base_denom?: string | undefined;
+            } | undefined;
+            png?: string | undefined;
+            theme?: {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            } | undefined;
+        }[] | undefined;
+        coingecko_id?: string | undefined;
+        keywords?: string[] | undefined;
+    }, {
+        symbol: string;
+        name: string;
+        denom_units: {
+            denom: string;
+            exponent: number;
+            aliases?: string[] | undefined;
+        }[];
+        base: string;
+        display: string;
+        description?: string | undefined;
+        type_asset?: "sdk.coin" | "cw20" | "erc20" | "ics20" | "snip20" | "snip25" | undefined;
+        address?: string | undefined;
+        traces?: ({
+            chain: {
+                path: string;
+                channel_id: string;
+            };
+            type: "ibc";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            };
+        } | {
+            chain: {
+                path: string;
+                channel_id: string;
+                port: string;
+            };
+            type: "ibc-cw20";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            };
+        } | {
+            type: "bridge" | "liquid-stake" | "synthetic" | "wrapped" | "additional-mintage" | "test-mintage";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            };
+            provider: string;
+            chain?: {
+                contract: string;
+            } | undefined;
+        } | {
+            chain: {
+                bridge_id: string;
+            };
+            type: "op";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+            };
+        })[] | undefined;
+        ibc?: {
+            source_channel: string;
+            dst_channel: string;
+            source_denom: string;
+        } | undefined;
+        logo_URIs?: {
+            png?: string | undefined;
+        } | undefined;
+        images?: {
+            image_sync?: {
+                chain_name: string;
+                base_denom?: string | undefined;
+            } | undefined;
+            png?: string | undefined;
+            theme?: {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            } | undefined;
+        }[] | undefined;
+        coingecko_id?: string | undefined;
+        keywords?: string[] | undefined;
+    }>, "many">;
+}, "strict", z.ZodTypeAny, {
+    chain_name: string;
+    assets: {
+        symbol: string;
+        name: string;
+        denom_units: {
+            denom: string;
+            exponent: number;
+            aliases?: string[] | undefined;
+        }[];
+        type_asset: "sdk.coin" | "cw20" | "erc20" | "ics20" | "snip20" | "snip25";
+        base: string;
+        display: string;
+        description?: string | undefined;
+        address?: string | undefined;
+        traces?: ({
+            chain: {
+                path: string;
+                channel_id: string;
+            };
+            type: "ibc";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            };
+        } | {
+            chain: {
+                path: string;
+                channel_id: string;
+                port: string;
+            };
+            type: "ibc-cw20";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            };
+        } | {
+            type: "bridge" | "liquid-stake" | "synthetic" | "wrapped" | "additional-mintage" | "test-mintage";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            };
+            provider: string;
+            chain?: {
+                contract: string;
+            } | undefined;
+        } | {
+            chain: {
+                bridge_id: string;
+            };
+            type: "op";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+            };
+        })[] | undefined;
+        ibc?: {
+            source_channel: string;
+            dst_channel: string;
+            source_denom: string;
+        } | undefined;
+        logo_URIs?: {
+            png?: string | undefined;
+        } | undefined;
+        images?: {
+            image_sync?: {
+                chain_name: string;
+                base_denom?: string | undefined;
+            } | undefined;
+            png?: string | undefined;
+            theme?: {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            } | undefined;
+        }[] | undefined;
+        coingecko_id?: string | undefined;
+        keywords?: string[] | undefined;
+    }[];
+    $schema?: string | undefined;
+}, {
+    chain_name: string;
+    assets: {
+        symbol: string;
+        name: string;
+        denom_units: {
+            denom: string;
+            exponent: number;
+            aliases?: string[] | undefined;
+        }[];
+        base: string;
+        display: string;
+        description?: string | undefined;
+        type_asset?: "sdk.coin" | "cw20" | "erc20" | "ics20" | "snip20" | "snip25" | undefined;
+        address?: string | undefined;
+        traces?: ({
+            chain: {
+                path: string;
+                channel_id: string;
+            };
+            type: "ibc";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+            };
+        } | {
+            chain: {
+                path: string;
+                channel_id: string;
+                port: string;
+            };
+            type: "ibc-cw20";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                channel_id: string;
+                port: string;
+            };
+        } | {
+            type: "bridge" | "liquid-stake" | "synthetic" | "wrapped" | "additional-mintage" | "test-mintage";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+                contract?: string | undefined;
+            };
+            provider: string;
+            chain?: {
+                contract: string;
+            } | undefined;
+        } | {
+            chain: {
+                bridge_id: string;
+            };
+            type: "op";
+            counterparty: {
+                chain_name: string;
+                base_denom: string;
+            };
+        })[] | undefined;
+        ibc?: {
+            source_channel: string;
+            dst_channel: string;
+            source_denom: string;
+        } | undefined;
+        logo_URIs?: {
+            png?: string | undefined;
+        } | undefined;
+        images?: {
+            image_sync?: {
+                chain_name: string;
+                base_denom?: string | undefined;
+            } | undefined;
+            png?: string | undefined;
+            theme?: {
+                primary_color_hex?: string | undefined;
+                circle?: boolean | undefined;
+                dark_mode?: boolean | undefined;
+            } | undefined;
+        }[] | undefined;
+        coingecko_id?: string | undefined;
+        keywords?: string[] | undefined;
+    }[];
+    $schema?: string | undefined;
+}>;

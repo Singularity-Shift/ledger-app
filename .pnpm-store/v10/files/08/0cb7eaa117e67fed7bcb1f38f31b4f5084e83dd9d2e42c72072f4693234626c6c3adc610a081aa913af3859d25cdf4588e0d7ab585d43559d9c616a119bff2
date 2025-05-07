@@ -1,0 +1,12 @@
+interface CallParams {
+    sender?: string;
+    contractAddress: string;
+    fragment: string;
+    values?: string[];
+    withTrace?: boolean;
+}
+declare function createInitiaEvmClient(rest: string): {
+    rest: string;
+    call: <T>({ sender, contractAddress, fragment, values, withTrace, }: CallParams) => Promise<T>;
+};
+export default createInitiaEvmClient;

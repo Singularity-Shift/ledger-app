@@ -1,0 +1,25 @@
+export declare class FriendlyError extends Error {
+    originalMessage: string;
+    constructor(message: string, errorMappings: ErrorMappings);
+}
+export interface ExtractedErrorInfo {
+    moduleAddress: string;
+    moduleName: string;
+    errorCode: string;
+}
+export declare const extractErrorInfo: (error: string) => ExtractedErrorInfo | null;
+export interface RegexMapping {
+    pattern: string;
+    replacer: string;
+}
+export interface ContractMapping {
+    [moduleAddress: string]: {
+        [code: string]: string;
+    };
+}
+export type ErrorMappings = RegexMapping[] | ContractMapping;
+export declare const getFriendlyErrorMessage: (error: string, mappings: ErrorMappings) => string;
+export declare function fetchFriendlyError(error: unknown, { prefixUrl, chainId }: {
+    prefixUrl: string;
+    chainId: string;
+}): Promise<Error | FriendlyError>;

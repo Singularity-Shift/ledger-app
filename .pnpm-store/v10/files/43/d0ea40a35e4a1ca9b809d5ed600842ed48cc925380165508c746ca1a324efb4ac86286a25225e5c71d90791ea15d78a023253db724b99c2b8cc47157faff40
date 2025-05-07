@@ -1,0 +1,6 @@
+<script lang="ts">
+export let size: number = 16
+export let color: string = "currentColor"
+</script>
+
+{@html `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 16 16" fill="none"><path fill="${color}" fill-rule="evenodd" d="M4.5 7h8v7h-9V7zm10-2h-3V3.5a3.5 3.5 0 1 0-7 0V5h-3v11h13zm-8-1.5V5h3V3.5a1.5 1.5 0 1 0-3 0M8 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3" clip-rule="evenodd"/></svg>`}

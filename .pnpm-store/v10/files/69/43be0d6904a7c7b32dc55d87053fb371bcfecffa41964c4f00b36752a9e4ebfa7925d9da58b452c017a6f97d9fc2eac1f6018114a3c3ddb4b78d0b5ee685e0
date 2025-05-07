@@ -1,0 +1,19 @@
+import { AssetList, Chain } from '@initia/initia-registry-types';
+interface SwapListItem {
+    denom: string;
+    metadata: string;
+    decimals: number;
+}
+type Pairs = Record<string, [SwapListItem, SwapListItem]>;
+export declare function getSwapPairsL1(): import('@tanstack/svelte-query').CreateQueryResult<Pairs, Error>;
+export declare function getLegacyAssetsQuery(layer?: Chain | null): import('@tanstack/svelte-query').CreateQueryResult<import('@initia/initia-registry-types').Asset[], Error>;
+export declare function getTargetDenomOption({ swapPairsL1, assetsL1, srcLayer, srcAssets, dstLayer, dstAssets, srcToken, }: {
+    swapPairsL1?: Pairs;
+    assetsL1: AssetList["assets"];
+    srcLayer?: Chain | null;
+    srcAssets: AssetList["assets"];
+    dstLayer?: Chain | null;
+    dstAssets: AssetList["assets"];
+    srcToken?: string;
+}): string[];
+export {};

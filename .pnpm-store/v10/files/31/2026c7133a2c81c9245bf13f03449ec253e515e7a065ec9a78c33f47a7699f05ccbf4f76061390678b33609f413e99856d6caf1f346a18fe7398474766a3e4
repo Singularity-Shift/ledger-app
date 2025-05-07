@@ -1,0 +1,58 @@
+import { StdFee } from '@cosmjs/amino';
+import { Event } from '@cosmjs/stargate/build/events';
+export interface CollectionInfoResponse {
+    object_addr: string;
+    collection: {
+        name: string;
+        description: string;
+        uri: string;
+        creator_addr: string;
+    };
+}
+export interface NFTTokenResponse {
+    collection_addr: string;
+    collection_name: string;
+    nft: {
+        token_id: string;
+        uri: string;
+        description: string;
+    };
+    object_addr: string;
+}
+export interface NFTMetadata {
+    name?: string;
+    image?: string;
+    description?: string;
+    attributes?: {
+        trait_type: string;
+        value: string;
+    }[];
+}
+export interface TxItem {
+    tx: Tx;
+    code: number;
+    events: Event[];
+    txhash: string;
+    timestamp: Date;
+}
+interface Tx {
+    body: Body;
+    auth_info: {
+        signer_infos: {
+            public_key: {
+                "@type": string;
+                key: string;
+            };
+        }[];
+        fee: StdFee;
+    };
+}
+interface Body {
+    memo: string;
+    messages: TxItemMessage[];
+}
+export interface TxItemMessage {
+    "@type": string;
+    [key: string]: unknown;
+}
+export {};

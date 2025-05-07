@@ -1,0 +1,20 @@
+import { Asset, Chain } from '@initia/initia-registry-types';
+export interface DenomTrackerBaseParams {
+    layer: Chain;
+    assets: Asset[];
+    layer1: Chain;
+}
+export interface DenomTrackerParams extends DenomTrackerBaseParams {
+    assetsL1: Asset[];
+}
+interface GetL1Denom {
+    (params: DenomTrackerBaseParams, denom: string): string;
+    (params: DenomTrackerBaseParams): (denom: string) => string;
+}
+export declare const getL1Denom: GetL1Denom;
+interface GetL2Denom {
+    (params: DenomTrackerParams, denom: string): string;
+    (params: DenomTrackerParams): (denom: string) => string;
+}
+export declare const getL2Denom: GetL2Denom;
+export {};

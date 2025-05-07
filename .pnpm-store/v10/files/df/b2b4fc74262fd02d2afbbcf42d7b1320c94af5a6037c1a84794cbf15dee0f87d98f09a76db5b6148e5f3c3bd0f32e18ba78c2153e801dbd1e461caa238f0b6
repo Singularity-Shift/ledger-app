@@ -1,0 +1,13 @@
+import { default as BigNumber } from 'bignumber.js';
+export interface FormatNumberOptions {
+    dp?: number;
+    unitConversion?: boolean;
+}
+export declare function formatNumber(value: BigNumber.Value, options?: FormatNumberOptions): string;
+export interface FormatAmountOptions extends FormatNumberOptions {
+    decimals?: number;
+}
+export declare function formatAmount(value?: BigNumber.Value, options?: FormatAmountOptions): string;
+export declare function toAmount(value?: BigNumber.Value, decimals?: number): string;
+export declare function toQuantity(value?: BigNumber.Value, decimals?: number): string;
+export declare function formatPercent(value?: BigNumber.Value, fixed?: number): string;

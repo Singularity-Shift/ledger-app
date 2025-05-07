@@ -1,0 +1,24 @@
+export declare const MAINNET: {
+    registryUrl: string;
+    apiUrl: string;
+    dexApiUrl: string;
+    explorerUrl: string;
+    swaplistUrl: string;
+    modules: {
+        usernames: string;
+        dex_utils: string;
+        swap_transfer: string;
+    };
+};
+export declare const TESTNET: {
+    registryUrl: string;
+    apiUrl: string;
+    dexApiUrl: string;
+    explorerUrl: string;
+    swaplistUrl: string;
+    modules: {
+        usernames: string;
+        dex_utils: string;
+        swap_transfer: string;
+    };
+};

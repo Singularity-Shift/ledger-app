@@ -1,0 +1,11 @@
+interface WrappedToken {
+    contract: string;
+    unwrappedDenom: string;
+}
+export default class EvmWrapper {
+    private static contractCache;
+    private static denomsCache;
+    static getWrapContract(chainId: string): Promise<string>;
+    static getUnwrappedDenom(chainId: string, denom: string): Promise<WrappedToken>;
+}
+export {};

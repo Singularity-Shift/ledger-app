@@ -1,0 +1,5 @@
+export declare function primaryCoinStore(owner: string, coinMetadata: string): string;
+export declare function coinMetadata(creator: string, symbol: string): string;
+export declare function denomToMetadata(denom: string): string;
+export declare function getIBCDenom(channelId: string, denom: string): string;
+export declare function getOpDenom(bridgeId: bigint, l1Denom: string): string;

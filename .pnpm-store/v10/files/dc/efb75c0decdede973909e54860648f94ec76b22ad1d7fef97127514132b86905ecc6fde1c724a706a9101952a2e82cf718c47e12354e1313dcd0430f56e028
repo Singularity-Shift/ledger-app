@@ -1,0 +1,5 @@
+export declare function transformKeys(obj: object, transformKey: (key: string) => string): object;
+export declare function snakeToCamel(str: string): string;
+export declare function camelToSnake(str: string): string;
+export declare function convertSnakeKeysToCamel(obj: object): object;
+export declare function convertCamelKeysToSnake(obj: object): object;

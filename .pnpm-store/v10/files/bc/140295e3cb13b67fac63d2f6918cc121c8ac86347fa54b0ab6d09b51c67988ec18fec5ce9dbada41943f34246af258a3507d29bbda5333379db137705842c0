@@ -1,0 +1,8 @@
+export declare const Address: {
+    toBytes(address: string, byteLength?: number): Uint8Array<ArrayBufferLike>;
+    toBech32(address: string, prefix?: string): string;
+    toHex(address: string): string;
+    toPrefixedHex(address: string): string;
+    validate(address: string, prefix?: string): boolean;
+};
+export declare const decodeAddress: (address: string, byteLength?: number) => Uint8Array<ArrayBufferLike>;

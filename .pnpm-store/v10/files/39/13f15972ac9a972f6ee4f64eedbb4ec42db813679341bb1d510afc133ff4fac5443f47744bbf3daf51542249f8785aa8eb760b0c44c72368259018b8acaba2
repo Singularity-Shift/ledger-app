@@ -1,0 +1,17 @@
+import { SvelteComponentTyped } from "svelte";
+declare const __propDef: {
+    props: {
+        size?: number | undefined;
+        color?: string | undefined;
+    };
+    events: {
+        [evt: string]: CustomEvent<any>;
+    };
+    slots: {};
+};
+export type UserThinProps = typeof __propDef.props;
+export type UserThinEvents = typeof __propDef.events;
+export type UserThinSlots = typeof __propDef.slots;
+export default class UserThin extends SvelteComponentTyped<UserThinProps, UserThinEvents, UserThinSlots> {
+}
+export {};

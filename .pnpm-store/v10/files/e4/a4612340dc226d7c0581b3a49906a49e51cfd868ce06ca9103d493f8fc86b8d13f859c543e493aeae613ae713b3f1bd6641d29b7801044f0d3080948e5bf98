@@ -1,0 +1,100 @@
+import _m0 from "protobufjs/minimal";
+import { Params } from "./types";
+export declare const protobufPackage = "minievm.evm.v1";
+/** GenesisState defines the evm module's genesis state. */
+export interface GenesisState {
+    /** params defines the parameters of the module. */
+    params?: Params | undefined;
+    /** vm kv store */
+    keyValues: GenesisKeyValue[];
+    /** erc20 contracts */
+    erc20s: Uint8Array[];
+    /** erc20 stores */
+    erc20Stores: GenesisERC20Stores[];
+    denomTraces: GenesisDenomTrace[];
+    classTraces: GenesisClassTrace[];
+    evmBlockHashes: GenesisEVMBlockHash[];
+    /** erc20 factory contract address */
+    erc20Factory: Uint8Array;
+    /** erc20 wrapper contract address */
+    erc20Wrapper: Uint8Array;
+    /** connect oracle contract address */
+    connectOracle: Uint8Array;
+}
+/** GenesisKeyValue defines store KV values. */
+export interface GenesisKeyValue {
+    key: Uint8Array;
+    value: Uint8Array;
+}
+/** GenesisERC20Stores defines erc20 contract addresses of an account. */
+export interface GenesisERC20Stores {
+    address: Uint8Array;
+    stores: Uint8Array[];
+}
+/** GenesisDenomTrace defines erc20 contract address of denom. */
+export interface GenesisDenomTrace {
+    denom: string;
+    contractAddress: Uint8Array;
+}
+export interface GenesisClassTrace {
+    classId: string;
+    contractAddress: Uint8Array;
+    uri: string;
+}
+export interface GenesisEVMBlockHash {
+    hash: Uint8Array;
+    height: bigint;
+}
+export declare const GenesisState: {
+    encode(message: GenesisState, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): GenesisState;
+    fromJSON(object: any): GenesisState;
+    toJSON(message: GenesisState): unknown;
+    create(base?: DeepPartial<GenesisState>): GenesisState;
+    fromPartial(object: DeepPartial<GenesisState>): GenesisState;
+};
+export declare const GenesisKeyValue: {
+    encode(message: GenesisKeyValue, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): GenesisKeyValue;
+    fromJSON(object: any): GenesisKeyValue;
+    toJSON(message: GenesisKeyValue): unknown;
+    create(base?: DeepPartial<GenesisKeyValue>): GenesisKeyValue;
+    fromPartial(object: DeepPartial<GenesisKeyValue>): GenesisKeyValue;
+};
+export declare const GenesisERC20Stores: {
+    encode(message: GenesisERC20Stores, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): GenesisERC20Stores;
+    fromJSON(object: any): GenesisERC20Stores;
+    toJSON(message: GenesisERC20Stores): unknown;
+    create(base?: DeepPartial<GenesisERC20Stores>): GenesisERC20Stores;
+    fromPartial(object: DeepPartial<GenesisERC20Stores>): GenesisERC20Stores;
+};
+export declare const GenesisDenomTrace: {
+    encode(message: GenesisDenomTrace, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): GenesisDenomTrace;
+    fromJSON(object: any): GenesisDenomTrace;
+    toJSON(message: GenesisDenomTrace): unknown;
+    create(base?: DeepPartial<GenesisDenomTrace>): GenesisDenomTrace;
+    fromPartial(object: DeepPartial<GenesisDenomTrace>): GenesisDenomTrace;
+};
+export declare const GenesisClassTrace: {
+    encode(message: GenesisClassTrace, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): GenesisClassTrace;
+    fromJSON(object: any): GenesisClassTrace;
+    toJSON(message: GenesisClassTrace): unknown;
+    create(base?: DeepPartial<GenesisClassTrace>): GenesisClassTrace;
+    fromPartial(object: DeepPartial<GenesisClassTrace>): GenesisClassTrace;
+};
+export declare const GenesisEVMBlockHash: {
+    encode(message: GenesisEVMBlockHash, writer?: _m0.Writer): _m0.Writer;
+    decode(input: _m0.Reader | Uint8Array, length?: number): GenesisEVMBlockHash;
+    fromJSON(object: any): GenesisEVMBlockHash;
+    toJSON(message: GenesisEVMBlockHash): unknown;
+    create(base?: DeepPartial<GenesisEVMBlockHash>): GenesisEVMBlockHash;
+    fromPartial(object: DeepPartial<GenesisEVMBlockHash>): GenesisEVMBlockHash;
+};
+type Builtin = Date | Function | Uint8Array | string | number | boolean | bigint | undefined;
+export type DeepPartial<T> = T extends Builtin ? T : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {
+    [K in keyof T]?: DeepPartial<T[K]>;
+} : Partial<T>;
+export {};

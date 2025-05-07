@@ -1,0 +1,41 @@
+import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
+import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
+import { MsgInitiateTokenDeposit } from '@initia/opinit.proto/opinit/ophost/v1/tx';
+import { Chain } from '@initia/initia-registry-types';
+import { Tx } from './tx';
+export interface SendParams {
+    denom: string;
+    targetLayer: Chain;
+}
+interface Params {
+    amount: string;
+    recipientAddress: string;
+    minimum?: string;
+}
+export declare class Send {
+    private tx;
+    private sendParams;
+    constructor(tx: Tx, sendParams: SendParams);
+    private isMsgTransfer;
+    getSimulationParams({ amount }: {
+        amount: string;
+    }): SendParams | null;
+    simulate({ amount }: {
+        amount: string;
+    }): Promise<[string, string] | null>;
+    private getIBCMessages;
+    private getMessagesFromL1ToL2;
+    private getMessagesFromL2ToL1;
+    private getMessagesFromL2ToL2;
+    getMessages(params: Params): {
+        typeUrl: string;
+        value: MsgTransfer;
+    }[] | {
+        typeUrl: string;
+        value: MsgInitiateTokenDeposit;
+    }[] | {
+        typeUrl: string;
+        value: MsgSend;
+    }[];
+}
+export {};

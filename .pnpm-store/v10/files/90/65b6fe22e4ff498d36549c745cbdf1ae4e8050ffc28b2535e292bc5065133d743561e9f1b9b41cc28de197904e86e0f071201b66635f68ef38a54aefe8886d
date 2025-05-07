@@ -1,0 +1,36 @@
+import { EncodeObject, OfflineDirectSigner } from '@cosmjs/proto-signing';
+import { OfflineAminoSigner } from '@keplr-wallet/types';
+import { AllowanceResult, EvmTx, SkipChain } from '../types';
+import { Eip1193Provider } from 'ethers';
+interface CosmosTx {
+    msgs: EncodeObject[];
+    chain: SkipChain;
+    sender: string;
+    signer: OfflineDirectSigner | OfflineAminoSigner;
+}
+/**
+ * Sign and broadcast a given Cosmos transaction
+ * @param tx The tx to broadcast
+ */
+export declare function broadcastCosmosTx(tx: CosmosTx): Promise<string>;
+interface EvmTransaction {
+    provider: Eip1193Provider;
+    message: EvmTx;
+    chainId: number;
+}
+/**
+ * Sign and broadcast a given Evm transaction
+ * @param tx The tx to broadcast
+ */
+export declare function broadcastEvmTransaction(tx: EvmTransaction): Promise<string>;
+interface EvmAllowance {
+    provider: Eip1193Provider;
+    allowance: AllowanceResult;
+    chainId: number;
+}
+/**
+ * Sign and broadcast a given ERC-20 allowance
+ * @param tx the allowance data
+ */
+export declare function broadcastErc20Allowance(tx: EvmAllowance): Promise<string>;
+export {};

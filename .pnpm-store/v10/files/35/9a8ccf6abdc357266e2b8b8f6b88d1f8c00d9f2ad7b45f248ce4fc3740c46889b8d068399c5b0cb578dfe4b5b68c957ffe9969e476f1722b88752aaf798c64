@@ -1,0 +1,9 @@
+/**
+ * Helper function to encode arguments using BCS based on their type
+ *
+ * @param arg The argument to encode
+ * @param typeStr The type of the argument as a string
+ * @returns Base64 encoded BCS serialized value
+ */
+export declare function bcsEncoding(arg: any, typeStr: string, target?: 'base64' | 'bytes'): string;
+//# sourceMappingURL=bcs.d.ts.map

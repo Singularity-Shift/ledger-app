@@ -1,0 +1,11 @@
+export declare const simulationQueryParams$: import('rxjs').Observable<{
+    amount: string;
+    sourceAddress: string;
+    sourceChainId: string;
+    sourceDenom: string;
+    targetAddress: string;
+    targetChainId: string;
+    targetDenom: string;
+    slippagePercent: string;
+    useOp: boolean;
+}>;

@@ -1,0 +1,92 @@
+import { z } from "zod";
+export declare const ProfileSchema: z.ZodObject<{
+    name: z.ZodString;
+    pretty_name: z.ZodString;
+    category: z.ZodEnum<["DeFi", "Social", "NFT", "Gaming", "Portfolio", "AI", "Others"]>;
+    tags: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    description: z.ZodString;
+    summary: z.ZodOptional<z.ZodString>;
+    logo: z.ZodString;
+    color: z.ZodOptional<z.ZodString>;
+    status: z.ZodEnum<["live", "upcoming", "hidden"]>;
+    vip: z.ZodOptional<z.ZodObject<{
+        actions: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            title: z.ZodOptional<z.ZodString>;
+            description: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            title?: string | undefined;
+            description?: string | undefined;
+        }, {
+            title?: string | undefined;
+            description?: string | undefined;
+        }>, "many">>;
+        forum_url: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        actions?: {
+            title?: string | undefined;
+            description?: string | undefined;
+        }[] | undefined;
+        forum_url?: string | undefined;
+    }, {
+        actions?: {
+            title?: string | undefined;
+            description?: string | undefined;
+        }[] | undefined;
+        forum_url?: string | undefined;
+    }>>;
+    social: z.ZodOptional<z.ZodObject<{
+        website: z.ZodOptional<z.ZodString>;
+        twitter: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        website?: string | undefined;
+        twitter?: string | undefined;
+    }, {
+        website?: string | undefined;
+        twitter?: string | undefined;
+    }>>;
+    l2: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    pretty_name: string;
+    category: "DeFi" | "Social" | "NFT" | "Gaming" | "Portfolio" | "AI" | "Others";
+    description: string;
+    logo: string;
+    status: "live" | "upcoming" | "hidden";
+    tags?: string[] | undefined;
+    summary?: string | undefined;
+    color?: string | undefined;
+    vip?: {
+        actions?: {
+            title?: string | undefined;
+            description?: string | undefined;
+        }[] | undefined;
+        forum_url?: string | undefined;
+    } | undefined;
+    social?: {
+        website?: string | undefined;
+        twitter?: string | undefined;
+    } | undefined;
+    l2?: boolean | undefined;
+}, {
+    name: string;
+    pretty_name: string;
+    category: "DeFi" | "Social" | "NFT" | "Gaming" | "Portfolio" | "AI" | "Others";
+    description: string;
+    logo: string;
+    status: "live" | "upcoming" | "hidden";
+    tags?: string[] | undefined;
+    summary?: string | undefined;
+    color?: string | undefined;
+    vip?: {
+        actions?: {
+            title?: string | undefined;
+            description?: string | undefined;
+        }[] | undefined;
+        forum_url?: string | undefined;
+    } | undefined;
+    social?: {
+        website?: string | undefined;
+        twitter?: string | undefined;
+    } | undefined;
+    l2?: boolean | undefined;
+}>;

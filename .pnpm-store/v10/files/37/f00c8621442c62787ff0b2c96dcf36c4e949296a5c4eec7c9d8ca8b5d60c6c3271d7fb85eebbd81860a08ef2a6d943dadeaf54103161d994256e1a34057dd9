@@ -1,0 +1,11 @@
+import { RouteParams, SkipChain, SkipTrackingResponse } from '../../lib/bridge-sdk';
+export declare function getChainsQuery(): import('@tanstack/svelte-query').CreateQueryResult<SkipChain[], Error>;
+export declare function getAssetsQuery(chainId?: string, showHidden?: boolean): import('@tanstack/svelte-query').CreateQueryResult<import('../../lib/bridge-sdk').SkipAsset[], Error>;
+export declare function getOpAvailableQuery(srcAsset?: string, dstAsset?: string, srcChain?: string): import('@tanstack/svelte-query').CreateQueryResult<boolean, Error>;
+export declare function isOpTokenQuery(asset?: string, chain?: string): import('@tanstack/svelte-query').CreateQueryResult<boolean, Error>;
+export declare function getSimulationQuery(route: RouteParams, cosmosAddress?: string | null): import('@tanstack/svelte-query').CreateQueryResult<import('../../lib/bridge-sdk').SkipRouteResponse, Error>;
+export declare function trackTx(tx_hash: string, chain_id: string): Promise<{
+    tx_hash: string;
+} | null>;
+export declare function getTrackingTxStatusQuery(tx_hash?: string, chain_id?: string, disabled?: boolean): import('@tanstack/svelte-query').CreateQueryResult<SkipTrackingResponse, Error>;
+export declare function parseTrackingTxStatus(response?: SkipTrackingResponse): "IDLE" | "SUCCESS" | "ERROR" | "PENDING";

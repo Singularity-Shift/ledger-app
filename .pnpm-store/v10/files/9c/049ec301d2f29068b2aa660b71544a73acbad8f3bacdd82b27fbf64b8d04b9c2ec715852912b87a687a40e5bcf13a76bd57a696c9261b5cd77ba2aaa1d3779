@@ -1,0 +1,2 @@
+import { RouteParams, SkipRouteResponse } from '../types';
+export declare function getOpMessage(route: RouteParams): Promise<SkipRouteResponse>;

@@ -1,0 +1,33 @@
+import { WidgetConfig } from '@initia/utils';
+import { disconnectWallet } from './actions/connect';
+import { signArbitrary, verifyArbitrary } from './actions/arbitrary';
+import { requestTx, requestInitiaTx, requestEthereumTx, estimateTx, estimateInitiaTx, estimateEthereumTx } from './actions/tx';
+import { openWalletList, openConnectedWallet, openBridge, renderBridge } from './actions/ui';
+import { disconnectSrcWallet } from './bridge/data/account';
+declare function init(config: WidgetConfig): Promise<{
+    address$: import('rxjs').BehaviorSubject<string>;
+    account$: import('rxjs').BehaviorSubject<import('@cosmjs/proto-signing').AccountData | null>;
+    wallet$: import('rxjs').BehaviorSubject<import('@initia/utils').WidgetWallet | null>;
+    keplr$: import('rxjs').BehaviorSubject<import('@keplr-wallet/types').Keplr | null>;
+    ethereum$: import('rxjs').BehaviorSubject<import('ethers').Eip1193Provider | null>;
+    isLoading$: import('rxjs').BehaviorSubject<boolean>;
+    onboard: typeof openWalletList;
+    view: typeof openConnectedWallet;
+    bridge: typeof openBridge;
+    bridgeComponent: {
+        render: typeof renderBridge;
+        address$: import('rxjs').BehaviorSubject<string>;
+        disconnect: typeof disconnectSrcWallet;
+        openConnectPage: () => void;
+    };
+    requestTx: typeof requestTx;
+    requestInitiaTx: typeof requestInitiaTx;
+    requestEthereumTx: typeof requestEthereumTx;
+    estimateTx: typeof estimateTx;
+    estimateInitiaTx: typeof estimateInitiaTx;
+    estimateEthereumTx: typeof estimateEthereumTx;
+    signArbitrary: typeof signArbitrary;
+    verifyArbitrary: typeof verifyArbitrary;
+    disconnect: typeof disconnectWallet;
+}>;
+export default init;

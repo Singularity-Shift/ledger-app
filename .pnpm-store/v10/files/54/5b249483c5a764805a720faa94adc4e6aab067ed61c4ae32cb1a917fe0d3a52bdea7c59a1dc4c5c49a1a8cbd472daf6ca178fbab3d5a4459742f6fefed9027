@@ -1,0 +1,4 @@
+import { RouteParams, SkipRouteResponse } from '../types';
+import { SkipOptions } from '../queries/skip';
+export declare function getWrapErc20Message(route: RouteParams, options?: SkipOptions): Promise<SkipRouteResponse>;
+export declare function getUnwrapErc20Message(route: RouteParams, options?: SkipOptions): Promise<SkipRouteResponse>;

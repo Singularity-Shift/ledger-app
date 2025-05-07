@@ -1,0 +1,66 @@
+import { MsgTransfer } from 'cosmjs-types/ibc/applications/transfer/v1/tx';
+import { MsgExecute } from '@initia/initia.proto/initia/move/v1/tx';
+import { Tx } from './tx';
+export interface SwapPairItem {
+    denom: string;
+    metadata: string;
+    decimals: number;
+}
+export type SwapPair = [SwapPairItem, SwapPairItem];
+export type SwaplistItem = {
+    type: "dex" | "stableswap";
+    assets: SwapPair;
+};
+export interface SwapParams {
+    offerDenom: string;
+    askDenom: string;
+    swaplist: Map<string, SwaplistItem>;
+}
+interface Params {
+    type: "dex" | "stableswap";
+    amount: string;
+    simulated: string;
+    slippagePercent: string;
+}
+export declare class Swap {
+    private tx;
+    private swapParams;
+    constructor(tx: Tx, swapParams: SwapParams);
+    private get resolve();
+    getType({ offerDenom, askDenom }: {
+        offerDenom: string;
+        askDenom: string;
+    }): "dex" | "stableswap";
+    getIsSupported({ offerDenom, askDenom }: {
+        offerDenom: string;
+        askDenom: string;
+    }): boolean;
+    getIsValid({ amount }: {
+        amount: string;
+    }): boolean;
+    fetchSwapFeeRate(): Promise<string | null>;
+    private getDecimals;
+    simulate({ amount, type }: {
+        amount: string;
+        type: "dex" | "stableswap";
+    }): Promise<{
+        returnAmount: string;
+        expectedPrice: string;
+        priceImpact: string;
+    } | null>;
+    private getL1Messages;
+    private getL2Hook;
+    private getL2Messages;
+    getStableswapMessages(params: Params): {
+        typeUrl: string;
+        value: MsgExecute;
+    }[];
+    getMessages(params: Params): {
+        typeUrl: string;
+        value: MsgExecute;
+    }[] | {
+        typeUrl: string;
+        value: MsgTransfer;
+    }[];
+}
+export {};

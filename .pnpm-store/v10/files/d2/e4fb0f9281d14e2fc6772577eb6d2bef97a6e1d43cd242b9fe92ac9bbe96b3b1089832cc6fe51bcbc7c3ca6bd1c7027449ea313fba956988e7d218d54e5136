@@ -1,0 +1,6 @@
+export declare function openWalletList(): void;
+export declare function openConnectedWallet(event?: MouseEvent): void;
+export declare function close(): void;
+export declare function openBridge(): void;
+export declare function renderBridge(container: HTMLElement): () => void;
+export declare function closeBridge(): void;

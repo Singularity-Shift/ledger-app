@@ -1,0 +1,5 @@
+export declare class WidgetStorage {
+    static getItem<T>(key: string): T | null;
+    static setItem<T>(key: string, data: T): void;
+    static removeItem(key: string): void;
+}

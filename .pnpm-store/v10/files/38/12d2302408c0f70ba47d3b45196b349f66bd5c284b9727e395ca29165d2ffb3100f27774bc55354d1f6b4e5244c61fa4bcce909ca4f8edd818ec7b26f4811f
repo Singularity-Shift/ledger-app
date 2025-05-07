@@ -1,0 +1,54 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ProfileSchema = void 0;
+const zod_1 = require("zod");
+exports.ProfileSchema = zod_1.z.object({
+    name: zod_1.z.string(),
+    pretty_name: zod_1.z.string(),
+    category: zod_1.z.enum([
+        "DeFi",
+        "Social",
+        "NFT",
+        "Gaming",
+        "Portfolio",
+        "AI",
+        "Others",
+    ]),
+    tags: zod_1.z.array(zod_1.z.string().max(10)).max(3).optional(),
+    description: zod_1.z.string().describe("A longer description for the landing page"),
+    summary: zod_1.z
+        .string()
+        .max(50)
+        .describe("A short description for the onboarding page (less than or equal to 50 characters)")
+        .optional(),
+    logo: zod_1.z.string().regex(new RegExp("^https://.+\\.png$")),
+    color: zod_1.z
+        .string()
+        .regex(new RegExp("^#([a-fA-F0-9]{6})$"))
+        .describe("RGB color")
+        .optional(),
+    status: zod_1.z.enum(["live", "upcoming", "hidden"]),
+    vip: zod_1.z
+        .object({
+        actions: zod_1.z
+            .array(zod_1.z.object({
+            title: zod_1.z.string().optional(),
+            description: zod_1.z.string().optional(),
+        }))
+            .optional(),
+        forum_url: zod_1.z.string().url().regex(new RegExp("^https://.")).optional(),
+    })
+        .optional(),
+    social: zod_1.z
+        .object({
+        website: zod_1.z.string().url().regex(new RegExp("^https://.")).optional(),
+        twitter: zod_1.z
+            .string()
+            .url()
+            .regex(new RegExp("^https://x.com/."))
+            .optional(),
+    })
+        .optional(),
+    l2: zod_1.z.boolean().optional(),
+});
+//# sourceMappingURL=Profile.js.map

@@ -1,0 +1,6 @@
+export interface LastWallet {
+    name: string;
+    type: string;
+    isEip6963?: boolean;
+}
+export declare function reconnectWallet(): Promise<void>;

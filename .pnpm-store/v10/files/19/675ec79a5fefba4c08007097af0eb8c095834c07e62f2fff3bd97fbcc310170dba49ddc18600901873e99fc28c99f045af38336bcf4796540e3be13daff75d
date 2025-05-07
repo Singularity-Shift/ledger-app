@@ -1,0 +1,24 @@
+import { EvmChainType } from './evm';
+import { SkipAsset } from '../types';
+export default class BridgeConfig {
+    private static evmChainsData;
+    private static cosmosChainsData;
+    static extraAssets: Record<string, SkipAsset[]>;
+    static lzChainIds: Record<string, number>;
+    static get networkType(): import('../env').NetworkType;
+    static initialize(swapListUrl: string): Promise<void>;
+    private static updateEvmChains;
+    private static updateCosmosChains;
+    private static updateLzChainIds;
+    private static updateExtraAssets;
+    static get cosmosChains(): {
+        chainId: string;
+        rpc: string;
+        rest: string;
+    }[];
+    static get cosmosChainIds(): string[];
+    static get evmChains(): EvmChainType[];
+    static get evmChainIds(): string[];
+    private static get tokenFilters();
+    static showToken(chainId: string, denom: string): boolean;
+}

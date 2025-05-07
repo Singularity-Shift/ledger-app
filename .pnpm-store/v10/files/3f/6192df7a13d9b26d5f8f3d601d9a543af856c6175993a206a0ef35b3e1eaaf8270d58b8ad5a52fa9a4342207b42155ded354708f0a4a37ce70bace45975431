@@ -1,0 +1,25 @@
+interface ViewFunctionParams {
+    moduleAddress: string;
+    moduleName: string;
+    functionName: string;
+    typeArgs: string[];
+    args: string[];
+}
+declare function createInitiaMoveClient(rest: string): {
+    rest: string;
+    params: () => Promise<{}>;
+    denom: (metadata: string) => Promise<string>;
+    metadata: (denom: string) => Promise<string>;
+    resource: <T>(address: string, structTag: string) => Promise<T>;
+    resources: (address: string) => Promise<any[]>;
+    modules: ({ moduleAddress, moduleName }: {
+        moduleAddress: string;
+        moduleName: string;
+    }) => Promise<{
+        abi: string;
+        raw_bytes: string;
+        upgrade_policy: string;
+    }>;
+    view: <T>({ moduleAddress, moduleName, functionName, typeArgs, args }: ViewFunctionParams) => Promise<T>;
+};
+export default createInitiaMoveClient;

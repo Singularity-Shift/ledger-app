@@ -1,0 +1,1 @@
+export declare function getProxyImage(url?: string): string | undefined;

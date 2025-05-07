@@ -1,0 +1,73 @@
+{
+  "name": "@initia/wallet-widget",
+  "version": "1.6.1",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.es.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": "github:initia-labs/wallet",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@cosmjs/amino": "^0.33.1",
+    "@cosmjs/crypto": "^0.33.1",
+    "@cosmjs/encoding": "^0.33.1",
+    "@cosmjs/proto-signing": "^0.33.1",
+    "@cosmjs/stargate": "^0.33.1",
+    "@cosmjs/tendermint-rpc": "^0.33.1",
+    "@cosmjs/utils": "^0.33.1",
+    "@initia/icons-svelte": "^1.0.0",
+    "@initia/initia-registry-types": "^1.0.1",
+    "@initia/initia.js": "^1.0.4",
+    "@initia/initia.proto": "^1.0.0",
+    "@initia/opinit.proto": "^1.0.0",
+    "@keplr-wallet/types": "^0.12.211",
+    "@layerzerolabs/lz-v2-utilities": "^3.0.84",
+    "@noble/hashes": "^1.7.1",
+    "@tanstack/svelte-query": "^5.71.1",
+    "bignumber.js": "^9.1.2",
+    "cosmjs-types": "^0.9.0",
+    "date-fns": "^4.1.0",
+    "ethers": "^6.13.5",
+    "js-cookie": "^3.0.5",
+    "ky": "^1.8.0",
+    "long": "^5.3.1",
+    "postcss": "^8.5.3",
+    "postcss-nested": "^7.0.2",
+    "protobufjs": "^7.4.0",
+    "ramda": "^0.30.1",
+    "rxjs": "^7.8.2",
+    "xss": "^1.0.15",
+    "@initia/utils": "^1.6.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3",
+    "@tanstack/eslint-plugin-query": "^5.68.0",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/js-cookie": "^3.0.6",
+    "@types/ramda": "^0.30.2",
+    "@typescript-eslint/eslint-plugin": "^8.29.0",
+    "@typescript-eslint/parser": "^8.29.0",
+    "eslint-plugin-svelte": "^3.5.0",
+    "prettier-plugin-svelte": "^3.3.3",
+    "svelte": "^4",
+    "svelte-check": "^4.1.5",
+    "svelte-eslint-parser": "^1.1.1",
+    "vite": "^5",
+    "vite-plugin-dts": "^4.5.3",
+    "vite-plugin-node-polyfills": "^0.23.0"
+  },
+  "scripts": {
+    "dev": "vite serve --config vite.demo.config.js",
+    "prebuild": "pnpm i && pnpm --filter utils build",
+    "build": "vite build",
+    "demo:build": "vite build --config vite.demo.config.js",
+    "postbuild": "mkdir -p ../../devtools/demo/public && cp dist/index.js ../../devtools/demo/public/index.js",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint . --fix"
+  }
+}

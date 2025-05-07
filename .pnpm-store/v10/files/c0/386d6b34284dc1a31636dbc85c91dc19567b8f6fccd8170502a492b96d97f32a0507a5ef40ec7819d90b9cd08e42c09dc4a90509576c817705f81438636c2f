@@ -1,0 +1,9 @@
+import { Observable } from 'rxjs';
+import { Chain, Asset } from '@initia/initia-registry-types';
+export default class LayerData {
+    private static layersData;
+    static initialize(layer: Chain): Promise<void>;
+    static getAssets$(chainId: string): Observable<Asset[]>;
+    static getAssets(chainId: string): Asset[];
+    static findAsset(denom: string, layer: Chain): Asset | undefined;
+}

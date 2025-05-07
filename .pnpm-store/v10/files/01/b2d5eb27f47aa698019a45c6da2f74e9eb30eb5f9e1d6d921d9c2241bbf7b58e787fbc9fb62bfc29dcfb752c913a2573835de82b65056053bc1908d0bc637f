@@ -1,0 +1,10 @@
+import { SinglePubkey } from '@cosmjs/amino';
+export interface EthSecp256k1Pubkey extends SinglePubkey {
+    readonly type: "initia/PubKeyEthSecp256k1";
+    readonly value: string;
+}
+/**
+ * Takes a Secp256k1 public key as raw bytes and returns the Amino JSON
+ * representation of it (the type/value wrapper object).
+ */
+export declare function encodeSecp256k1Pubkey(pubkey: Uint8Array): EthSecp256k1Pubkey;

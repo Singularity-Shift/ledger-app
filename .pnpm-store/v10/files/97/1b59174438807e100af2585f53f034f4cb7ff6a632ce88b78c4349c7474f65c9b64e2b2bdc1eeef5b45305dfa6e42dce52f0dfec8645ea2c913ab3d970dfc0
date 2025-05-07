@@ -1,0 +1,5 @@
+import { WidgetWallet } from '@initia/utils';
+import { Chain } from '@initia/initia-registry-types';
+import { default as KeplrSigner } from '../signers/keplr/KeplrSigner';
+import { default as EthereumSigner } from '../signers/ethereum/EthereumSigner';
+export declare function getSigner(wallet: WidgetWallet, chain: Chain): Promise<KeplrSigner | EthereumSigner>;

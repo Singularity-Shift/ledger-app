@@ -1,0 +1,13 @@
+import { BehaviorSubject } from 'rxjs';
+import { Keplr } from '@keplr-wallet/types';
+import { Eip1193Provider } from 'ethers';
+export declare const srcProvider$: BehaviorSubject<Keplr | Eip1193Provider | null>;
+export declare const srcCosmosAddress$: BehaviorSubject<string | null>;
+export declare const dstWalletIcon$: BehaviorSubject<string | null>;
+export declare const srcAddress$: BehaviorSubject<string>;
+export declare const dstAddress$: BehaviorSubject<string>;
+export declare const validatedDstAddress$: BehaviorSubject<string>;
+export declare function disconnectSrcWallet(): void;
+export declare function handleConnect(name: "srcAddress" | "dstAddress"): void;
+export declare function accountExists(address: string, chainId: string): Promise<boolean>;
+export declare function waitUntilSignerReady(address: string, chainId: string): Promise<void>;

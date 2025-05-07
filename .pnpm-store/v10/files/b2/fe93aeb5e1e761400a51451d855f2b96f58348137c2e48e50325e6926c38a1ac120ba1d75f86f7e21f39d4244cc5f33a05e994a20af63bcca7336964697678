@@ -1,0 +1,5 @@
+import { WalletNames, AdditionalWallet, WidgetWallet } from '@initia/utils';
+export declare function findWallet(wallet: WalletNames): WidgetWallet | undefined;
+export declare function isAdditionalWallet(wallet: unknown): wallet is AdditionalWallet;
+declare const wallets: WidgetWallet[];
+export default wallets;

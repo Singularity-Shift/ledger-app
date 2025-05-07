@@ -1,0 +1,25 @@
+export declare const BECH32_PREFIX = "init";
+export declare const DEFAULT_MULTIPLIER = 1.4;
+export declare const DEFAULT_API_URL = "https://api.initia.xyz";
+export declare const DEFAULT_DEX_API_URL = "https://dex-api.initia.xyz";
+export declare const DEFAULT_EXPLORER_URL = "https://scan.initia.xyz";
+export declare const DEFAULT_REGISTRY_URL = "https://registry.initia.xyz";
+export declare const DEFAULT_SWAPLIST_URL = "https://list.initia.xyz/swaplist.json";
+export declare const DEFAULT_ERRORS_URL = "https://list.initia.xyz/errors";
+export declare const DEFAULT_MODULES: {
+    usernames: string;
+    dex_utils: string;
+    swap_transfer: string;
+};
+export declare const CHROM_WEB_STORE_URL = "https://chromewebstore.google.com/detail/";
+export declare const SIGN_MESSAGE = "Sign this message to identify your initia address.";
+export declare const STORAGE_KEYS: {
+    LAST_CONNECTED_WALLET: string;
+    ETHEREUM_PUBLIC_KEYS: string;
+    CHAIN_IDS: string;
+    FEE_DENOMS: string;
+    OPENED_LAYERS_ASSETS: string;
+    OPENED_LAYERS_NFT: string;
+};
+export declare const INITIA_DOMAIN = "initia.xyz";
+export declare const isInitiaDomain: boolean;

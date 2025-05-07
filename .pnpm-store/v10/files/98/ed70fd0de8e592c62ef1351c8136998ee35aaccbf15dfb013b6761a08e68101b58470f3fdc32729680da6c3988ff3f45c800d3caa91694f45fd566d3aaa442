@@ -1,0 +1,8 @@
+export declare const SECOND_IN_MILLISECONDS = 1000;
+export declare const MINUTE_IN_MILLISECONDS: number;
+export declare const ASSETS_URL = "https://assets.initia.xyz";
+export declare const INIT_LOGO_URL = "https://assets.initia.xyz/INIT.svg";
+export declare const EVM_BASE_DENOM = "0x0000000000000000000000000000000000000000";
+export declare const SKIP_API_URL = "https://router-api.initia.xyz";
+export declare const ACC_CREATOR_API_URL = "https://acc-creator-api.initia.xyz";
+export declare const ACC_CREATOR_API_URL_TESTNET = "https://acc-creator-api.testnet.initia.xyz";

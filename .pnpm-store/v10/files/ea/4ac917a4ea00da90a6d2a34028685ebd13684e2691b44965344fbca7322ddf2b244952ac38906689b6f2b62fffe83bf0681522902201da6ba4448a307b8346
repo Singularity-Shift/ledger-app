@@ -1,0 +1,9 @@
+import { AllowanceResult } from '../types';
+/**
+ * Query the erc-20 allowances
+ * @param chainId The chain-id of the chain where you want to query the allowances
+ * @param address The user address
+ * @param token The contract address of the ERC-20 token
+ * @param spender The spender address
+ */
+export declare function getErc20Allowance(chainId: string, address: string, token: string, spender: string, amount: string): Promise<AllowanceResult | null>;

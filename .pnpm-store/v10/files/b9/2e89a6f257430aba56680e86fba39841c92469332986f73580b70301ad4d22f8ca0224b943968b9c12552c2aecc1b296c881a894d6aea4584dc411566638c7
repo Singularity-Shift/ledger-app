@@ -1,0 +1,19 @@
+import { DenomTrackerParams } from '../initia/denom';
+import { SendParams, Send } from './send';
+import { SendNFTParams, SendNFT } from './sendNFT';
+import { SwapParams, Swap } from './swap';
+export interface TxParams extends DenomTrackerParams {
+    address: string;
+    modules: {
+        dex_utils: string;
+        swap_transfer: string;
+    };
+}
+export declare class Tx {
+    params: TxParams;
+    constructor(params: TxParams);
+    get getL1Denom(): (denom: string) => string;
+    send(sendParams: SendParams): Send;
+    sendNFT(sendNFTParams: SendNFTParams): SendNFT;
+    swap(swapParams: SwapParams): Swap;
+}

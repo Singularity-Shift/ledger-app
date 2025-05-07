@@ -1,0 +1,247 @@
+export interface SkipChain {
+    chain_id: string;
+    chain_name: string;
+    pretty_name: string;
+    bech32_prefix: string;
+    logo_uri: string;
+    chain_type: string;
+    is_testnet: boolean;
+    supports_memo: boolean;
+    pfm_enabled: boolean;
+    fee_assets: {
+        denom: string;
+        gas_price: {
+            average: string;
+            high: string;
+            low: string;
+        };
+    }[];
+    cosmos_module_support: {
+        authz: boolean;
+        feegrant: boolean;
+    };
+    ibc_capabilities: {
+        cosmos_pfm: boolean;
+        cosmos_ibc_hooks: boolean;
+        cosmos_memo: boolean;
+        cosmos_autopilot: boolean;
+    };
+}
+export interface SkipAsset {
+    denom: string;
+    origin_denom: string;
+    chain_id: string;
+    origin_chain_id: string;
+    decimals: number;
+    symbol: string;
+    recommended_symbol: string;
+    name: string;
+    logo_uri: string;
+    description: string;
+    trace: string;
+    is_cw20: boolean;
+    is_evm: boolean;
+    is_svm: boolean;
+    forwardContract?: string;
+    oftOwner?: string;
+}
+export type Erc20Allowance = {
+    token_contract: string;
+    spender: string;
+    amount: string;
+};
+export type EvmTx = {
+    chain_id: string;
+    to: string;
+    value: string;
+    data: string;
+    required_erc20_approvals: Erc20Allowance[];
+    signer_address: string;
+};
+export type SkipMsg = {
+    msg: string;
+    msg_type_url: "/cosmos.bank.v1beta1.MsgSend" | "/ibc.applications.transfer.v1.MsgTransfer" | "/initia.move.v1.MsgExecute" | "/opinit.ophost.v1.MsgInitiateTokenDeposit" | "/opinit.opchild.v1.MsgInitiateTokenWithdrawal" | "/circle.cctp.v1.MsgDepositForBurnWithCaller" | "/minievm.evm.v1.MsgCall" | "/cosmwasm.wasm.v1.MsgExecuteContract";
+};
+export type SkipTx = {
+    cosmos_tx: {
+        chain_id: string;
+        msgs: SkipMsg[];
+    };
+} | {
+    evm_tx: EvmTx;
+};
+export type SkipOperation = {
+    amount_in: string;
+    amount_out: string;
+    swap: {
+        from_chain_id: string;
+        chain_id: string;
+        denom_in: string;
+        denom_out: string;
+    };
+} | {
+    amount_in: string;
+    amount_out: string;
+    transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        denom_in: string;
+        denom_out: string;
+        bridge_id: "IBC";
+    };
+} | {
+    amount_in: string;
+    amount_out: string;
+    op_init_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        denom_in: string;
+        denom_out: string;
+        bridge_id: "OPINIT";
+    };
+} | {
+    amount_in: string;
+    amount_out: string;
+    cctp_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        denom_in: string;
+        denom_out: string;
+        bridge_id: "CCTP";
+    };
+} | {
+    amount_in: string;
+    amount_out: string;
+    lz_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        denom_in: string;
+        denom_out: string;
+        bridge_id: "LZ";
+    };
+} | {
+    amount_in: string;
+    amount_out: string;
+    bank_send: {
+        chain_id: string;
+        denom: string;
+    };
+} | {
+    amount_in: string;
+    amount_out: string;
+    go_fast_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        denom_in: string;
+        denom_out: string;
+        bridge_id: "GO_FAST";
+    };
+} | {
+    amount_in: string;
+    amount_out: string;
+    axelar_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        denom_in: string;
+        denom_out: string;
+        bridge_id: "AXELAR";
+    };
+};
+interface SkipFee {
+    amount: string;
+    origin_asset: {
+        symbol: string;
+        decimals: number;
+    };
+}
+export interface OpHook {
+    signer: string;
+    hook: string;
+}
+export interface SkipRouteResponse {
+    required_hook?: {
+        chain_id: string;
+        hook: (signer: string) => SkipMsg[];
+    };
+    txs: SkipTx[];
+    route: {
+        estimated_amount_out: string;
+        estimated_fees?: SkipFee[];
+        operations: SkipOperation[];
+        estimated_route_duration_seconds?: number;
+        does_swap: boolean;
+        warning?: {
+            type: "LOW_INFO_WARNING" | "BAD_PRICE_WARNING";
+            message: string;
+        };
+    };
+    original_skip_response?: SkipRouteResponse;
+}
+export interface AxelarTransfer {
+    axelar_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        state: "AXELAR_TRANSFER_SUCCESS" | "AXELAR_TRANSFER_FAILURE" | string;
+    };
+}
+export interface CctpTransfer {
+    cctp_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        state: "CCTP_TRANSFER_UNKNOWN" | "CCTP_TRANSFER_SENT" | "CCTP_TRANSFER_RECEIVED";
+    };
+}
+export interface IbcTransfer {
+    ibc_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        state: "TRANSFER_UNKNOWN" | "TRANSFER_PENDING" | "TRANSFER_RECEIVED" | "TRANSFER_SUCCESS" | "TRANSFER_FAILURE";
+    };
+}
+export interface OpInitTransfer {
+    op_init_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        state: "OPINIT_TRANSFER_UNKNOWN" | "OPINIT_TRANSFER_SENT" | "OPINIT_TRANSFER_RECEIVED";
+    };
+}
+export interface GoFastTransfer {
+    go_fast_transfer: {
+        from_chain_id: string;
+        to_chain_id: string;
+        state: "GO_FAST_TRANSFER_FILLED" | string;
+    };
+}
+export interface SkipTrackingResponse {
+    transfer_sequence: (IbcTransfer | OpInitTransfer | CctpTransfer)[];
+    error: {
+        message: string;
+    } | null;
+    state: "STATE_SUBMITTED" | "STATE_PENDING" | "STATE_COMPLETED_SUCCESS" | "STATE_COMPLETED_ERROR" | "STATE_ABANDONED" | "STATE_PENDING_ERROR";
+}
+export interface RouteParams {
+    sourceAddress: string;
+    sourceChainId: string;
+    sourceDenom: string;
+    amount: string;
+    targetAddress: string;
+    targetChainId: string;
+    targetDenom: string;
+    slippagePercent: string;
+    addresses?: Record<string, string>;
+    useOp?: boolean;
+}
+export interface ParsedOperation {
+    chainId: string;
+    amount: string;
+    denom: string;
+    bridge?: string;
+    isSwap?: boolean;
+    isSend?: boolean;
+}
+export interface AllowanceResult {
+    token_contract: string;
+    spender: string;
+    amount: string;
+}
+export {};

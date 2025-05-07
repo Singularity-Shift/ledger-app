@@ -1,0 +1,17 @@
+import { SvelteComponentTyped } from "svelte";
+declare const __propDef: {
+    props: {
+        size?: number | undefined;
+        color?: string | undefined;
+    };
+    events: {
+        [evt: string]: CustomEvent<any>;
+    };
+    slots: {};
+};
+export type AddFilledProps = typeof __propDef.props;
+export type AddFilledEvents = typeof __propDef.events;
+export type AddFilledSlots = typeof __propDef.slots;
+export default class AddFilled extends SvelteComponentTyped<AddFilledProps, AddFilledEvents, AddFilledSlots> {
+}
+export {};

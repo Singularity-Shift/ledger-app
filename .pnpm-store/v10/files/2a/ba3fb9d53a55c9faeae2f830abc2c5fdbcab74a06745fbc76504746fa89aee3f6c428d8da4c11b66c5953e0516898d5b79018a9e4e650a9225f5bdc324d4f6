@@ -1,0 +1,235 @@
+# Initia Wallet Widget
+
+## Getting started
+
+To get started, import the script:
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/@initia/wallet-widget/dist/index.js" type="module" async defer></script>
+  </head>
+  <body>
+    <div id="address"></div>
+    <button id="onboard">Onboard</button>
+    <button id="disconnect">Disconnect</button>
+    <button id="send">Send</button>
+    <div id="tx-hash"></div>
+    <script src="index.js"></script>
+  </body>
+</html>
+```
+
+To ensure that you're always using the latest version of the widget, it's recommended to append a random string in the CDN URL. This will force the browser to fetch the script again whenever the page is reloaded.
+
+Once the script is loaded, you can access the createWalletWidget() method in the window object.
+
+```ts
+window.onload = async () => {
+  // If your layer's chain.json has already been registered in [initia-labs/initia-registry](https://github.com/initia-labs/initia-registry):
+  const widget = await window.createWalletWidget({ chainId: "YOUR_CHAIN_ID" })
+
+  // or, to manually register your layer:
+  const layer = {
+    chain_id: "YOUR_CHAIN_ID",
+    chain_name: "YOUR_CHAIN_NAME",
+    apis: {
+      rpc: [{ address: "YOUR_RPC_URL" }],
+      rest: [{ address: "YOUR_LCD_URL" }],
+    },
+    fees: {
+      fee_tokens: [{ denom: "YOUR_FEE_DENOM", fixed_min_gas_price: 0.15 }],
+    },
+    bech32_prefix: "init",
+  }
+
+  const widget = await window.createWalletWidget({ customLayer: layer })
+
+  const { address$, onboard, disconnect, requestTx } = widget
+
+  address$.subscribe((address) => {
+    document.getElementById("address").textContent = address
+  })
+
+  async function send() {
+    const messages = [
+      {
+        typeUrl: "/cosmos.bank.v1beta1.MsgSend",
+        value: {
+          fromAddress: address$.value,
+          toAddress: address$.value,
+          amount: [{ amount: "1000000", denom: "uinit" }],
+        },
+      },
+    ]
+
+    document.getElementById("tx-hash").textContent = "Loading..."
+    const transactionHash = await requestTx({ messages })
+    document.getElementById("tx-hash").textContent = transactionHash
+  }
+
+  document.getElementById("onboard").addEventListener("click", onboard)
+  document.getElementById("disconnect").addEventListener("click", disconnect)
+  document.getElementById("send").addEventListener("click", send)
+}
+```
+
+## Interface
+
+```ts
+interface WalletWidget {
+  /** The current wallet address */
+  address$: BehaviorSubject<string>
+
+  /** The current wallet account */
+  account$: BehaviorSubject<AccountData | null>
+
+  /** The current connected wallet */
+  wallet$: BehaviorSubject<WidgetWallet | null>
+
+  /** Current connected Keplr provider */
+  keplr$: BehaviorSubject<Keplr | null>
+
+  /** Current connected Ethereum provider */
+  ethereum$: BehaviorSubject<Eip1193Provider | null>
+
+  /** Indicates whether the wallet connection is being established */
+  isLoading$: BehaviorSubject<boolean>
+
+  /** Triggers the wallet connection process */
+  onboard: () => void
+
+  /** Displays the wallet interface for managing assets */
+  view: (event?: MouseEvent) => void
+
+  /** Signs and broadcasts a transaction, returning the transaction hash */
+  requestTx: (txBodyValue: TxBodyValue, options?: RequestTxOptions) => Promise<string>
+
+  /** Utilizes the @initia/initia.js library to broadcast transactions */
+  requestInitiaTx: (tx: { msgs: Msg[]; memo?: string }, options?: RequestTxOptions) => Promise<string>
+
+  /** Signs and broadcasts an Ethereum transaction, returning the transaction hash */
+  requestEthereumTx(transactionData: TransactionRequest, options?: RequestTxOptions): Promise<string>
+
+  /** Signs arbitrary data with the wallet */
+  signArbitrary: (data: string | Uint8Array) => Promise<string>
+
+  /** Verifies a signature against the provided data */
+  verifyArbitrary: (data: string | Uint8Array, signature: string) => Promise<boolean>
+
+  /** Disconnects the wallet */
+  disconnect: () => Promise<void>
+
+  /** Opening the bridge modal */
+  bridge(): void
+}
+```
+
+```ts
+interface WidgetConfig {
+  /**
+   * The chain ID for the wallet connection.
+   * This only works if your chain is registered in initia-registry.
+   * Default: "interwoven-1".
+   */
+  chainId?: string
+
+  /**
+   * Custom layer configuration.
+   * This option is for when your chain is not yet registered in initia-registry.
+   */
+  customLayer?: Chain
+
+  /**
+   * Protobuf types for transaction serialization.
+   * Only required if you need custom message signing.
+   */
+  protoTypes?: Iterable<[string, GeneratedType]>
+
+  /**
+   * Amino converters for encoding/decoding transactions.
+   * Only required if you need custom message signing.
+   */
+  aminoConverters?: AminoConverters
+
+  /**
+   * Flag to use Keplr as a Direct signer.
+   * Set to `true` if you want to use Keplr as a Direct signer instead of a the Amino signer.
+   */
+  useKeplrAsDirectSigner?: boolean
+
+  /**
+   * Additional wallets to be supported by the widget.
+   * Use this if you want to declare custom wallet extension providers that we do not provide.
+   */
+  additionalWallets?: WidgetWallet[]
+
+  /** Function to filter and select specific types of wallets */
+  filterWallet?: (type: WidgetWallet) => boolean
+
+  /** Adjustment factor for transaction gas estimation */
+  gasAdjustment?: number
+
+  /** URL for api */
+  apiUrl?: string
+
+  /** URL for dex api */
+  dexApiUrl?: string
+
+  /** URL for fetching registry information */
+  registryUrl?: string
+
+  /** URL for block explorer */
+  explorerUrl?: string
+
+  /** URL for fetching the swap list configuration */
+  swaplistUrl?: string
+
+  /** URL for fetching error messages or logs */
+  errorsUrl?: string
+
+  /** URLs for various module configurations */
+  modules?: {
+    usernames: string
+    dex_utils: string
+    swap_transfer: string
+  }
+
+  /** Theme configuration for the widget UI */
+  theme?: WidgetTheme
+
+  /** Interface for the bridge modal */
+  bridgeOptions?: {
+    /** Default source chain id */
+    defaultSrcChainId?: string
+
+    /** Default source asset denom */
+    defaultSrcAssetDenom?: string
+
+    /** Default destination chain id */
+    defaultDstChainId?: string
+
+    /** Default destination asset denom */
+    defaultDstAssetDenom?: string
+
+    /** Determine whether the destination chain should be fixed */
+    readOnlyDstChain?: boolean
+
+    /** Determine whether the destination asset should be fixed */
+    readOnlyDstAsset?: boolean
+  }
+}
+```
+
+## Usage in React projects
+
+Usage in React Projects
+If you are using React and want to integrate the Wallet Widget into your project, you can utilize the core functionality by installing [@initia/react-wallet-widget](https://www.npmjs.com/package/@initia/react-wallet-widget).
+
+## Preview build results before deploying to CDN
+
+```sh
+pnpm build
+pnpm --filter demo dev
+```

@@ -1,0 +1,17 @@
+import { SvelteComponentTyped } from "svelte";
+declare const __propDef: {
+    props: {
+        size?: number | undefined;
+        color?: string | undefined;
+    };
+    events: {
+        [evt: string]: CustomEvent<any>;
+    };
+    slots: {};
+};
+export type AdjustProps = typeof __propDef.props;
+export type AdjustEvents = typeof __propDef.events;
+export type AdjustSlots = typeof __propDef.slots;
+export default class Adjust extends SvelteComponentTyped<AdjustProps, AdjustEvents, AdjustSlots> {
+}
+export {};

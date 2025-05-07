@@ -1,0 +1,519 @@
+import { is as v, looseObject as u, function as $, boolean as S, nullish as d, number as A, string as f, optional as q, unknown as X, parse as y, pipe as j, any as Z } from "valibot";
+import { AbortablePromise as N } from "better-promises";
+import { AbortablePromise as Qe, CancelledError as Be, ManualPromise as Ke, TimeoutError as Ye, isCancelledError as Fe, isTimeoutError as He } from "better-promises";
+import { createLogger as O, createCbCollector as V, getStorageValue as ee, setStorageValue as z, deepSnakeToCamelObjKeys as te } from "@telegram-apps/toolkit";
+import { createLogger as Ze } from "@telegram-apps/toolkit";
+import { themeParams as re, jsonParse as D, MiniAppsMessageSchema as G, isLaunchParamsQuery as J, parseLaunchParamsQuery as E, serializeLaunchParamsQuery as oe } from "@telegram-apps/transformers";
+import ne from "mitt";
+import { signal as P } from "@telegram-apps/signals";
+import { errorClass as g, errorClassWithData as ae } from "error-kid";
+function Q(e) {
+  return v(
+    u({ TelegramWebviewProxy: u({ postEvent: $() }) }),
+    e
+  );
+}
+function B() {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return !0;
+  }
+}
+function se(e, t) {
+  const r = ne(), o = /* @__PURE__ */ new Map(), s = (n, a, c) => {
+    c || (c = !1);
+    const i = o.get(n) || /* @__PURE__ */ new Map();
+    o.set(n, i);
+    const _ = i.get(a) || [];
+    i.set(a, _);
+    const l = _.findIndex((m) => m[1] === c);
+    l >= 0 && (r.off(n, _[l][0]), _.splice(l, 1), !_.length && i.delete(a), i.size || (o.delete(n), !o.size && t()));
+  };
+  return [
+    function(a, c, i) {
+      !o.size && e();
+      function _() {
+        s(a, c, i);
+      }
+      function l(...x) {
+        i && _(), a === "*" ? c(x) : c(...x);
+      }
+      r.on(a, l);
+      const m = o.get(a) || /* @__PURE__ */ new Map();
+      o.set(a, m);
+      const M = m.get(c) || [];
+      return m.set(c, M), M.push([l, i || !1]), _;
+    },
+    s,
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    r.emit,
+    function() {
+      const a = r.all.size;
+      r.all.clear(), o.clear(), a && t();
+    }
+  ];
+}
+function T(e, t) {
+  window.dispatchEvent(new MessageEvent("message", {
+    data: JSON.stringify({ eventType: e, eventData: t }),
+    // We specify window.parent to imitate the case, the parent iframe sent us this event.
+    source: window.parent
+  }));
+}
+let h = !1;
+const L = (e) => {
+  w().log("Event received:", e);
+};
+function ce(e) {
+  e !== h && (h = e, h ? K("*", L) : pe("*", L));
+}
+const w = P(O("Bridge", {
+  bgColor: "#9147ff",
+  textColor: "white",
+  shouldLog() {
+    return h;
+  }
+})), ie = {
+  clipboard_text_received: u({
+    req_id: f(),
+    data: d(f())
+  }),
+  custom_method_invoked: u({
+    req_id: f(),
+    result: q(X()),
+    error: q(f())
+  }),
+  popup_closed: d(
+    u({ button_id: d(f(), () => {
+    }) }),
+    {}
+  ),
+  viewport_changed: u({
+    height: A(),
+    width: d(A(), () => window.innerWidth),
+    is_state_stable: S(),
+    is_expanded: S()
+  }),
+  theme_changed: u({
+    theme_params: re()
+  })
+};
+function C(e) {
+  if (e.source !== window.parent)
+    return;
+  let t;
+  try {
+    t = y(j(f(), D(), G), e.data);
+  } catch {
+    return;
+  }
+  const { eventType: r, eventData: o } = t, s = ie[r];
+  let n;
+  try {
+    n = s ? y(s, o) : o;
+  } catch (a) {
+    return w().forceError(
+      [
+        `An error occurred processing the "${r}" event from the Telegram application.`,
+        "Please, file an issue here:",
+        "https://github.com/Telegram-Mini-Apps/telegram-apps/issues/new/choose"
+      ].join(`
+`),
+      t,
+      a
+    );
+  }
+  _e(r, n);
+}
+const [
+  K,
+  pe,
+  _e,
+  ue
+] = se(
+  () => {
+    const e = window, t = { receiveEvent: T };
+    e.TelegramGameProxy_receiveEvent = T, e.TelegramGameProxy = t, e.Telegram = { WebView: t }, window.addEventListener("message", C);
+  },
+  () => {
+    ["TelegramGameProxy_receiveEvent", "TelegramGameProxy", "Telegram"].forEach((e) => {
+      delete window[e];
+    }), window.removeEventListener("message", C);
+  }
+), [
+  le,
+  qe
+] = g(
+  "MethodUnsupportedError",
+  (e, t) => [
+    `Method "${e}" is unsupported in Mini Apps version ${t}`
+  ]
+), [
+  we,
+  Te
+] = g(
+  "MethodParameterUnsupportedError",
+  (e, t, r) => [
+    `Parameter "${t}" of "${e}" method is unsupported in Mini Apps version ${r}`
+  ]
+), [
+  fe,
+  Le
+] = ae(
+  "LaunchParamsRetrieveError",
+  (e) => ({ errors: e }),
+  (e) => [
+    [
+      "Unable to retrieve launch parameters from any known source. Perhaps, you have opened your app outside Telegram?",
+      "📖 Refer to docs for more information:",
+      "https://docs.telegram-mini-apps.com/packages/telegram-apps-bridge/environment",
+      "",
+      "Collected errors:",
+      ...e.map(([t, r]) => `Source: ${t} / ${r instanceof Error ? r.message : String(r)}`)
+    ].join(`
+`)
+  ]
+), [
+  me,
+  Ce
+] = g(
+  "InvalidLaunchParamsError",
+  (e, t) => [
+    `Invalid value for launch params: ${e}`,
+    { cause: t }
+  ]
+), [be, Ue] = g("UnknownEnvError"), [
+  ge,
+  We
+] = g(
+  "InvokeCustomMethodError",
+  (e) => [`Server returned error: ${e}`]
+), b = P((...e) => {
+  try {
+    window.parent.postMessage(...e);
+  } catch (t) {
+    t instanceof SyntaxError ? w().forceError(
+      "Unable to call window.parent.postMessage due to incorrectly configured target origin. Use the setTargetOrigin method to allow this origin to receive events",
+      t
+    ) : w().forceError(t);
+  }
+}), de = (...e) => b()(...e), k = P("https://web.telegram.org");
+function Ie(e) {
+  k.set(e), w().log("New target origin set", e);
+}
+function Y(e, t) {
+  w().log("Posting event:", t ? { eventType: e, eventData: t } : { eventType: e });
+  const r = window, o = JSON.stringify({ eventType: e, eventData: t });
+  if (B())
+    return de(o, k());
+  if (Q(r)) {
+    r.TelegramWebviewProxy.postEvent(e, JSON.stringify(t));
+    return;
+  }
+  if (v(u({ external: u({ notify: $() }) }), r)) {
+    r.external.notify(o);
+    return;
+  }
+  throw new be();
+}
+function F(e, t, r) {
+  r || (r = {});
+  const { capture: o } = r, [s, n] = V();
+  return new N((a) => {
+    (Array.isArray(t) ? t : [t]).forEach((c) => {
+      s(
+        K(c, (i) => {
+          (!o || (Array.isArray(t) ? o({
+            event: c,
+            payload: i
+          }) : o(i))) && a(i);
+        })
+      );
+    }), (r.postEvent || Y)(e, r.params);
+  }, r).finally(n);
+}
+const U = "launchParams";
+function W(e) {
+  return e.replace(/^[^?#]*[?#]/, "").replace(/[?#]/g, "&");
+}
+function H() {
+  const e = [];
+  for (const [t, r] of [
+    // Try to retrieve launch parameters from the current location. This method can return
+    // nothing in case, location was changed, and then the page was reloaded.
+    [() => W(window.location.href), "window.location.href"],
+    // Then, try using the lower level API - window.performance.
+    [() => {
+      const o = performance.getEntriesByType("navigation")[0];
+      return o && W(o.name);
+    }, "performance navigation entries"],
+    [() => ee(U), "local storage"]
+  ]) {
+    const o = t();
+    if (!o) {
+      e.push([r, new Error("Source is empty")]);
+      continue;
+    }
+    if (J(o))
+      return z(U, o), o;
+    try {
+      E(o);
+    } catch (s) {
+      e.push([r, s]);
+    }
+  }
+  throw new fe(e);
+}
+function he(e) {
+  const t = E(H());
+  return e ? te(t) : t;
+}
+function Re(e, t) {
+  if (!e)
+    try {
+      return he(), !0;
+    } catch {
+      return !1;
+    }
+  return N.fn(async (r) => {
+    if (Q(window))
+      return !0;
+    try {
+      return await F("web_app_request_theme", "theme_changed", r), !0;
+    } catch {
+      return !1;
+    }
+  }, t || { timeout: 100 });
+}
+function $e({ launchParams: e, onEvent: t, resetPostMessage: r } = {}) {
+  if (e) {
+    const n = typeof e == "string" || e instanceof URLSearchParams ? e.toString() : (
+      // Here we have to trick serializeLaunchParamsQuery into thinking, it serializes a valid
+      // value. We are doing it because we are working with tgWebAppData presented as a
+      // string, not an object as serializeLaunchParamsQuery requires.
+      oe({ ...e, tgWebAppData: void 0 }) + (e.tgWebAppData ? `&tgWebAppData=${encodeURIComponent(e.tgWebAppData.toString())}` : "")
+    );
+    if (!J(n))
+      try {
+        E(n);
+      } catch (a) {
+        throw new me(n, a);
+      }
+    z("launchParams", n);
+  }
+  if (B()) {
+    if (!t)
+      return;
+    const n = j(
+      f(),
+      D(),
+      G
+    );
+    r && b.reset();
+    const a = b();
+    b.set((...c) => {
+      const [i] = c, _ = () => {
+        a(...c);
+      };
+      if (v(n, i)) {
+        const l = y(n, i);
+        t([l.eventType, l.eventData], _);
+      } else
+        _();
+    });
+    return;
+  }
+  const o = window.TelegramWebviewProxy || {}, s = o.postEvent || (() => {
+  });
+  window.TelegramWebviewProxy = {
+    ...o,
+    postEvent(n, a) {
+      const c = () => {
+        s(n, a);
+      };
+      t ? t([n, a ? JSON.parse(a) : void 0], c) : c();
+    }
+  }, w().log("Environment was mocked by the mockTelegramEnv function");
+}
+function je() {
+  return new URLSearchParams(H()).get("tgWebAppData") || void 0;
+}
+function ve(e) {
+  return ({ req_id: t }) => t === e;
+}
+function I(e) {
+  return e.split(".").map(Number);
+}
+function ye(e, t) {
+  const r = I(e), o = I(t), s = Math.max(r.length, o.length);
+  for (let n = 0; n < s; n += 1) {
+    const a = r[n] || 0, c = o[n] || 0;
+    if (a !== c)
+      return a > c ? 1 : -1;
+  }
+  return 0;
+}
+function p(e, t) {
+  return ye(e, t) <= 0;
+}
+function R(e, t, r) {
+  if (typeof r == "string") {
+    if (e === "web_app_open_link") {
+      if (t === "try_instant_view")
+        return p("6.4", r);
+      if (t === "try_browser")
+        return p("7.6", r);
+    }
+    if (e === "web_app_set_header_color" && t === "color")
+      return p("6.9", r);
+    if (e === "web_app_close" && t === "return_back")
+      return p("7.6", r);
+    if (e === "web_app_setup_main_button" && t === "has_shine_effect")
+      return p("7.10", r);
+  }
+  switch (e) {
+    case "web_app_open_tg_link":
+    case "web_app_open_invoice":
+    case "web_app_setup_back_button":
+    case "web_app_set_background_color":
+    case "web_app_set_header_color":
+    case "web_app_trigger_haptic_feedback":
+      return p("6.1", t);
+    case "web_app_open_popup":
+      return p("6.2", t);
+    case "web_app_close_scan_qr_popup":
+    case "web_app_open_scan_qr_popup":
+    case "web_app_read_text_from_clipboard":
+      return p("6.4", t);
+    case "web_app_switch_inline_query":
+      return p("6.7", t);
+    case "web_app_invoke_custom_method":
+    case "web_app_request_write_access":
+    case "web_app_request_phone":
+      return p("6.9", t);
+    case "web_app_setup_settings_button":
+      return p("6.10", t);
+    case "web_app_biometry_get_info":
+    case "web_app_biometry_open_settings":
+    case "web_app_biometry_request_access":
+    case "web_app_biometry_request_auth":
+    case "web_app_biometry_update_token":
+      return p("7.2", t);
+    case "web_app_setup_swipe_behavior":
+      return p("7.7", t);
+    case "web_app_share_to_story":
+      return p("7.8", t);
+    case "web_app_setup_secondary_button":
+    case "web_app_set_bottom_bar_color":
+      return p("7.10", t);
+    case "web_app_request_safe_area":
+    case "web_app_request_content_safe_area":
+    case "web_app_request_fullscreen":
+    case "web_app_exit_fullscreen":
+    case "web_app_set_emoji_status":
+    case "web_app_add_to_home_screen":
+    case "web_app_check_home_screen":
+    case "web_app_request_emoji_status_access":
+    case "web_app_check_location":
+    case "web_app_open_location_settings":
+    case "web_app_request_file_download":
+    case "web_app_request_location":
+    case "web_app_send_prepared_message":
+    case "web_app_start_accelerometer":
+    case "web_app_start_device_orientation":
+    case "web_app_start_gyroscope":
+    case "web_app_stop_accelerometer":
+    case "web_app_stop_device_orientation":
+    case "web_app_stop_gyroscope":
+    case "web_app_toggle_orientation_lock":
+      return p("8.0", t);
+    default:
+      return [
+        "iframe_ready",
+        "iframe_will_reload",
+        "web_app_close",
+        "web_app_data_send",
+        "web_app_expand",
+        "web_app_open_link",
+        "web_app_ready",
+        "web_app_request_theme",
+        "web_app_request_viewport",
+        "web_app_setup_main_button",
+        "web_app_setup_closing_behavior"
+      ].includes(e);
+  }
+}
+function Ne(e, t) {
+  t || (t = "strict");
+  const r = typeof t == "function" ? t : (o) => {
+    const { method: s, version: n } = o, a = "param" in o ? new we(s, o.param, n) : new le(s, n);
+    if (t === "strict")
+      throw a;
+    return w().forceWarn(a.message);
+  };
+  return (o, s) => R(o, e) ? o === "web_app_set_header_color" && v(u({ color: Z() }), s) && !R(o, "color", e) ? r({ version: e, method: o, param: "color" }) : Y(o, s) : r({ version: e, method: o });
+}
+function ze(e, t, r, o) {
+  return F("web_app_invoke_custom_method", "custom_method_invoked", {
+    ...o || {},
+    params: { method: e, params: t, req_id: r },
+    capture: ve(r)
+  }).then(({ result: s, error: n }) => {
+    if (n)
+      throw new ge(n);
+    return s;
+  });
+}
+function De() {
+  ue(), ce(!1), [b, k].forEach((e) => {
+    e.unsubAll(), e.reset();
+  });
+}
+export {
+  Qe as AbortablePromise,
+  Be as CancelledError,
+  me as InvalidLaunchParamsError,
+  ge as InvokeCustomMethodError,
+  fe as LaunchParamsRetrieveError,
+  Ke as ManualPromise,
+  we as MethodParameterUnsupportedError,
+  le as MethodUnsupportedError,
+  Ye as TimeoutError,
+  be as UnknownEnvError,
+  ve as captureSameReq,
+  ye as compareVersions,
+  Ze as createLogger,
+  Ne as createPostEvent,
+  T as emitEvent,
+  Q as hasWebviewProxy,
+  ze as invokeCustomMethod,
+  Fe as isCancelledError,
+  B as isIframe,
+  Ce as isInvalidLaunchParamsError,
+  We as isInvokeCustomMethodError,
+  Le as isLaunchParamsRetrieveError,
+  Te as isMethodMethodParameterUnsupportedError,
+  qe as isMethodUnsupportedError,
+  Re as isTMA,
+  He as isTimeoutError,
+  Ue as isUnknownEnvError,
+  w as logger,
+  $e as mockTelegramEnv,
+  pe as off,
+  ue as offAll,
+  K as on,
+  Y as postEvent,
+  de as postMessage,
+  b as postMessageImplementation,
+  F as request,
+  De as resetPackageState,
+  he as retrieveLaunchParams,
+  je as retrieveRawInitData,
+  H as retrieveRawLaunchParams,
+  ce as setDebug,
+  Ie as setTargetOrigin,
+  R as supports,
+  k as targetOrigin
+};
+//# sourceMappingURL=index.js.map

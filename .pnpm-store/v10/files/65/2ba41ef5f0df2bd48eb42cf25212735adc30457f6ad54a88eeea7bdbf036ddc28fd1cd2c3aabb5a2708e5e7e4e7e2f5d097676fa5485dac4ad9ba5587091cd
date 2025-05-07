@@ -1,0 +1,27 @@
+import { GeneratedType } from '@cosmjs/proto-signing';
+import { AminoConverters } from '@cosmjs/stargate';
+import { Chain } from '@initia/initia-registry-types';
+import { WidgetConfig, WidgetWallet, WidgetTheme, BridgeOptions, UserAgreementConfig } from '@initia/utils';
+export declare let chainId: string | undefined;
+export declare let customLayer: Chain | undefined;
+export declare let protoTypes: Iterable<[string, GeneratedType]> | undefined;
+export declare let aminoConverters: AminoConverters | undefined;
+export declare let useKeplrAsDirectSigner: boolean;
+export declare let additionalWallets: WidgetWallet[];
+export declare let filterWallet: ((type: WidgetWallet) => boolean) | undefined;
+export declare let gasAdjustment: number;
+export declare let apiUrl: string;
+export declare let dexApiUrl: string;
+export declare let explorerUrl: string;
+export declare let registryUrl: string;
+export declare let swaplistUrl: string;
+export declare let errorsUrl: string;
+export declare let modules: {
+    usernames: string;
+    dex_utils: string;
+    swap_transfer: string;
+};
+export declare let theme: Exclude<WidgetTheme, "auto">;
+export declare let bridgeOptions: BridgeOptions;
+export declare let userAgreementConfig: UserAgreementConfig | undefined;
+export declare function updateConfig(config: WidgetConfig): void;

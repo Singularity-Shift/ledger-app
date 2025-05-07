@@ -1,0 +1,10 @@
+import { AminoMsg } from '@cosmjs/amino';
+import { EncodeObject } from '@cosmjs/proto-signing';
+export declare function summarizeMessage({ typeUrl, value }: EncodeObject): [string, string];
+export declare function summarizeAminoMessage({ type, value }: AminoMsg): [string, string];
+export declare function stringifyMessageValue(value: unknown): string;
+export declare function stringifyBcsArgs(value: string[], types: string[]): {
+    type: string;
+    encoded: string;
+    decoded: string;
+}[];

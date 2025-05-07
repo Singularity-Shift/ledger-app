@@ -31,12 +31,11 @@ const DOTENV_SCHEMA = Joi.object({
     expiredTime: Joi.string().default('31d'),
   }),
   serverAccount: Joi.object({
-    key: Joi.string().optional().default(''),
+    key: Joi.string().default('').optional(),
   })
-    .optional()
     .default({
       key: '',
-    }),
+    }).optional(), 
   ledgerApp: {
     url: Joi.string().default('http://localhost:5173'),
   },

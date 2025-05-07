@@ -1,0 +1,5 @@
+export declare enum NetworkType {
+    TESTNET = "testnet",
+    MAINNET = "mainnet"
+}
+export declare function getNetworkType(): NetworkType;

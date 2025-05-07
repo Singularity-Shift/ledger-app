@@ -1,0 +1,17 @@
+import { SvelteComponentTyped } from "svelte";
+declare const __propDef: {
+    props: {
+        size?: number | undefined;
+        color?: string | undefined;
+    };
+    events: {
+        [evt: string]: CustomEvent<any>;
+    };
+    slots: {};
+};
+export type BackProps = typeof __propDef.props;
+export type BackEvents = typeof __propDef.events;
+export type BackSlots = typeof __propDef.slots;
+export default class Back extends SvelteComponentTyped<BackProps, BackEvents, BackSlots> {
+}
+export {};

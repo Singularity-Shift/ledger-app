@@ -1,0 +1,18 @@
+import { Asset, Chain } from '@initia/initia-registry-types';
+import { SwaplistItem } from '@initia/utils';
+export default class Layer1 {
+    #private;
+    private static initialized;
+    static get assets(): Asset[];
+    static initialize(): Promise<void>;
+    static getSwaplistMap(): Promise<Map<string, SwaplistItem>>;
+    static getSpotPriceBasedINITQuery(askDenomL2: string, layer: Chain): import('@tanstack/svelte-query').CreateQueryResult<string | 1 | null, Error>;
+    private static findLpToken;
+    private static get rest();
+    private static get dexApi();
+    static pricesQuery(denoms: string[]): import('@tanstack/svelte-query').CreateQueryResult<{
+        [denom: string]: number;
+    }, Error>;
+    static usernameQuery(address: string): import('@tanstack/svelte-query').CreateQueryResult<string | null, Error>;
+    static addressFromUsernameQuery(username: string): import('@tanstack/svelte-query').CreateQueryResult<string | null, Error>;
+}

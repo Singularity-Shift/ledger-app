@@ -1,0 +1,29 @@
+import { Eip1193Provider, SignatureLike, ethers } from 'ethers';
+import { AdditionalWallet } from '@initia/utils';
+export interface EthereumUtils {
+    get ethereum(): Eip1193Provider | null;
+    getSigner(): Promise<ethers.Signer>;
+    personalSign(message: string | Uint8Array): Promise<string>;
+    getEthereumAddress(): Promise<string>;
+    verifyMessage(message: string | Uint8Array, sig: SignatureLike): Promise<boolean>;
+    fetchPublicKey(): Promise<Uint8Array>;
+    disconnect(): Promise<void>;
+}
+export default class EthereumWalletUtils implements EthereumUtils {
+    provider: Eip1193Provider | AdditionalWallet | null;
+    constructor(provider: Eip1193Provider | AdditionalWallet | null);
+    get ethereum(): Eip1193Provider | null;
+    getSigner(): Promise<ethers.Signer>;
+    personalSign(message: string | Uint8Array): Promise<string>;
+    private static signatureRequests;
+    personalSignWithCache(message: string | Uint8Array): Promise<string>;
+    private addressCache;
+    private get address();
+    private set address(value);
+    getEthereumAddress(): Promise<string>;
+    getCosmosAddress(): Promise<string>;
+    verifyMessage(message: string | Uint8Array, sig: SignatureLike): Promise<boolean>;
+    fetchPublicKey(): Promise<Uint8Array>;
+    disconnect(): Promise<void>;
+    recoverPublicKey(message: string, signature: string): Uint8Array;
+}

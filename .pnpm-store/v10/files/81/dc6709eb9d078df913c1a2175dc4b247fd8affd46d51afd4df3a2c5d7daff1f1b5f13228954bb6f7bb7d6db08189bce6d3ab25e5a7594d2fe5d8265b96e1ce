@@ -1,0 +1,26 @@
+"use client";
+import { jsx as i, Fragment as a } from "react/jsx-runtime";
+import { useState as l, useEffect as u } from "react";
+import d from "@initia/wallet-widget";
+import { c } from "./constants-TmMc7R58.js";
+import { M as v, T as N, l as S, a as y, u as z } from "./constants-TmMc7R58.js";
+const { Provider: f } = c;
+function x({ children: r, fallback: n = null, ...e }) {
+  const [t, o] = l(null);
+  return u(() => {
+    if (t || typeof window > "u") return;
+    (async () => {
+      const s = await d(e);
+      o(s);
+    })();
+  }, [e, t]), t ? /* @__PURE__ */ i(f, { value: t, children: r }) : /* @__PURE__ */ i(a, { children: n });
+}
+export {
+  v as MAINNET,
+  N as TESTNET,
+  x as WalletWidgetProvider,
+  c as context,
+  S as loadScript,
+  y as useAddress,
+  z as useWallet
+};

@@ -1,0 +1,15 @@
+import { TransactionRequest } from 'ethers';
+import { RequestTxOptions, TxBodyValue } from '@initia/utils';
+import { Msg } from '@initia/initia.js';
+export declare function estimateTx(txBodyValue: TxBodyValue, chainId?: string): Promise<number>;
+export declare function estimateEthereumTx(transactionData: TransactionRequest, chainId?: string): Promise<bigint>;
+export declare function estimateInitiaTx({ msgs, memo }: {
+    msgs: Msg[];
+    memo?: string;
+}, chainId?: string): Promise<number>;
+export declare function requestTx(txBodyValue: TxBodyValue, options?: RequestTxOptions): Promise<string>;
+export declare function requestEthereumTx(transactionData: TransactionRequest, options?: RequestTxOptions): Promise<string>;
+export declare function requestInitiaTx({ msgs, memo }: {
+    msgs: Msg[];
+    memo?: string;
+}, options?: RequestTxOptions): Promise<string>;

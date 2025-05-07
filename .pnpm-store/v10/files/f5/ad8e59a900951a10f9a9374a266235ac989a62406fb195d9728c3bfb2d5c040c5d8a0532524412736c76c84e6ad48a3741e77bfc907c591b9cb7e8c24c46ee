@@ -1,0 +1,22 @@
+import { SwaplistItem } from './swap';
+export default function createSwapResolver(swapPair: Map<string, SwaplistItem>, intermediaryDenoms?: string[]): (offerDenom: string, askDenom: string) => {
+    mode: "send";
+    path: never[];
+    lpTokens: never[];
+    type?: undefined;
+} | {
+    mode: "direct";
+    type: "dex" | "stableswap";
+    path: string[];
+    lpTokens: string[];
+} | {
+    path: string[];
+    lpTokens: string[];
+    mode: "route";
+    type?: undefined;
+} | {
+    mode: "unsupported";
+    path: never[];
+    lpTokens: never[];
+    type?: undefined;
+};
