@@ -31,6 +31,7 @@ import { APT_DECIMALS, LEDGER_COIN_TYPE } from "@/utils/helpers";
 import { MintStepsModal, MintStep } from "@/components/MintStepsModal";
 import { processMintWithSteps } from "@/utils/irys";
 import { moderateImage } from "@/utils/imageModeration";
+import { useAuth } from "@/contexts/AuthProvider";
 
 // Time formatting utility
 const formatTimeToHMS = (seconds: number): string => {
@@ -65,6 +66,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const { client } = useWalletClient();
   const { abi, ledgeABI } = useAbiClient();
   const { hasSubscription } = useAppManagement();
+  const { jwt } = useAuth();
   const [showMintStepsModal, setShowMintStepsModal] = useState(false);
   const [mintSteps, setMintSteps] = useState<MintStep[]>([]);
   const [currentStepId, setCurrentStepId] = useState<string>("");
@@ -152,7 +154,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             });
           };
           const imageDataUrl = await fileToDataUrl(drawnImage);
-          const isFlagged = await moderateImage(imageDataUrl);
+          const isFlagged = await moderateImage(imageDataUrl, jwt);
           if (isFlagged) {
             toast({
               variant: "destructive",

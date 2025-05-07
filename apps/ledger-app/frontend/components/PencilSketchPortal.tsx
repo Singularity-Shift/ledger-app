@@ -706,7 +706,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         let isFlagged = true;
         try {
           const imageDataUrl = await fileToDataUrl(file);
-          isFlagged = await moderateImage(imageDataUrl);
+          isFlagged = await moderateImage(imageDataUrl, jwt);
         } catch (moderationError) {
           console.error("Error during image moderation:", moderationError);
           toast({
@@ -785,7 +785,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         let isFlagged = true; // Default to flagged to be safe
         try {
           const imageDataUrl = await fileToDataUrl(exportResult.file);
-          isFlagged = await moderateImage(imageDataUrl);
+          isFlagged = await moderateImage(imageDataUrl, jwt);
         } catch (moderationError) {
           console.error("Error during image moderation:", moderationError);
           toast({
@@ -1038,9 +1038,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
             <h2 className="text-lg font-semibold">Sketch Your Page</h2>
             <div className="flex items-center gap-3">
               {/* Pixel count indicator to the left of the timer */}
-              {(!hasMinimumPixels && !autoImageUrl) && (
+              {!hasMinimumPixels && !autoImageUrl && (
                 <span className="text-sm text-red-500 font-medium">
-                  Please draw more. Currently {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()} required pixels.
+                  Please draw more. Currently {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()}{" "}
+                  required pixels.
                 </span>
               )}
               <DrawingTimer elapsedTime={elapsedTime} />
