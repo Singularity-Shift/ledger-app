@@ -119,7 +119,7 @@ module ledge_addr::autocomplete {
     public fun get_autocomplete_payment(account: address): bool acquires AutocompleteGenerated {
         let autocomplete_generated = borrow_global<AutocompleteGenerated>(@ledge_addr);
 
-        *smart_table::borrow(&autocomplete_generated.payments, account)
+        *smart_table::borrow_with_default(&autocomplete_generated.payments, account, &false)
     }
 
     #[view]

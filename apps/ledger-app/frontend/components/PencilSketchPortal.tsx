@@ -538,9 +538,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         const imgResponse = await fetch(imageUrl);
         const imgBlob = await imgResponse.blob();
 
+        const idResult = await abi?.useABI(ledgeABI).view.get_nft_minted({
+          typeArguments: [],
+          functionArguments: [COLLECTION_ADDRESS],
+        });
+        const id = parseInt(idResult?.[0] || "0") + 1;
+
         // Resize to 1000x1000 if needed
         const resizedBlob = await resizeImageBlob(imgBlob, 1000, 1000);
-        const processedFile = new File([resizedBlob], "auto-image.png", { type: "image/png" });
+        const processedFile = new File([resizedBlob], `${id}.pngp`, { type: "image/png" });
 
         // Cache the processed file
         setProcessedAutoImage(processedFile);
