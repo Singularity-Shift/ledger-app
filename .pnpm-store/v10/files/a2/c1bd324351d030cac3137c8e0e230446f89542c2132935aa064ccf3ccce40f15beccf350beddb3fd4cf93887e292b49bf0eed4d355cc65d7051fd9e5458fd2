@@ -1,2 +1,0 @@
-export declare function signArbitrary(data: string | Uint8Array): Promise<string>;
-export declare function verifyArbitrary(data: string | Uint8Array, signature: string): Promise<boolean>;

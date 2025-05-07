@@ -1,3 +1,0 @@
-import { RouteParams, SkipRouteResponse } from '../types';
-import { SkipOptions } from '../queries/skip';
-export declare function getLzMessage(route: RouteParams, options?: SkipOptions): Promise<SkipRouteResponse>;

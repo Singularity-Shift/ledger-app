@@ -1,6 +1,0 @@
-declare function createInitiaDexUtilsClient(rest: string, moduleAddress: string): {
-    rest: string;
-    getSwapSimulation: (offerToken: string, lpToken: string) => (amount: string) => Promise<[string, string]>;
-    getRouteSwapSimulation: (offerToken: string, lpTokens: [string, string]) => (amount: string) => Promise<[string, string]>;
-};
-export default createInitiaDexUtilsClient;

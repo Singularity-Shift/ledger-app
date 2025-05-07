@@ -1,4 +1,0 @@
-import { GeneratedType, Registry } from '@cosmjs/proto-signing';
-export declare const initiaRegistryTypes: ReadonlyArray<[string, GeneratedType]>;
-export declare const registryTypes: [string, GeneratedType][];
-export declare function createRegistry(protoTypes?: Iterable<[string, GeneratedType]>): Registry;

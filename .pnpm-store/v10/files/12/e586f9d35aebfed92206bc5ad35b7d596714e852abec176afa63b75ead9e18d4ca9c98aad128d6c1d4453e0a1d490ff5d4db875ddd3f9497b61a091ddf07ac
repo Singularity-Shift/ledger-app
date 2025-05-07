@@ -1,3 +1,0 @@
-import { ReactWalletWidget } from './types';
-export declare function useWallet(): ReactWalletWidget;
-export declare function useAddress(): string;

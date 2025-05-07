@@ -1,4 +1,0 @@
-import { Interface } from 'ethers';
-export declare const wrap: Interface;
-export declare const erc20: Interface;
-export declare const gofast: Interface;

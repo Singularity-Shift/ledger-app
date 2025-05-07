@@ -1,1 +1,0 @@
-export declare function isUsernameValid(username?: string): username is string;

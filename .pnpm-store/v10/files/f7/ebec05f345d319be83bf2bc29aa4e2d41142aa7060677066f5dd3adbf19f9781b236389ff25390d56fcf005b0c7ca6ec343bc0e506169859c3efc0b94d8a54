@@ -1,7 +1,0 @@
-import { Eip1193Provider } from 'ethers';
-/**
- * Select the correct EVM network on the connected EIP1193 provider
- * @param provider The connected EIP1193 provider
- * @param requestedChainId  The chainId you want to switch the provider to
- */
-export declare function ensureEvmNetwork(provider: Eip1193Provider, requestedChainId: number): Promise<void>;

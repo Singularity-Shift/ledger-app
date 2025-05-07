@@ -1,8 +1,0 @@
-import { Coin } from '@cosmjs/stargate';
-import { Chain } from '@initia/initia-registry-types';
-import { Erc20Allowance } from '../../lib/bridge-sdk';
-export declare function getAssetlistQuery(layer?: Chain): import('@tanstack/svelte-query').CreateQueryResult<import('@initia/initia-registry-types').Asset[], Error>;
-export declare function getBalancesQuery(address: string, chainId?: string): import('@tanstack/svelte-query').CreateQueryResult<Coin[], Error>;
-export declare function getAllowancesQueries(address: string, chainId: string, allowances: Erc20Allowance[]): import('svelte/store').Readable<import('@tanstack/svelte-query').QueryObserverResult<import('../../lib/bridge-sdk').AllowanceResult | null, Error>[]>;
-export declare function getOpWithdrawalTimeQuery(chainId?: string): import('@tanstack/svelte-query').CreateQueryResult<string | null, Error>;
-export declare function getTokenContract(denom: string, chainId: string): Promise<string>;

@@ -1,7 +1,0 @@
-import BaseAptosToken from './token';
-import { ConstructableWebToken, type TokenConfigTrimmed } from '@irys/web-upload/builder';
-export declare class AptosToken extends BaseAptosToken {
-    constructor(config: TokenConfigTrimmed);
-}
-export declare const WebAptos: ConstructableWebToken;
-export default WebAptos;

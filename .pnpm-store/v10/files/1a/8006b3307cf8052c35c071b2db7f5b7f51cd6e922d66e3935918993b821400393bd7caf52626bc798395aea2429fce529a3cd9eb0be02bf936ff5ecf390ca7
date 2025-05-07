@@ -1,7 +1,0 @@
-import { PropsWithChildren, ReactNode } from 'react';
-import { WidgetConfig } from '@initia/utils';
-interface Props extends WidgetConfig {
-    fallback?: ReactNode;
-}
-declare function WalletWidgetProvider({ children, fallback, ...config }: PropsWithChildren<Props>): import("react/jsx-runtime").JSX.Element;
-export default WalletWidgetProvider;

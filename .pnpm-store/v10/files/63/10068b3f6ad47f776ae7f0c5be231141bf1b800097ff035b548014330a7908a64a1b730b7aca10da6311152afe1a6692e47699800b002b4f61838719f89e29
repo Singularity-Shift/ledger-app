@@ -1,2 +1,0 @@
-export declare function encode(input: unknown): string;
-export declare function decode<T>(input: string): T;

@@ -1,2 +1,0 @@
-import { AminoConverters, AminoTypes } from '@cosmjs/stargate';
-export declare function createAminoTypes(aminoConverters?: AminoConverters): AminoTypes;

@@ -1,4 +1,0 @@
-import { Registry } from '@cosmjs/proto-signing';
-export declare function generateExtraRegistry(chainId: string): {
-    registry: Registry;
-} | undefined;

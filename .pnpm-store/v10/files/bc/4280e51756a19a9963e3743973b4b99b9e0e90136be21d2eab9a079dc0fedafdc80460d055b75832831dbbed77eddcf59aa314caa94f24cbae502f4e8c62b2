@@ -1,8 +1,0 @@
-import { NetworkType } from '../env';
-export interface EvmChainType {
-    id: number;
-    token: string;
-    label: string;
-    rpcUrl: string;
-}
-export declare const EVM_CHAINS: Record<NetworkType, EvmChainType[]>;

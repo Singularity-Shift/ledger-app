@@ -1,7 +1,0 @@
-import { EncodeObject } from '@initia/utils';
-import { SkipMsg } from '../types';
-/**
- * Parse the message received from the Skip API into an EncodeObject that can be broadcasted using cosmjs
- * @param skipMsg The message that you want to parse
- */
-export declare function parseCosmosMsg(skipMsg: SkipMsg): EncodeObject;

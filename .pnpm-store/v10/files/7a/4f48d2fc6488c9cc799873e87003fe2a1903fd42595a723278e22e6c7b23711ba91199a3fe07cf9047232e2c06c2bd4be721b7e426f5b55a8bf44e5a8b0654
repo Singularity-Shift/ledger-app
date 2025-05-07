@@ -1,1 +1,0 @@
-export declare const COSMOS_GAS_ADJUSTMENT = 1.4;

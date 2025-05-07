@@ -1,3 +1,0 @@
-import { WidgetWallet } from '@initia/utils';
-export declare function connectWallet(wallet: WidgetWallet | null): Promise<void>;
-export declare function disconnectWallet(): Promise<void>;

@@ -1,8 +1,0 @@
-interface Asset {
-    address: string;
-    symbol: string;
-    decimals: number;
-    image?: string;
-}
-export default function addAssetToWallet(asset: Asset): Promise<void>;
-export {};

@@ -1,7 +1,0 @@
-import { Coin } from '@cosmjs/stargate';
-/**
- * Query the balance of a given address on a given Cosmos chain
- * @param chainId The chain-id of the chain you want to get the balances
- * @param address The address
- */
-export declare function getCosmosBalances(chainId: string, address?: string): Promise<Coin[]>;

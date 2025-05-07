@@ -1,1 +1,0 @@
-export declare function truncate(text?: string, [h, t]?: [number, number]): string;

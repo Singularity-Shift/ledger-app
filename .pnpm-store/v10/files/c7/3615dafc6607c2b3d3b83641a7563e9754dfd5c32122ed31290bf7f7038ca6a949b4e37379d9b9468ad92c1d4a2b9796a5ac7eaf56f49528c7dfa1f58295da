@@ -1,8 +1,0 @@
-declare function createInitiaStableswapClient(rest: string): {
-    rest: string;
-    getPool: (liquidityToken: string) => Promise<{
-        swap_fee_rate: string;
-    }>;
-    getSwapSimulation: (offerToken: string, askToken: string, lpToken: string) => (amount: string) => Promise<string>;
-};
-export default createInitiaStableswapClient;
