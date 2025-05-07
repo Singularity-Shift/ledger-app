@@ -20,7 +20,7 @@ export const Profiles = {
       apiKey: process.env.OPENAI_API_KEY,
     },
     serverAccount: {
-      key: process.env.PRIVATE_KEY_SERVER,
+      key: process.env.PRIVATE_KEY_SERVER || 'SECRET_KEY',
     },
     storage: {
       project_id: process.env.PROJECT_ID,
@@ -49,7 +49,7 @@ export const Profiles = {
     },
     storage: {
       project_id: process.env.PROJECT_ID,
-      storageCredentials: process.env.STORAGE_CREDENTIALS,
+      storageCredentials: process.env.STORAGE_CREDENTIALS || 'SECRET_KEY',
     },
     devMode: process.env.VITE_DEV_MODE || false,
   },

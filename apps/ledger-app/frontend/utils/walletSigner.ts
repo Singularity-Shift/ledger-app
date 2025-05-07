@@ -38,7 +38,12 @@ abstract class BaseSigner {
 
 export class WalletSigner extends BaseSigner {
   constructor(account: Account, network: Network = Network.DEVNET) {
-    const config = new AptosConfig({ network });
+    const config = new AptosConfig({
+      network,
+      clientConfig: {
+        API_KEY: import.meta.env.VITE_APTOS_API_KEY,
+      },
+    });
     const aptos = new Aptos(config);
     super(account, aptos);
   }

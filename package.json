@@ -1,13 +1,13 @@
 {
-    "private": true,
-    "scripts": {
-      "build": "turbo run build",
-      "dev": "turbo run dev",
-      "prod": "turbo run prod",
-      "lint": "turbo run lint"
-    },
-    "devDependencies": {
-      "turbo": "latest"
-    },
-    "packageManager": "pnpm@10.7.1"
-  }
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "prod": "turbo run prod",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "turbo": "latest"
+  },
+  "packageManager": "pnpm@10.10.0"
+}

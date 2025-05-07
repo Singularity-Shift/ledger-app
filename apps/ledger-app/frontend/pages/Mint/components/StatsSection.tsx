@@ -20,39 +20,16 @@ export const StatsSection: React.FC<StatsSectionProps> = () => {
     const result = await aptos.queryIndexer<any>({
       query: {
         query: `query GetMarketRevenue{
-          account_transactions(
-            order_by: {coin_activities_aggregate: {variance: {block_height: desc}}}
-            where: {_and: {coin_activities: {owner_address: {_eq: "0x3212ed354e3d5b17ed6e3f7e8fb3066325b54be80d61d0d5d01dbc23d95f34d5"}, entry_function_id_str: {_eq: "0x7ccf0e6e871977c354c331aa0fccdffb562d9fceb27e3d7f61f8e12e470358e9::aggregator::purchase_many"}, activity_type: {_eq: "0x1::coin::DepositEvent"}}}}
-          ) {
             coin_activities(
-              order_by: {transaction_timestamp: desc}
-              where: {_and: {entry_function_id_str: {_eq: "0x7ccf0e6e871977c354c331aa0fccdffb562d9fceb27e3d7f61f8e12e470358e9::aggregator::purchase_many"}, owner_address: {_eq: "0x3212ed354e3d5b17ed6e3f7e8fb3066325b54be80d61d0d5d01dbc23d95f34d5"}, activity_type: {_eq: "0x1::coin::DepositEvent"}}}
+              where: {_and: {entry_function_id_str: {_eq: "0x7ccf0e6e871977c354c331aa0fccdffb562d9fceb27e3d7f61f8e12e470358e9::aggregator::purchase_many"}, activity_type: {_eq: "0x1::coin::DepositEvent"}, owner_address: {_eq: "0x3212ed354e3d5b17ed6e3f7e8fb3066325b54be80d61d0d5d01dbc23d95f34d5"}}}
             ) {
               amount
-              activity_type
-              coin_type
-              owner_address
-              transaction_timestamp
-              transaction_version
-              entry_function_id_str
             }
-          }
         }`,
       },
     });
 
-    const uniqueTransactions = Array.from(
-      new Map(
-        result.account_transactions.map((transaction: any) => [
-          transaction.coin_activities[0]?.transaction_version,
-          transaction,
-        ]),
-      ).values(),
-    );
-
-    const amount = uniqueTransactions
-      .flatMap((t: any) => t.coin_activities)
-      .reduce((acc: number, curr: any) => acc + curr.amount, 0);
+    const amount = result.coin_activities?.reduce((acc: number, curr: any) => acc + curr.amount, 0);
 
     setMarketVolume(convertAmountFromOnChainToHumanReadable(amount, 8));
   }, [aptos]);

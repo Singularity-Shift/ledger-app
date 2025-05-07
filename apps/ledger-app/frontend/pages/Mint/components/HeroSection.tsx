@@ -30,6 +30,8 @@ import { InsufficientBalanceModal } from "@/pages/Mint/components/InsufficientBa
 import { APT_DECIMALS, LEDGER_COIN_TYPE } from "@/utils/helpers";
 import { MintStepsModal, MintStep } from "@/components/MintStepsModal";
 import { processMintWithSteps } from "@/utils/irys";
+import { moderateImage } from "@/utils/imageModeration";
+import { useAuth } from "@/contexts/AuthProvider";
 
 // Time formatting utility
 const formatTimeToHMS = (seconds: number): string => {
@@ -64,6 +66,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
   const { client } = useWalletClient();
   const { abi, ledgeABI } = useAbiClient();
   const { hasSubscription } = useAppManagement();
+  const { jwt } = useAuth();
   const [showMintStepsModal, setShowMintStepsModal] = useState(false);
   const [mintSteps, setMintSteps] = useState<MintStep[]>([]);
   const [currentStepId, setCurrentStepId] = useState<string>("");
@@ -136,6 +139,42 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
         setSecurityToken(null);
         setShowMintStepsModal(false);
         return;
+      }
+
+      // Moderation: Only run if NOT auto-generated
+      if (!usedAutoComplete && drawnImage) {
+        try {
+          // Convert File to Data URL
+          const fileToDataUrl = (file: File): Promise<string> => {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+          };
+          const imageDataUrl = await fileToDataUrl(drawnImage);
+          const isFlagged = await moderateImage(imageDataUrl, jwt);
+          if (isFlagged) {
+            toast({
+              variant: "destructive",
+              title: "Moderation Failed",
+              description: "The image was flagged as potentially harmful and cannot be minted.",
+            });
+            setIsMinting(false);
+            setShowMintStepsModal(false);
+            return;
+          }
+        } catch (moderationError) {
+          toast({
+            variant: "destructive",
+            title: "Moderation Error",
+            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
+          });
+          setIsMinting(false);
+          setShowMintStepsModal(false);
+          return;
+        }
       }
 
       const jsonData = {
