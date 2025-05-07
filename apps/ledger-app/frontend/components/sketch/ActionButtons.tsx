@@ -56,11 +56,6 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           will-change: transform;
         }
       `}</style>
-      {disabled && requiredPixels > 0 && (
-        <div className="text-sm text-red-500 font-medium mb-1">
-          {validationTooltip}
-        </div>
-      )}
       <div className="flex justify-end gap-1 mt-2">
         <Button variant="outline" size="sm" onClick={handleUndo} className="min-w-[50px] h-8 text-xs">
           Undo

@@ -1036,7 +1036,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         <div className="p-1 sm:p-2 bg-gray-100 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold">Sketch Your Page</h2>
-            <DrawingTimer elapsedTime={elapsedTime} />
+            <div className="flex items-center gap-3">
+              {/* Pixel count indicator to the left of the timer */}
+              {(!hasMinimumPixels && !autoImageUrl) && (
+                <span className="text-sm text-red-500 font-medium">
+                  Please draw more. Currently {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()} required pixels.
+                </span>
+              )}
+              <DrawingTimer elapsedTime={elapsedTime} />
+            </div>
           </div>
         </div>
 
