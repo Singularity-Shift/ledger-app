@@ -694,40 +694,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           file = new File([resizedBlob], `${id}.png`, { type: "image/png" });
         }
 
-        // Moderation step (reuse existing logic)
-        const fileToDataUrl = (file: File): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        };
-        let isFlagged = true;
-        try {
-          const imageDataUrl = await fileToDataUrl(file);
-          isFlagged = await moderateImage(imageDataUrl, jwt);
-        } catch (moderationError) {
-          console.error("Error during image moderation:", moderationError);
-          toast({
-            variant: "destructive",
-            title: "Moderation Error",
-            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
-          });
-          setIsSubmitting(false); // Reset submitting state
-          return;
-        }
-        if (isFlagged) {
-          console.warn("Image failed moderation check.");
-          toast({
-            variant: "destructive",
-            title: "Moderation Failed",
-            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
-          });
-          setIsSubmitting(false); // Reset submitting state
-          return;
-        }
-        moderationPassed = true;
+        // Moderation is skipped for auto-generated images
         const securityToken = getSecurityToken();
 
         if (!onSubmit) {
@@ -1040,8 +1007,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               {/* Pixel count indicator to the left of the timer */}
               {!hasMinimumPixels && !autoImageUrl && (
                 <span className="text-sm text-red-500 font-medium">
-                  Please draw more. Currently {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()}{" "}
-                  required pixels.
+                  {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()} required pixels.
                 </span>
               )}
               <DrawingTimer elapsedTime={elapsedTime} />
