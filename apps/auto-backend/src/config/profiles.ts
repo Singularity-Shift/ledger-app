@@ -45,11 +45,11 @@ export const Profiles = {
       apiKey: process.env.OPENAI_API_KEY,
     },
     serverAccount: {
-      key: process.env.PRIVATE_KEY_SERVER,
+      key: process.env.PRIVATE_KEY_SERVER || 'SECRET_KEY',
     },
     storage: {
       project_id: process.env.PROJECT_ID,
-      storageCredentials: process.env.STORAGE_CREDENTIALS || 'SECRET_KEY',
+      storageCredentials: process.env.STORAGE_CREDENTIALS,
     },
     devMode: process.env.VITE_DEV_MODE || false,
   },

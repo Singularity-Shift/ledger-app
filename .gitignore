@@ -27,6 +27,7 @@ pnpm-lock.yaml
 *.sw?
 *.turbo
 *.pnpm-store
+.pnpm-store
 # template related files
 example-collection/
 
