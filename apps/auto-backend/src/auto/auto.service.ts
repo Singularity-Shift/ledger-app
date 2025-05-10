@@ -110,9 +110,25 @@ export class AutoService {
     }
   }
 
-  async generate(files: ImageMap): Promise<string> {
+  async generate(files: ImageMap, promptType: string): Promise<string> {
     this.logger.log('Starting image generation...');
     try {
+      // Load the correct prompt file based on promptType
+      let promptFile = 'auto-backend-prompt.json';
+      if (promptType === 'cubism') {
+        promptFile = 'auto-backend-cubism.json';
+      } else if (promptType === 'oil') {
+        promptFile = 'auto-backend-oil.json';
+      } else if (promptType === 'graffiti') {
+        promptFile = 'auto-backend-graffiti.json';
+      }
+      const promptPath = path.resolve(process.cwd(), promptFile);
+      let promptText = this.PROMPT;
+      if (fs.existsSync(promptPath)) {
+        const promptConfig: PromptConfig = JSON.parse(fs.readFileSync(promptPath, 'utf8'));
+        promptText = promptConfig.prompt;
+      }
+
       // Convert all buffer files to OpenAI compatible file objects
       const imageFiles = [];
 
@@ -145,7 +161,7 @@ export class AutoService {
       const rsp = await this.openai.images.edit({
         model: 'gpt-image-1',
         image: imageFiles, // Pass array of images instead of just one
-        prompt: this.PROMPT,
+        prompt: promptText,
         size: '1024x1024', // Always request a square image
       });
       this.logger.log('OpenAI call successful.');
