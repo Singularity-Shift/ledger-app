@@ -705,6 +705,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           file = new File([resizedBlob], `${id}.png`, { type: "image/png" });
         }
 
+        // Moderation is skipped for auto-generated images
         const securityToken = getSecurityToken();
 
         if (!onSubmit) {
@@ -1019,8 +1020,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               {/* Pixel count indicator to the left of the timer */}
               {!hasMinimumPixels && !autoImageUrl && (
                 <span className="text-sm text-red-500 font-medium">
-                  Please draw more. Currently {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()}{" "}
-                  required pixels.
+                  {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()} required pixels.
                 </span>
               )}
               <DrawingTimer elapsedTime={elapsedTime} />
