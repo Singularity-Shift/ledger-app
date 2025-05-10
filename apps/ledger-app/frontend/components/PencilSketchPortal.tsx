@@ -425,6 +425,16 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Restore the Auto button click handler to check pixels and open payment modal
   const handleAutoButtonClick = useCallback(async () => {
+    if (!account?.address) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please connect to a wallet to use this feature.",
+      });
+
+      return;
+    }
+
     const hasAutocompleteResult = await abi?.useABI(autocompleteABI).view.get_autocomplete_payment({
       typeArguments: [],
       functionArguments: [account?.address.toString() as `0x${string}`],
@@ -514,7 +524,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       formData.append("paper", paperBlob, "paper.png");
       formData.append("sketch", sketchBlob, "sketch.png");
       if (subjectBlob) formData.append("subject", subjectBlob, "subject.png");
-      formData.append('promptType', promptChoice);
+      formData.append("promptType", promptChoice);
 
       const response = await fetch(`${import.meta.env.VITE_AUTO_BACKEND_URL}/auto`, {
         method: "POST",
@@ -695,40 +705,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           file = new File([resizedBlob], `${id}.png`, { type: "image/png" });
         }
 
-        // Moderation step (reuse existing logic)
-        const fileToDataUrl = (file: File): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        };
-        let isFlagged = true;
-        try {
-          const imageDataUrl = await fileToDataUrl(file);
-          isFlagged = await moderateImage(imageDataUrl, jwt);
-        } catch (moderationError) {
-          console.error("Error during image moderation:", moderationError);
-          toast({
-            variant: "destructive",
-            title: "Moderation Error",
-            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
-          });
-          setIsSubmitting(false); // Reset submitting state
-          return;
-        }
-        if (isFlagged) {
-          console.warn("Image failed moderation check.");
-          toast({
-            variant: "destructive",
-            title: "Moderation Failed",
-            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
-          });
-          setIsSubmitting(false); // Reset submitting state
-          return;
-        }
-        moderationPassed = true;
         const securityToken = getSecurityToken();
 
         if (!onSubmit) {
@@ -1006,7 +982,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode],
   );
 
-  const [promptChoice, setPromptChoice] = useState<'dev' | 'cubism' | 'oil' | 'graffiti'>('dev');
+  const [promptChoice, setPromptChoice] = useState<"dev" | "cubism" | "oil" | "graffiti">("dev");
 
   if (!isOpen) return null;
 
