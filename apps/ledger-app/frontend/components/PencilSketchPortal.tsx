@@ -457,6 +457,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Restore the Auto button click handler to check pixels and open payment modal
   const handleAutoButtonClick = useCallback(async () => {
+    if (!account?.address) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please connect to a wallet to use this feature.",
+      });
+      return;
+    }
+
     const hasAutocompleteResult = await abi?.useABI(autocompleteABI).view.get_autocomplete_payment({
       typeArguments: [],
       functionArguments: [account?.address.toString() as `0x${string}`],
