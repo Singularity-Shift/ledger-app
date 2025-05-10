@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
   UploadedFiles,
   UseInterceptors,
+  Body,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { AutoService } from './auto.service';
@@ -38,6 +39,7 @@ export class AutoController {
   )
   async handle(
     @UploadedFiles() files: Record<string, { buffer: Buffer }[]>,
+    @Body('promptType') promptType: string,
     @UserAuth() user: { address: `0x${string}` },
   ) {
     this.logger.log(`processing autocomplete for user: ${user.address}`);
@@ -73,7 +75,7 @@ export class AutoController {
       buffers.subject = files.subject[0].buffer;
     }
 
-    const imageUrl = await this.autoSvc.generate(buffers);
+    const imageUrl = await this.autoSvc.generate(buffers, promptType);
 
     if (!devMode) {
       const aptos = getAptosClient();

@@ -9,6 +9,8 @@ interface ColorSelectorProps {
   isDropperMode?: boolean;
   setIsDropperMode?: (active: boolean) => void;
   showAutoButton?: boolean;
+  promptChoice?: 'dev' | 'cubism' | 'oil' | 'graffiti';
+  setPromptChoice?: (c: 'dev' | 'cubism' | 'oil' | 'graffiti') => void;
 }
 
 export const ColorSelector: React.FC<ColorSelectorProps> = ({
@@ -19,6 +21,8 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
   isDropperMode,
   setIsDropperMode,
   showAutoButton = false,
+  promptChoice,
+  setPromptChoice,
 }) => {
   const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomColor(e.target.value);
@@ -49,8 +53,24 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
             <span role="img" aria-label="Dropper">🎨</span> {isDropperMode ? 'Dropper' : 'Pick'}
           </button>
         )}
-        {showAutoButton && (
-          <></>
+        {showAutoButton && setPromptChoice && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center ml-2">
+            <label className="text-xs font-medium mb-1 sm:mb-0 sm:mr-2" htmlFor="autocomplete-style-select">
+              Auto complete styles
+            </label>
+            <select
+              id="autocomplete-style-select"
+              value={promptChoice}
+              onChange={e => setPromptChoice(e.target.value as 'dev' | 'cubism' | 'oil' | 'graffiti')}
+              className="px-2 py-1 text-xs border rounded bg-white"
+              style={{ minWidth: 120, maxWidth: 180 }}
+            >
+              <option value="dev">Devs Original</option>
+              <option value="cubism">Auto Cubism</option>
+              <option value="oil">Auto Oil</option>
+              <option value="graffiti">Auto Graffiti</option>
+            </select>
+          </div>
         )}
         {isDropperMode && <span className="text-xs text-blue-600 ml-2">Click canvas to pick</span>}
       </div>

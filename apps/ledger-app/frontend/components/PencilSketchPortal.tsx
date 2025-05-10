@@ -425,6 +425,16 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Restore the Auto button click handler to check pixels and open payment modal
   const handleAutoButtonClick = useCallback(async () => {
+    if (!account?.address) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please connect to a wallet to use this feature.",
+      });
+
+      return;
+    }
+
     const hasAutocompleteResult = await abi?.useABI(autocompleteABI).view.get_autocomplete_payment({
       typeArguments: [],
       functionArguments: [account?.address.toString() as `0x${string}`],
@@ -514,6 +524,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       formData.append("paper", paperBlob, "paper.png");
       formData.append("sketch", sketchBlob, "sketch.png");
       if (subjectBlob) formData.append("subject", subjectBlob, "subject.png");
+      formData.append("promptType", promptChoice);
 
       const response = await fetch(`${import.meta.env.VITE_AUTO_BACKEND_URL}/auto`, {
         method: "POST",
@@ -972,6 +983,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode],
   );
 
+  const [promptChoice, setPromptChoice] = useState<"dev" | "cubism" | "oil" | "graffiti">("dev");
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -1105,6 +1118,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               isDropperMode={isDropperMode}
               setIsDropperMode={setIsDropperMode}
               showAutoButton={true}
+              promptChoice={promptChoice}
+              setPromptChoice={setPromptChoice}
             />
 
             {/* Stroke Width Control (Pencil Size) */}
