@@ -54,14 +54,16 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
           </button>
         )}
         {showAutoButton && setPromptChoice && (
-          <div className="flex flex-col items-start ml-2">
-            <label className="text-xs font-medium mb-1" htmlFor="autocomplete-style-select">Auto complete styles</label>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center ml-2">
+            <label className="text-xs font-medium mb-1 sm:mb-0 sm:mr-2" htmlFor="autocomplete-style-select">
+              Auto complete styles
+            </label>
             <select
               id="autocomplete-style-select"
               value={promptChoice}
               onChange={e => setPromptChoice(e.target.value as 'dev' | 'cubism' | 'oil' | 'graffiti')}
               className="px-2 py-1 text-xs border rounded bg-white"
-              style={{ minWidth: 120 }}
+              style={{ minWidth: 120, maxWidth: 180 }}
             >
               <option value="dev">Devs Original</option>
               <option value="cubism">Auto Cubism</option>
