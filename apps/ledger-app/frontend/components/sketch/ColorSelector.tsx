@@ -54,17 +54,21 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
           </button>
         )}
         {showAutoButton && setPromptChoice && (
-          <select
-            value={promptChoice}
-            onChange={e => setPromptChoice(e.target.value as 'dev' | 'cubism' | 'oil' | 'graffiti')}
-            className="px-2 py-1 text-xs border rounded bg-white ml-2"
-            style={{ minWidth: 90 }}
-          >
-            <option value="dev">Devs Original</option>
-            <option value="cubism">Auto Cubism</option>
-            <option value="oil">Auto Oil</option>
-            <option value="graffiti">Auto Graffiti</option>
-          </select>
+          <div className="flex flex-col items-start ml-2">
+            <label className="text-xs font-medium mb-1" htmlFor="autocomplete-style-select">Auto complete styles</label>
+            <select
+              id="autocomplete-style-select"
+              value={promptChoice}
+              onChange={e => setPromptChoice(e.target.value as 'dev' | 'cubism' | 'oil' | 'graffiti')}
+              className="px-2 py-1 text-xs border rounded bg-white"
+              style={{ minWidth: 120 }}
+            >
+              <option value="dev">Devs Original</option>
+              <option value="cubism">Auto Cubism</option>
+              <option value="oil">Auto Oil</option>
+              <option value="graffiti">Auto Graffiti</option>
+            </select>
+          </div>
         )}
         {isDropperMode && <span className="text-xs text-blue-600 ml-2">Click canvas to pick</span>}
       </div>
