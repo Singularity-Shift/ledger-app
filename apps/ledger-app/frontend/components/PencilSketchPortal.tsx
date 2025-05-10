@@ -90,6 +90,24 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const AUTO_FEATURE_COST = 5; // Cost in Ledger tokens
 
+  // Add state for undoing auto image
+  const [isUndoAutoModalOpen, setIsUndoAutoModalOpen] = useState(false);
+  const [preAutoSnapshot, setPreAutoSnapshot] = useState<null | {
+    drawingPaths: any[] | undefined;
+    traceImage: string | null;
+    tracingActive: boolean;
+    imagePosition: { x: number; y: number };
+    imageScale: number;
+    pencilConfig: {
+      color: string;
+      width: number;
+      gradeLabel: string;
+      isEraser: boolean;
+    };
+    elapsedTime: number;
+    drawingStartTime: number | undefined;
+  }>(null);
+
   // Note: Optimizations applied for AI image caching and loading indicators - 2024-05-05
 
   // Initialize timer hook
@@ -439,16 +457,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Restore the Auto button click handler to check pixels and open payment modal
   const handleAutoButtonClick = useCallback(async () => {
-    if (!account?.address) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please connect to a wallet to use this feature.",
-      });
-
-      return;
-    }
-
     const hasAutocompleteResult = await abi?.useABI(autocompleteABI).view.get_autocomplete_payment({
       typeArguments: [],
       functionArguments: [account?.address.toString() as `0x${string}`],
@@ -484,8 +492,6 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // ... keep handleAuto as the actual AI call, only called after payment ...
   const handleAuto = useCallback(async () => {
     if (isAutoProcessing) return;
-
-    // Don't allow running auto if we already have an auto image
     if (autoImageUrl) {
       toast({
         variant: "destructive",
@@ -494,10 +500,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       });
       return;
     }
-
-    // Check for minimum pixels before proceeding
     await checkMinimumPixelsDrawn();
-
     if (!hasMinimumPixels) {
       toast({
         variant: "default",
@@ -506,9 +509,29 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       });
       return;
     }
-
     setIsAutoProcessing(true);
-
+    // --- SNAPSHOT current state before applying auto image ---
+    try {
+      const paths = await sketchCanvasRef.current?.canvasRef.current?.exportPaths();
+      setPreAutoSnapshot({
+        drawingPaths: paths,
+        traceImage,
+        tracingActive,
+        imagePosition,
+        imageScale,
+        pencilConfig: {
+          color: baseColor,
+          width: strokeWidth,
+          gradeLabel: selectedGrade.label,
+          isEraser,
+        },
+        elapsedTime,
+        drawingStartTime,
+      });
+    } catch (e) {
+      // fallback: don't block auto
+      setPreAutoSnapshot(null);
+    }
     try {
       // 1. Pause save state loop (by flag)
       // (Assume saveCurrentState checks isAutoProcessing and skips if true)
@@ -538,7 +561,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       formData.append("paper", paperBlob, "paper.png");
       formData.append("sketch", sketchBlob, "sketch.png");
       if (subjectBlob) formData.append("subject", subjectBlob, "subject.png");
-      formData.append("promptType", promptChoice);
+      formData.append('promptType', promptChoice);
 
       const response = await fetch(`${import.meta.env.VITE_AUTO_BACKEND_URL}/auto`, {
         method: "POST",
@@ -719,7 +742,40 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           file = new File([resizedBlob], `${id}.png`, { type: "image/png" });
         }
 
-        // Moderation is skipped for auto-generated images
+        // Moderation step (reuse existing logic)
+        const fileToDataUrl = (file: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
+        let isFlagged = true;
+        try {
+          const imageDataUrl = await fileToDataUrl(file);
+          isFlagged = await moderateImage(imageDataUrl, jwt);
+        } catch (moderationError) {
+          console.error("Error during image moderation:", moderationError);
+          toast({
+            variant: "destructive",
+            title: "Moderation Error",
+            description: `Could not check image content. Please try again. ${moderationError instanceof Error ? moderationError.message : ""}`,
+          });
+          setIsSubmitting(false); // Reset submitting state
+          return;
+        }
+        if (isFlagged) {
+          console.warn("Image failed moderation check.");
+          toast({
+            variant: "destructive",
+            title: "Moderation Failed",
+            description: "The generated image was flagged as potentially harmful and cannot be submitted.",
+          });
+          setIsSubmitting(false); // Reset submitting state
+          return;
+        }
+        moderationPassed = true;
         const securityToken = getSecurityToken();
 
         if (!onSubmit) {
@@ -997,7 +1053,50 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode],
   );
 
-  const [promptChoice, setPromptChoice] = useState<"dev" | "cubism" | "oil" | "graffiti">("dev");
+  const [promptChoice, setPromptChoice] = useState<'dev' | 'cubism' | 'oil' | 'graffiti'>('dev');
+
+  // --- Add handler for confirming undo of auto image ---
+  const handleConfirmUndoAuto = useCallback(() => {
+    if (preAutoSnapshot && sketchCanvasRef.current?.canvasRef.current) {
+      // Restore drawing paths
+      try {
+        sketchCanvasRef.current.canvasRef.current.clearCanvas();
+        if (preAutoSnapshot.drawingPaths) {
+          sketchCanvasRef.current.canvasRef.current.loadPaths(preAutoSnapshot.drawingPaths);
+        }
+      } catch (e) {
+        // fallback: just clear
+        sketchCanvasRef.current.canvasRef.current.clearCanvas();
+      }
+      // Restore tracing state
+      setTraceImage(preAutoSnapshot.traceImage);
+      setTracingActive(preAutoSnapshot.tracingActive);
+      setImagePosition(preAutoSnapshot.imagePosition);
+      setImageScale(preAutoSnapshot.imageScale);
+      setBaseColor(preAutoSnapshot.pencilConfig.color);
+      setCustomColor(preAutoSnapshot.pencilConfig.color);
+      setStrokeWidth(preAutoSnapshot.pencilConfig.width);
+      setSelectedGrade(findGradeByLabel(preAutoSnapshot.pencilConfig.gradeLabel) ?? PENCIL_GRADES[10]);
+      setIsEraser(preAutoSnapshot.pencilConfig.isEraser);
+      setElapsedTime(preAutoSnapshot.elapsedTime);
+      // Don't restore drawingStartTime (keep current session)
+      setAutoImageUrl(null);
+      setProcessedAutoImage(null);
+      toast({
+        title: "AI Image Undone",
+        description: "Your original sketch and tracing reference have been restored.",
+      });
+    } else {
+      // fallback: just clear AI image
+      setAutoImageUrl(null);
+      setProcessedAutoImage(null);
+      toast({
+        title: "AI Image Undone",
+        description: "Your original sketch has been restored.",
+      });
+    }
+    setIsUndoAutoModalOpen(false);
+  }, [preAutoSnapshot, sketchCanvasRef, setTraceImage, setTracingActive, setImagePosition, setImageScale, setBaseColor, setCustomColor, setStrokeWidth, setSelectedGrade, setIsEraser, setElapsedTime, setAutoImageUrl, setProcessedAutoImage, toast]);
 
   if (!isOpen) return null;
 
