@@ -28,6 +28,16 @@ import { COLLECTION_ADDRESS } from "@/constants";
 // Import validation utilities
 import { countDrawnPixels, MIN_DRAWN_PIXELS } from "@/utils/validation";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
@@ -416,6 +426,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   }, [clearDrawingState, setIsRestored, toast]);
 
   const handleUndo = () => {
+    if (autoImageUrl) {
+      setIsUndoAutoModalOpen(true);
+      return;
+    }
     sketchCanvasRef.current?.canvasRef.current?.undo();
   };
 
@@ -988,160 +1002,180 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 overflow-y-auto">
-      {/* Payment Modal */}
-      <AutoPaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        onPaymentSuccess={handleAuto}
-        requiredAmount={AUTO_FEATURE_COST}
-      />
+    <>
+      <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 overflow-y-auto">
+        {/* Payment Modal */}
+        <AutoPaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onPaymentSuccess={handleAuto}
+          requiredAmount={AUTO_FEATURE_COST}
+        />
 
-      {/* Full-page spinner overlay for submission */}
-      {isSubmitting && (
+        {/* Full-page spinner overlay for submission */}
+        {isSubmitting && (
+          <div
+            className="absolute inset-0 bg-white/70 flex flex-col items-center justify-center z-50"
+            style={{ backdropFilter: "blur(2px)" }}
+          >
+            <Spinner size="lg" />
+            <p className="mt-4 font-medium text-gray-800">Submitting your artwork...</p>
+          </div>
+        )}
+
         <div
-          className="absolute inset-0 bg-white/70 flex flex-col items-center justify-center z-50"
-          style={{ backdropFilter: "blur(2px)" }}
+          ref={containerRef}
+          className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col my-1 sm:my-2 max-h-[98vh]"
         >
-          <Spinner size="lg" />
-          <p className="mt-4 font-medium text-gray-800">Submitting your artwork...</p>
-        </div>
-      )}
-
-      <div
-        ref={containerRef}
-        className="bg-white rounded-xl overflow-hidden w-11/12 max-w-4xl flex flex-col my-1 sm:my-2 max-h-[98vh]"
-      >
-        {/* Header */}
-        <div className="p-1 sm:p-2 bg-gray-100 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Sketch Your Page</h2>
-            <div className="flex items-center gap-3">
-              {/* Pixel count indicator to the left of the timer */}
-              {!hasMinimumPixels && !autoImageUrl && (
-                <span className="text-sm text-red-500 font-medium">
-                  {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()} required pixels.
-                </span>
-              )}
-              <DrawingTimer elapsedTime={elapsedTime} />
+          {/* Header */}
+          <div className="p-1 sm:p-2 bg-gray-100 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Sketch Your Page</h2>
+              <div className="flex items-center gap-3">
+                {/* Pixel count indicator to the left of the timer */}
+                {!hasMinimumPixels && !autoImageUrl && (
+                  <span className="text-sm text-red-500 font-medium">
+                    Please draw more. Currently {pixelCount.toLocaleString()} of {MIN_DRAWN_PIXELS.toLocaleString()} {" "}
+                    required pixels.
+                  </span>
+                )}
+                <DrawingTimer elapsedTime={elapsedTime} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Canvas Container */}
-        <div
-          className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50"
-          style={{ position: "relative" }}
-        >
-          {/* Spinner overlay when auto-processing */}
-          {isAutoProcessing && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                background: "rgba(255,255,255,0.7)",
-                zIndex: 20,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Spinner size="lg" />
-            </div>
-          )}
-          <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm">
-            <SketchCanvas
-              ref={sketchCanvasRef}
-              canvasSize={canvasSize}
-              strokeColor={strokeColor}
-              isEraser={isEraser}
-              isErasing={isErasing}
-              isAdjustMode={isAdjustMode}
-              tracingActive={tracingActive}
-              traceImage={traceImage}
-              imagePosition={imagePosition}
-              imageScale={imageScale}
-              cursorPosition={cursorPosition}
-              scaledStrokeWidth={scaledStrokeWidth}
-              setImagePosition={setImagePosition}
-              onPointerDown={isDropperMode ? handleDropperPick : handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              dropperMode={isDropperMode}
-              autoImageUrl={autoImageUrl}
-            />
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="p-1 sm:p-2 bg-gray-100 border-t border-gray-200 overflow-y-auto">
-          <div className="max-w-[500px] mx-auto space-y-1">
-            {/* Top Row - Mode Controls */}
-            <div className="grid grid-cols-2 gap-1">
-              {/* Draw/Adjust/Erase Toggle */}
-              <DrawingModeControls
+          {/* Canvas Container */}
+          <div
+            className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50"
+            style={{ position: "relative" }}
+          >
+            {/* Spinner overlay when auto-processing */}
+            {isAutoProcessing && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  background: "rgba(255,255,255,0.7)",
+                  zIndex: 20,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Spinner size="lg" />
+              </div>
+            )}
+            <div className="bg-white p-1 sm:p-2 md:p-4 rounded-lg shadow-sm">
+              <SketchCanvas
+                ref={sketchCanvasRef}
+                canvasSize={canvasSize}
+                strokeColor={strokeColor}
                 isEraser={isEraser}
+                isErasing={isErasing}
                 isAdjustMode={isAdjustMode}
                 tracingActive={tracingActive}
                 traceImage={traceImage}
-                setIsEraser={setIsEraser}
-                setIsAdjustMode={setIsAdjustMode}
-              />
-
-              {/* Trace Button */}
-              <TracingControls
-                traceImage={traceImage}
-                tracingActive={tracingActive}
+                imagePosition={imagePosition}
                 imageScale={imageScale}
-                isAdjustMode={isAdjustMode}
-                handleTraceButtonClick={handleTraceButtonClick}
-                handleToggleTracing={handleToggleTracing}
-                handleScaleIncrease={handleScaleIncrease}
-                handleScaleDecrease={handleScaleDecrease}
-                onImageSelect={handleImageSelect}
-                fileInputRef={sketchCanvasRef.current?.fileInputRef || { current: null }}
+                cursorPosition={cursorPosition}
+                scaledStrokeWidth={scaledStrokeWidth}
+                setImagePosition={setImagePosition}
+                onPointerDown={isDropperMode ? handleDropperPick : handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                dropperMode={isDropperMode}
+                autoImageUrl={autoImageUrl}
               />
             </div>
+          </div>
 
-            {/* Pencil Grade Selector - Moved Up */}
-            <PencilGradeSelector selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
+          {/* Controls */}
+          <div className="p-1 sm:p-2 bg-gray-100 border-t border-gray-200 overflow-y-auto">
+            <div className="max-w-[500px] mx-auto space-y-1">
+              {/* Top Row - Mode Controls */}
+              <div className="grid grid-cols-2 gap-1">
+                {/* Draw/Adjust/Erase Toggle */}
+                <DrawingModeControls
+                  isEraser={isEraser}
+                  isAdjustMode={isAdjustMode}
+                  tracingActive={tracingActive}
+                  traceImage={traceImage}
+                  setIsEraser={setIsEraser}
+                  setIsAdjustMode={setIsAdjustMode}
+                />
 
-            {/* Color Selector */}
-            <ColorSelector
-              baseColor={baseColor}
-              setBaseColor={setBaseColor}
-              customColor={customColor}
-              setCustomColor={setCustomColor}
-              isDropperMode={isDropperMode}
-              setIsDropperMode={setIsDropperMode}
-              showAutoButton={true}
-              promptChoice={promptChoice}
-              setPromptChoice={setPromptChoice}
-            />
+                {/* Trace Button */}
+                <TracingControls
+                  traceImage={traceImage}
+                  tracingActive={tracingActive}
+                  imageScale={imageScale}
+                  isAdjustMode={isAdjustMode}
+                  handleTraceButtonClick={handleTraceButtonClick}
+                  handleToggleTracing={handleToggleTracing}
+                  handleScaleIncrease={handleScaleIncrease}
+                  handleScaleDecrease={handleScaleDecrease}
+                  onImageSelect={handleImageSelect}
+                  fileInputRef={sketchCanvasRef.current?.fileInputRef || { current: null }}
+                />
+              </div>
 
-            {/* Stroke Width Control (Pencil Size) */}
-            <StrokeWidthControl strokeWidth={strokeWidth} setStrokeWidth={setStrokeWidth} />
+              {/* Pencil Grade Selector - Moved Up */}
+              <PencilGradeSelector selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
 
-            {/* Action Buttons */}
-            <ActionButtons
-              handleUndo={handleUndo}
-              handleRedo={handleRedo}
-              handleClear={handleClearUnified}
-              handleSubmit={handleSubmit}
-              handleAuto={handleAutoButtonClick}
-              onClose={onClose}
-              disabled={!hasMinimumPixels && !autoImageUrl}
-              pixelCount={pixelCount}
-              requiredPixels={MIN_DRAWN_PIXELS}
-              autoDisabled={!!autoImageUrl}
-            />
+              {/* Color Selector */}
+              <ColorSelector
+                baseColor={baseColor}
+                setBaseColor={setBaseColor}
+                customColor={customColor}
+                setCustomColor={setCustomColor}
+                isDropperMode={isDropperMode}
+                setIsDropperMode={setIsDropperMode}
+                showAutoButton={true}
+                promptChoice={promptChoice}
+                setPromptChoice={setPromptChoice}
+              />
+
+              {/* Stroke Width Control (Pencil Size) */}
+              <StrokeWidthControl strokeWidth={strokeWidth} setStrokeWidth={setStrokeWidth} />
+
+              {/* Action Buttons */}
+              <ActionButtons
+                handleUndo={handleUndo}
+                handleRedo={handleRedo}
+                handleClear={handleClearUnified}
+                handleSubmit={handleSubmit}
+                handleAuto={handleAutoButtonClick}
+                onClose={onClose}
+                disabled={!hasMinimumPixels && !autoImageUrl}
+                pixelCount={pixelCount}
+                requiredPixels={MIN_DRAWN_PIXELS}
+                autoDisabled={!!autoImageUrl}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>,
+      {/* AlertDialog for undoing auto image */}
+      {isUndoAutoModalOpen && (
+        <AlertDialog open={isUndoAutoModalOpen} onOpenChange={setIsUndoAutoModalOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Undo AI Image?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to undo the AI auto-complete? The AI-generated image you paid for will be lost, and your original sketch and tracing reference (if present) will be restored.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setIsUndoAutoModalOpen(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmUndoAuto}>Undo AI Image</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>,
     document.body,
   );
 };
