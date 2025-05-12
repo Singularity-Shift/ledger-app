@@ -1,8 +1,8 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas';
+import { Stage, Layer, Line as KonvaLine, Image as KonvaImage } from 'react-konva';
 import Paper from '@/assets/placeholders/paper.png';
-import TraceImageLayer from './TraceImageLayer';
 import { pencilCursor, eraserCursor } from './sketchConstants';
+import Konva from 'konva';
 
 interface SketchCanvasProps {
   canvasSize: number;
@@ -26,9 +26,31 @@ interface SketchCanvasProps {
 }
 
 export interface SketchCanvasHandle {
-  canvasRef: React.RefObject<ReactSketchCanvasRef>;
+  stageRef: React.RefObject<Konva.Stage>;
   fileInputRef: React.RefObject<HTMLInputElement>;
   canvasContainerRef: React.RefObject<HTMLDivElement>;
+  canvasRef: React.RefObject<{
+    exportPaths: () => DrawnPath[];
+    exportImage: (mimeType: string) => string;
+    clearCanvas: () => void;
+    loadPaths: (paths: DrawnPath[]) => void;
+    undo: () => void;
+    redo: () => void;
+  }>;
+  clearCanvas: () => void;
+  exportPaths: () => Array<{ points: number[]; strokeColor: string; strokeWidth: number; isEraser: boolean }>;
+  exportImage: (mimeType: string) => string;
+  exportDrawingLayer: (mimeType: string) => string;
+  loadPaths: (paths: any[]) => void;
+  undo: () => void;
+  redo: () => void;
+}
+
+interface DrawnPath {
+  points: number[];
+  strokeColor: string;
+  strokeWidth: number;
+  isEraser: boolean;
 }
 
 export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
@@ -55,87 +77,135 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     },
     ref,
   ) => {
-    const canvasRef = React.useRef<ReactSketchCanvasRef>(null);
     const canvasContainerRef = React.useRef<HTMLDivElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const stageRef = React.useRef<Konva.Stage>(null);
+    // Add a ref for the drawing layer
+    const drawingLayerRef = React.useRef<Konva.Layer>(null);
 
-    // State for dragging within SketchCanvas
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-    // Setup eraser mode when it changes
+    const [paperImageObj, setPaperImageObj] = useState<HTMLImageElement | null>(null);
     useEffect(() => {
-      if (canvasRef.current) {
-        if (isEraser) {
-          canvasRef.current.eraseMode(true);
-        } else {
-          canvasRef.current.eraseMode(false);
-        }
-      }
-    }, [isEraser]);
+      const img = new window.Image();
+      img.src = Paper;
+      img.onload = () => setPaperImageObj(img);
+    }, []);
 
-    // Expose refs to parent
+    const [autoImageObj, setAutoImageObj] = useState<HTMLImageElement | null>(null);
+    useEffect(() => {
+      if (autoImageUrl) {
+        const img = new window.Image();
+        img.src = autoImageUrl;
+        img.onload = () => setAutoImageObj(img);
+      } else {
+        setAutoImageObj(null);
+      }
+    }, [autoImageUrl]);
+
+    const [traceImageObj, setTraceImageObj] = useState<HTMLImageElement | null>(null);
+    useEffect(() => {
+      if (tracingActive && traceImage) {
+        const img = new window.Image();
+        img.src = traceImage;
+        img.onload = () => setTraceImageObj(img);
+      } else {
+        setTraceImageObj(null);
+      }
+    }, [tracingActive, traceImage]);
+
+    const [drawnPaths, setDrawnPaths] = useState<DrawnPath[]>([]);
+    const [redoStack, setRedoStack] = useState<DrawnPath[]>([]);
+    const [isDrawing, setIsDrawing] = useState(false);
+
+    // Backward compatibility ref for ReactSketchCanvasRef-like API
+    const compatCanvasRef = React.useRef<{
+      exportPaths: () => DrawnPath[];
+      exportImage: (mimeType: string) => string;
+      clearCanvas: () => void;
+      loadPaths: (paths: DrawnPath[]) => void;
+      undo: () => void;
+      redo: () => void;
+    }>(
+      {
+        exportPaths: () => [],
+        exportImage: () => '',
+        clearCanvas: () => {},
+        loadPaths: () => {},
+        undo: () => {},
+        redo: () => {},
+      }
+    );
+
     useImperativeHandle(ref, () => ({
-      canvasRef,
+      stageRef,
       fileInputRef,
       canvasContainerRef,
+      // Backward compatibility property:
+      canvasRef: compatCanvasRef,
+      clearCanvas: () => {
+        setDrawnPaths([]);
+        setRedoStack([]);
+      },
+      exportPaths: () => drawnPaths,
+      exportImage: (mimeType: string) => stageRef.current?.toDataURL({ mimeType }) || '',
+      // New: export only the drawing layer
+      exportDrawingLayer: (mimeType: string) => drawingLayerRef.current?.toDataURL({ mimeType }) || '',
+      loadPaths: (paths: DrawnPath[]) => {
+        setDrawnPaths(paths);
+        setRedoStack([]);
+      },
+      undo: () => {
+        setDrawnPaths((prev) => {
+          if (prev.length === 0) return prev;
+          const copy = [...prev];
+          const removed = copy.pop() as DrawnPath;
+          setRedoStack((r) => [...r, removed]);
+          return copy;
+        });
+      },
+      redo: () => {
+        setRedoStack((prev) => {
+          if (prev.length === 0) return prev;
+          const copy = [...prev];
+          const restored = copy.pop() as DrawnPath;
+          setDrawnPaths((d) => [...d, restored]);
+          return copy;
+        });
+      },
     }));
 
-    // --- Adjust Mode Handlers ---
-    const handleAdjustPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (tracingActive && traceImage) {
-          setIsDragging(true);
-          setDragStart({
-            x: e.clientX - imagePosition.x,
-            y: e.clientY - imagePosition.y,
+    // Initialize compatCanvasRef.current to match our API
+    useEffect(() => {
+      if (compatCanvasRef.current) {
+        compatCanvasRef.current.clearCanvas = () => {
+          setDrawnPaths([]);
+          setRedoStack([]);
+        };
+        compatCanvasRef.current.exportPaths = () => drawnPaths;
+        compatCanvasRef.current.exportImage = (mimeType: string) => stageRef.current?.toDataURL({ mimeType }) || '';
+        compatCanvasRef.current.loadPaths = (paths: DrawnPath[]) => {
+          setDrawnPaths(paths);
+          setRedoStack([]);
+        };
+        compatCanvasRef.current.undo = () => {
+          setDrawnPaths((prev) => {
+            if (prev.length === 0) return prev;
+            const copy = [...prev];
+            const removed = copy.pop() as DrawnPath;
+            setRedoStack((r) => [...r, removed]);
+            return copy;
           });
+        };
+        compatCanvasRef.current.redo = () => {
+          setRedoStack((prev) => {
+            if (prev.length === 0) return prev;
+            const copy = [...prev];
+            const restored = copy.pop() as DrawnPath;
+            setDrawnPaths((d) => [...d, restored]);
+            return copy;
+          });
+        };
       }
-      e.stopPropagation(); // Prevent event from bubbling up
-    };
-
-    const handleAdjustPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (isDragging && tracingActive && traceImage) {
-        setImagePosition({
-          x: e.clientX - dragStart.x,
-          y: e.clientY - dragStart.y,
-        });
-      }
-      e.stopPropagation(); // Prevent event from bubbling up
-    };
-
-    const handleAdjustPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-      setIsDragging(false);
-      e.stopPropagation(); // Prevent event from bubbling up
-    };
-
-    const handleAdjustPointerLeave = (e: React.PointerEvent<HTMLDivElement>) => {
-      setIsDragging(false);
-      e.stopPropagation(); // Prevent event from bubbling up
-    };
-    // --- End Adjust Mode Handlers ---
-
-    // --- Dropper Mode Handlers ---
-    const handleDropperPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-      onPointerDown(e);
-      e.stopPropagation(); // Prevent event from bubbling to canvas
-    };
-
-    const handleDropperPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-      onPointerMove(e);
-      e.stopPropagation(); // Prevent event from bubbling to canvas
-    };
-
-    const handleDropperPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-      onPointerUp(e);
-      e.stopPropagation(); // Prevent event from bubbling to canvas
-    };
-
-    const handleDropperPointerLeave = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (onPointerLeave) onPointerLeave(e);
-      else onPointerUp(e);
-      e.stopPropagation(); // Prevent event from bubbling to canvas
-    };
-    // --- End Dropper Mode Handlers ---
+    }, [drawnPaths, redoStack]);
 
     return (
       <div
@@ -147,129 +217,147 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         style={{
           width: `${canvasSize}px`,
           height: `${canvasSize}px`,
-          border: "2px solid black",
-          borderRadius: "4px",
-          position: "relative",
-          overflow: "hidden",
-          cursor: dropperMode ? 'crosshair' : (isAdjustMode && tracingActive ? "move" : isEraser ? eraserCursor : pencilCursor),
+          border: '2px solid black',
+          borderRadius: '4px',
+          position: 'relative',
+          overflow: 'hidden',
+          cursor: dropperMode ? 'crosshair' : (isAdjustMode && tracingActive ? 'move' : isEraser ? eraserCursor : pencilCursor),
         }}
       >
-        {/* Background layer (paper) */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundImage: `url(${Paper})`,
-            backgroundSize: "cover",
-            zIndex: 1,
+        {/* Background layer (paper), auto image, trace, and drawing within Konva Stage */}
+        <Stage
+          ref={stageRef}
+          width={canvasSize}
+          height={canvasSize}
+          style={{ position: 'absolute', top: 0, left: 0, zIndex: 3 }}
+          onMouseDown={evt => {
+            const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
+            // Trigger parent pointer down (eraser or dropper)
+            onPointerDown(domEvent);
+            if (dropperMode) return;
+            // Begin drawing if not in adjust mode
+            if (!isAdjustMode) {
+              const pos = stageRef.current?.getPointerPosition();
+              if (pos) {
+                const newPath: DrawnPath = { points: [pos.x, pos.y], strokeColor, strokeWidth: scaledStrokeWidth, isEraser };
+                setDrawnPaths(prev => [...prev, newPath]);
+                setIsDrawing(true);
+                setRedoStack([]);
+              }
+            }
           }}
-        />
-
-        {/* Auto image layer (AI result) */}
-        {autoImageUrl && (
-          <img
-            src={autoImageUrl}
-            alt="AI Result"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              zIndex: 2,
-              pointerEvents: "none",
-            }}
-            draggable={false}
-          />
-        )}
-
-        {/* Trace image layer */}
-        <TraceImageLayer
-          traceImage={traceImage}
-          tracingActive={tracingActive}
-          imagePosition={imagePosition}
-          imageScale={imageScale}
-        />
-
-        {/* Drawing canvas */}
-        <ReactSketchCanvas
-          ref={canvasRef}
-          strokeWidth={scaledStrokeWidth}
-          strokeColor={strokeColor}
-          width={`${canvasSize}`}
-          height={`${canvasSize}`}
-          backgroundImage=""
-          exportWithBackgroundImage={false}
-          canvasColor="transparent"
-          eraserWidth={scaledStrokeWidth}
-          allowOnlyPointerType="all"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            zIndex: 3,
+          onMouseMove={evt => {
+            const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
+            // Trigger parent pointer move
+            onPointerMove(domEvent);
+            if (dropperMode || isAdjustMode) return;
+            if (isDrawing) {
+              const pos = stageRef.current?.getPointerPosition();
+              if (pos) {
+                setDrawnPaths(prev => {
+                  const paths = [...prev];
+                  const last = paths[paths.length - 1];
+                  if (last) last.points = [...last.points, pos.x, pos.y];
+                  return paths;
+                });
+              }
+            }
           }}
-        />
+          onMouseUp={evt => {
+            const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
+            // Trigger parent pointer up
+            onPointerUp(domEvent);
+            if (!isAdjustMode) setIsDrawing(false);
+          }}
+          onMouseLeave={evt => {
+            const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
+            onPointerLeave ? onPointerLeave(domEvent) : onPointerUp(domEvent);
+            if (isDrawing) setIsDrawing(false);
+          }}
+        >
+          {/* Paper and Auto Image Layer */}
+          <Layer>
+            {paperImageObj && <KonvaImage image={paperImageObj} width={canvasSize} height={canvasSize} />}
+            {autoImageObj && <KonvaImage image={autoImageObj} width={canvasSize} height={canvasSize} />}
+          </Layer>
+          {/* Trace Image Layer */}
+          <Layer>
+            {traceImageObj && (() => {
+              // Calculate aspect-ratio preserving fit
+              const imgW = traceImageObj.width;
+              const imgH = traceImageObj.height;
+              const canvasW = canvasSize;
+              const canvasH = canvasSize;
+              let displayW = canvasW;
+              let displayH = canvasH;
+              if (imgW && imgH) {
+                const imgAspect = imgW / imgH;
+                const canvasAspect = canvasW / canvasH;
+                if (imgAspect > canvasAspect) {
+                  // Image is wider
+                  displayW = canvasW;
+                  displayH = canvasW / imgAspect;
+                } else {
+                  // Image is taller
+                  displayH = canvasH;
+                  displayW = canvasH * imgAspect;
+                }
+              }
+              // Center the image by default, then apply user offset
+              const offsetX = (canvasW - displayW) / 2 + imagePosition.x;
+              const offsetY = (canvasH - displayH) / 2 + imagePosition.y;
+              return (
+                <KonvaImage
+                  image={traceImageObj}
+                  x={offsetX}
+                  y={offsetY}
+                  width={displayW}
+                  height={displayH}
+                  scaleX={imageScale}
+                  scaleY={imageScale}
+                  opacity={0.35}
+                  draggable={isAdjustMode}
+                  listening={isAdjustMode}
+                  onDragMove={e => {
+                    const pos = e.target.position();
+                    setImagePosition({ x: pos.x - (canvasW - displayW) / 2, y: pos.y - (canvasH - displayH) / 2 });
+                  }}
+                />
+              );
+            })()}
+          </Layer>
+          {/* Drawing Layer */}
+          <Layer ref={drawingLayerRef}>
+            {drawnPaths.map((path, i) => (
+              <KonvaLine
+                key={i}
+                points={path.points}
+                stroke={path.strokeColor}
+                strokeWidth={path.strokeWidth}
+                globalCompositeOperation={path.isEraser ? 'destination-out' : 'source-over'}
+                tension={0.5}
+                lineCap="round"
+                lineJoin="round"
+              />
+            ))}
+          </Layer>
+        </Stage>
 
-        {/* Block overlay to prevent drawing when in adjust mode - NOW WITH HANDLERS */}
-        {isAdjustMode && (
-          <div
-            onPointerDown={handleAdjustPointerDown}
-            onPointerMove={handleAdjustPointerMove}
-            onPointerUp={handleAdjustPointerUp}
-            onPointerLeave={handleAdjustPointerLeave}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              zIndex: 10,
-              cursor: "move",
-            }}
-          />
-        )}
-
-        {/* Block overlay to prevent drawing when in dropper mode */}
-        {dropperMode && (
-          <div
-            onPointerDown={handleDropperPointerDown}
-            onPointerMove={handleDropperPointerMove}
-            onPointerUp={handleDropperPointerUp}
-            onPointerLeave={handleDropperPointerLeave}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              zIndex: 10,
-              cursor: "crosshair",
-            }}
-          />
-        )}
-
-        {/* Eraser cursor */}
+        {/* Eraser cursor circle */}
         {isEraser && isErasing && (
           <div
             className="pointer-events-none absolute"
             style={{
               width: `${scaledStrokeWidth * 2}px`,
               height: `${scaledStrokeWidth * 2}px`,
-              border: "2px solid rgba(0, 0, 0, 0.8)",
-              backgroundColor: "rgba(255, 255, 255, 0.3)",
-              borderRadius: "50%",
-              transform: "translate(-50%, -50%)",
+              border: '2px solid rgba(0,0,0,0.8)',
+              backgroundColor: 'rgba(255,255,255,0.3)',
+              borderRadius: '50%',
+              transform: 'translate(-50%,-50%)',
               left: cursorPosition.x,
               top: cursorPosition.y,
               zIndex: 100,
-              pointerEvents: "none",
+              pointerEvents: 'none',
             }}
           />
         )}

@@ -150,13 +150,15 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Add a function to check if the minimum pixel count is met
   const checkMinimumPixelsDrawn = useCallback(async () => {
-    if (!sketchCanvasRef.current?.canvasRef.current || isCheckingPixelCount) return;
+    if (!sketchCanvasRef.current || isCheckingPixelCount) return;
 
     setIsCheckingPixelCount(true);
 
     try {
-      // Export the canvas as an image to a temporary canvas to count pixels
-      const dataUrl = await sketchCanvasRef.current.canvasRef.current.exportImage("png");
+      // Export only the drawing layer for pixel counting
+      const dataUrl = await sketchCanvasRef.current.exportDrawingLayer
+        ? sketchCanvasRef.current.exportDrawingLayer("image/png")
+        : sketchCanvasRef.current.exportImage("png");
 
       // Create a temporary canvas to analyze the image
       const tempCanvas = document.createElement("canvas");
@@ -199,7 +201,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Check for minimum pixels when we make changes to the canvas
   useEffect(() => {
     // Only when open and restored
-    if (isOpen && isRestored && sketchCanvasRef.current?.canvasRef.current) {
+    if (isOpen && isRestored && sketchCanvasRef.current) {
       const checkTimer = setTimeout(() => {
         checkMinimumPixelsDrawn();
       }, 1000); // Debounce to not check too frequently
@@ -272,12 +274,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   useEffect(() => {
     // Only attempt restoration if the portal is open, state is loaded, drawingState exists,
     // we haven't already restored in this session, and the canvas ref is available.
-    if (isOpen && isDrawingStateLoaded && drawingState && !isRestored && sketchCanvasRef.current?.canvasRef.current) {
+    if (isOpen && isDrawingStateLoaded && drawingState && !isRestored && sketchCanvasRef.current) {
       console.log("Attempting to restore drawing state...");
       // Load drawing paths if they exist
       if (drawingState.drawingPaths) {
         try {
-          sketchCanvasRef.current.canvasRef.current.loadPaths(drawingState.drawingPaths);
+          sketchCanvasRef.current.loadPaths(drawingState.drawingPaths);
           console.log("Paths loaded successfully.");
         } catch (error) {
           console.error("Error loading drawing paths:", error);
@@ -318,7 +320,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     } else if (isOpen && isDrawingStateLoaded && !drawingState && !isRestored) {
       // Condition for: Portal is open, state is loaded, NO saved state exists, and we haven't initialized yet.
       console.log("No saved state found, clearing canvas.");
-      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
+      sketchCanvasRef.current?.clearCanvas();
       setElapsedTime(0); // Reset timer if no state
       // Mark as 'restored' because we've handled the initial state (empty canvas).
       setIsRestored(true);
@@ -343,13 +345,13 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   // Auto-save drawing state periodically and on drawing actions
   const saveCurrentState = useCallback(async () => {
     // Only save if the initial restoration attempt is complete
-    if (!isRestored || !sketchCanvasRef.current?.canvasRef.current) {
+    if (!isRestored || !sketchCanvasRef.current) {
       return;
     }
 
     console.log("Saving current state...");
     try {
-      const paths = await sketchCanvasRef.current.canvasRef.current.exportPaths();
+      const paths = await sketchCanvasRef.current.exportPaths();
 
       saveDrawingState({
         drawingPaths: paths,
@@ -407,7 +409,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
   useEffect(() => {
     const handleBeforeUnload = () => {
       // Check if there's something potentially worth saving
-      if (isOpen && isRestored && sketchCanvasRef.current?.canvasRef.current && elapsedTime > 0) {
+      if (isOpen && isRestored && sketchCanvasRef.current && elapsedTime > 0) {
         console.log("beforeunload: Triggering saveCurrentState...");
         saveCurrentState();
       }
@@ -431,8 +433,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setAutoImageUrl(null);
       setTraceImage(null);
       setTracingActive(false);
-      if (sketchCanvasRef.current?.canvasRef.current) {
-        sketchCanvasRef.current.canvasRef.current.clearCanvas();
+      if (sketchCanvasRef.current) {
+        sketchCanvasRef.current.clearCanvas();
       }
       setImagePosition({ x: 0, y: 0 });
       setImageScale(1);
@@ -448,11 +450,11 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       setIsUndoAutoModalOpen(true);
       return;
     }
-    sketchCanvasRef.current?.canvasRef.current?.undo();
+    sketchCanvasRef.current?.undo();
   };
 
   const handleRedo = () => {
-    sketchCanvasRef.current?.canvasRef.current?.redo();
+    sketchCanvasRef.current?.redo();
   };
 
   // Restore the Auto button click handler to check pixels and open payment modal
@@ -521,7 +523,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     setIsAutoProcessing(true);
     // --- SNAPSHOT current state before applying auto image ---
     try {
-      const paths = await sketchCanvasRef.current?.canvasRef.current?.exportPaths();
+      const paths = await sketchCanvasRef.current?.exportPaths();
       setPreAutoSnapshot({
         drawingPaths: paths,
         traceImage,
@@ -554,9 +556,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       const paperBlob = await fetchPaperBlob();
 
       // b) User sketch (export as PNG, no transparency)
-      const sketchBlob = sketchCanvasRef.current?.canvasRef.current
-        ? await sketchCanvasRef.current.canvasRef.current.exportImage("png").then(dataUrlToBlob)
-        : null;
+      // Export user sketch as Blob via dataUrlToBlob
+      let sketchBlob: Blob | null = null;
+      if (sketchCanvasRef.current) {
+        const dataUrl = sketchCanvasRef.current.exportImage("png");
+        sketchBlob = dataUrlToBlob(dataUrl);
+      }
       if (!sketchBlob) throw new Error("Failed to export sketch layer");
 
       // c) Trace image (if present)
@@ -585,7 +590,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
       // 4. Replace sketch (and trace) layer with returned image
       setAutoImageUrl(imageUrl); // Overlay the image
-      sketchCanvasRef.current?.canvasRef.current?.clearCanvas();
+      sketchCanvasRef.current?.clearCanvas();
       setTraceImage(null); // Remove trace image if present
       setTracingActive(false);
 
@@ -774,12 +779,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
         onClose();
         return;
       }
-      if (sketchCanvasRef.current?.canvasRef.current && onSubmit) {
+      if (sketchCanvasRef.current && onSubmit) {
         console.log("Submitting drawing...");
 
         // Use the export hook to handle the export and merge
         const exportResult = await exportMergedSketch(
-          sketchCanvasRef.current.canvasRef,
+          sketchCanvasRef.current?.canvasRef,
           canvasSize,
           elapsedTime,
           drawingStartTime,
@@ -988,7 +993,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     async (e: React.PointerEvent<HTMLDivElement>) => {
       if (
         !isDropperMode ||
-        !sketchCanvasRef.current?.canvasRef.current ||
+        !sketchCanvasRef.current ||
         !sketchCanvasRef.current.canvasContainerRef.current
       )
         return;
@@ -997,8 +1002,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
       const x = Math.floor(e.clientX - rect.left);
       const y = Math.floor(e.clientY - rect.top);
       try {
-        // Export drawing layer as PNG data URL
-        const dataUrl = await sketchCanvasRef.current.canvasRef.current.exportImage("png");
+        // Export drawing layer as PNG data URL for dropper
+        const dataUrl = sketchCanvasRef.current?.canvasRef.current?.exportImage("png") || '';
         const img = new window.Image();
         // Wait for image to load
         await new Promise<void>((resolve, reject) => {
@@ -1033,16 +1038,16 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // --- Add handler for confirming undo of auto image ---
   const handleConfirmUndoAuto = useCallback(() => {
-    if (preAutoSnapshot && sketchCanvasRef.current?.canvasRef.current) {
+    if (preAutoSnapshot && sketchCanvasRef.current) {
       // Restore drawing paths
       try {
-        sketchCanvasRef.current.canvasRef.current.clearCanvas();
+        sketchCanvasRef.current.clearCanvas();
         if (preAutoSnapshot.drawingPaths) {
-          sketchCanvasRef.current.canvasRef.current.loadPaths(preAutoSnapshot.drawingPaths);
+          sketchCanvasRef.current.loadPaths(preAutoSnapshot.drawingPaths);
         }
       } catch (e) {
         // fallback: just clear
-        sketchCanvasRef.current.canvasRef.current.clearCanvas();
+        sketchCanvasRef.current.clearCanvas();
       }
       // Restore tracing state
       setTraceImage(preAutoSnapshot.traceImage);
