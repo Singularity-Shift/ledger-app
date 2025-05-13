@@ -108,6 +108,9 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     drawingStartTime: number | undefined;
   }>(null);
 
+  // Add state for paint bucket mode
+  const [isPaintBucketMode, setIsPaintBucketMode] = useState(false);
+
   // Note: Optimizations applied for AI image caching and loading indicators - 2024-05-05
 
   // Initialize timer hook
@@ -1079,6 +1082,30 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     setIsUndoAutoModalOpen(false);
   }, [preAutoSnapshot, sketchCanvasRef, setTraceImage, setTracingActive, setImagePosition, setImageScale, setBaseColor, setCustomColor, setStrokeWidth, setSelectedGrade, setIsEraser, setElapsedTime, setAutoImageUrl, setProcessedAutoImage, toast]);
 
+  // Add a placeholder handler for paint bucket clicks
+  const handlePaintBucketClick = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    console.log('Paint bucket click event', e);
+    if (!sketchCanvasRef.current || !sketchCanvasRef.current.fillAt) {
+      setIsPaintBucketMode(false);
+      toast({ title: "Paint Bucket", description: "Fill tool is not available." });
+      return;
+    }
+    // Get click position relative to the canvas
+    const rect = sketchCanvasRef.current.canvasContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    console.log('Calling fillAt with', x, y, baseColor);
+    sketchCanvasRef.current.fillAt(x, y, baseColor);
+    setIsPaintBucketMode(false);
+    toast({ title: "Paint Bucket", description: "Filled area with selected color." });
+  }, [sketchCanvasRef, baseColor, setIsPaintBucketMode, toast]);
+
+  // Reset paint bucket mode when portal opens/closes
+  useEffect(() => {
+    if (!isOpen && isPaintBucketMode) setIsPaintBucketMode(false);
+  }, [isOpen, isPaintBucketMode]);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -1155,7 +1182,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                 cursorPosition={cursorPosition}
                 scaledStrokeWidth={scaledStrokeWidth}
                 setImagePosition={setImagePosition}
-                onPointerDown={isDropperMode ? handleDropperPick : handlePointerDown}
+                onPointerDown={isDropperMode ? handleDropperPick : isPaintBucketMode ? handlePaintBucketClick : handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 dropperMode={isDropperMode}
@@ -1195,7 +1222,12 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               </div>
 
               {/* Pencil Grade Selector - Moved Up */}
-              <PencilGradeSelector selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
+              <PencilGradeSelector
+                selectedGrade={selectedGrade}
+                setSelectedGrade={setSelectedGrade}
+                onPaintBucketClick={() => setIsPaintBucketMode((v) => !v)}
+                isPaintBucketActive={isPaintBucketMode}
+              />
 
               {/* Color Selector */}
               <ColorSelector

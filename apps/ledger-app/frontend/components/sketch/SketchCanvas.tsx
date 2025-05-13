@@ -44,6 +44,7 @@ export interface SketchCanvasHandle {
   loadPaths: (paths: any[]) => void;
   undo: () => void;
   redo: () => void;
+  fillAt: (x: number, y: number, color: string) => void;
 }
 
 interface DrawnPath {
@@ -51,6 +52,7 @@ interface DrawnPath {
   strokeColor: string;
   strokeWidth: number;
   isEraser: boolean;
+  fillImage?: HTMLImageElement;
 }
 
 export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
@@ -82,6 +84,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     const stageRef = React.useRef<Konva.Stage>(null);
     // Add a ref for the drawing layer
     const drawingLayerRef = React.useRef<Konva.Layer>(null);
+    // Add a ref for a hidden HTML5 canvas for pixel manipulation
+    const hiddenCanvasRef = React.useRef<HTMLCanvasElement>(null);
 
     const [paperImageObj, setPaperImageObj] = useState<HTMLImageElement | null>(null);
     useEffect(() => {
@@ -135,6 +139,43 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       }
     );
 
+    // Helper: Flood fill algorithm (4-way)
+    function floodFill(ctx: CanvasRenderingContext2D, x: number, y: number, fillColor: [number, number, number, number]) {
+      const width = ctx.canvas.width;
+      const height = ctx.canvas.height;
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+      const stack = [[x, y]];
+      const pixelPos = (x: number, y: number) => (y * width + x) * 4;
+      const startIdx = pixelPos(x, y);
+      const startColor = Array.from(data.slice(startIdx, startIdx + 4));
+      // If the start color is the same as fillColor, do nothing
+      if (startColor[0] === fillColor[0] && startColor[1] === fillColor[1] && startColor[2] === fillColor[2] && startColor[3] === fillColor[3]) return;
+      // Helper: Compare two colors
+      function colorsMatch(a: number[], b: number[]) {
+        return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+      }
+      while (stack.length > 0) {
+        const [cx, cy] = stack.pop()!;
+        if (cx < 0 || cy < 0 || cx >= width || cy >= height) continue;
+        const idx = pixelPos(cx, cy);
+        const currentColor = Array.from(data.slice(idx, idx + 4));
+        if (colorsMatch(currentColor, startColor)) {
+          // Set pixel to fillColor
+          data[idx] = fillColor[0];
+          data[idx + 1] = fillColor[1];
+          data[idx + 2] = fillColor[2];
+          data[idx + 3] = fillColor[3];
+          // Push neighbors
+          stack.push([cx + 1, cy]);
+          stack.push([cx - 1, cy]);
+          stack.push([cx, cy + 1]);
+          stack.push([cx, cy - 1]);
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+
     useImperativeHandle(ref, () => ({
       stageRef,
       fileInputRef,
@@ -170,6 +211,56 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           setDrawnPaths((d) => [...d, restored]);
           return copy;
         });
+      },
+      fillAt: (x: number, y: number, color: string) => {
+        console.log('[SketchCanvas] fillAt called', { x, y, color });
+        // 1. Render the current drawing layer to a hidden canvas
+        let canvas = hiddenCanvasRef.current || document.createElement('canvas');
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        // Draw the current drawing layer
+        if (drawingLayerRef.current) {
+          const dataUrl = drawingLayerRef.current.toDataURL();
+          const img = new window.Image();
+          img.onload = () => {
+            ctx.clearRect(0, 0, canvasSize, canvasSize);
+            ctx.drawImage(img, 0, 0, canvasSize, canvasSize);
+            // 2. Convert color to RGBA
+            const hexToRgba = (hex: string): [number, number, number, number] => {
+              let c = hex.replace('#', '');
+              if (c.length === 3) c = c.split('').map((ch) => ch + ch).join('');
+              const num = parseInt(c, 16);
+              return [
+                (num >> 16) & 255,
+                (num >> 8) & 255,
+                num & 255,
+                255,
+              ];
+            };
+            const fillColor = hexToRgba(color);
+            // 3. Flood fill at (x, y)
+            floodFill(ctx, Math.floor(x), Math.floor(y), fillColor);
+            // 4. Add the filled area as a new path/image to the drawnPaths (as a raster image)
+            // We'll add it as a new Konva.Image on the drawing layer
+            const filledImg = new window.Image();
+            filledImg.onload = () => {
+              setDrawnPaths((prev) => [
+                ...prev,
+                {
+                  points: [],
+                  strokeColor: color,
+                  strokeWidth: 0,
+                  isEraser: false,
+                  fillImage: filledImg,
+                },
+              ]);
+            };
+            filledImg.src = canvas.toDataURL();
+          };
+          img.src = dataUrl;
+        }
       },
     }));
 
@@ -347,18 +438,22 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           </Layer>
           {/* Drawing Layer */}
           <Layer ref={drawingLayerRef}>
-            {drawnPaths.map((path, i) => (
-              <KonvaLine
-                key={i}
-                points={path.points}
-                stroke={path.strokeColor}
-                strokeWidth={path.strokeWidth}
-                globalCompositeOperation={path.isEraser ? 'destination-out' : 'source-over'}
-                tension={0.5}
-                lineCap="round"
-                lineJoin="round"
-              />
-            ))}
+            {drawnPaths.map((path, i) =>
+              path.fillImage ? (
+                <KonvaImage key={i} image={path.fillImage} width={canvasSize} height={canvasSize} />
+              ) : (
+                <KonvaLine
+                  key={i}
+                  points={path.points}
+                  stroke={path.strokeColor}
+                  strokeWidth={path.strokeWidth}
+                  globalCompositeOperation={path.isEraser ? 'destination-out' : 'source-over'}
+                  tension={0.5}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              )
+            )}
           </Layer>
         </Stage>
 
@@ -380,6 +475,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
             }}
           />
         )}
+
+        {/* Add the hidden canvas element (not rendered) */}
+        <canvas ref={hiddenCanvasRef} style={{ display: 'none' }} width={canvasSize} height={canvasSize} />
       </div>
     );
   },
