@@ -110,6 +110,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Add state for paint bucket mode
   const [isPaintBucketMode, setIsPaintBucketMode] = useState(false);
+  // Add state for smudge mode
+  const [isSmudgeMode, setIsSmudgeMode] = useState(false);
 
   // Note: Optimizations applied for AI image caching and loading indicators - 2024-05-05
 
@@ -1103,8 +1105,51 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
 
   // Reset paint bucket mode when portal opens/closes
   useEffect(() => {
-    if (!isOpen && isPaintBucketMode) setIsPaintBucketMode(false);
-  }, [isOpen, isPaintBucketMode]);
+    if (!isOpen) {
+      if (isPaintBucketMode) setIsPaintBucketMode(false);
+      if (isSmudgeMode) setIsSmudgeMode(false);
+      if (isDropperMode) setIsDropperMode(false);
+    }
+  }, [isOpen, isPaintBucketMode, isSmudgeMode, isDropperMode]);
+
+  const activatePaintBucketMode = () => {
+    const activating = !isPaintBucketMode;
+    setIsPaintBucketMode(activating);
+    if (activating) {
+      setIsSmudgeMode(false);
+      setIsDropperMode(false);
+      setIsEraser(false);
+    }
+  };
+
+  const activateSmudgeMode = () => {
+    const activating = !isSmudgeMode;
+    console.log("[PencilSketchPortal] activateSmudgeMode called. Current isSmudgeMode:", isSmudgeMode, "Will be:", activating);
+    setIsSmudgeMode(activating);
+    if (activating) {
+      setIsPaintBucketMode(false);
+      setIsDropperMode(false);
+      setIsEraser(false);
+    }
+  };
+
+  const activateEraserMode = (val: boolean) => {
+    setIsEraser(val);
+    if (val) {
+      setIsPaintBucketMode(false);
+      setIsSmudgeMode(false);
+      setIsDropperMode(false);
+    }
+  };
+
+  const activateDropperMode = (val: boolean) => {
+    setIsDropperMode(val);
+    if (val) {
+      setIsPaintBucketMode(false);
+      setIsSmudgeMode(false);
+      setIsEraser(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -1187,6 +1232,8 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                 onPointerUp={handlePointerUp}
                 dropperMode={isDropperMode}
                 autoImageUrl={autoImageUrl}
+                isPaintBucketActive={isPaintBucketMode}
+                isSmudgeActive={isSmudgeMode}
               />
             </div>
           </div>
@@ -1202,7 +1249,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                   isAdjustMode={isAdjustMode}
                   tracingActive={tracingActive}
                   traceImage={traceImage}
-                  setIsEraser={setIsEraser}
+                  setIsEraser={activateEraserMode}
                   setIsAdjustMode={setIsAdjustMode}
                 />
 
@@ -1225,8 +1272,10 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
               <PencilGradeSelector
                 selectedGrade={selectedGrade}
                 setSelectedGrade={setSelectedGrade}
-                onPaintBucketClick={() => setIsPaintBucketMode((v) => !v)}
+                onPaintBucketClick={activatePaintBucketMode}
                 isPaintBucketActive={isPaintBucketMode}
+                onSmudgeClick={activateSmudgeMode}
+                isSmudgeActive={isSmudgeMode}
               />
 
               {/* Color Selector */}
@@ -1236,7 +1285,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                 customColor={customColor}
                 setCustomColor={setCustomColor}
                 isDropperMode={isDropperMode}
-                setIsDropperMode={setIsDropperMode}
+                setIsDropperMode={activateDropperMode}
                 showAutoButton={true}
                 promptChoice={promptChoice}
                 setPromptChoice={setPromptChoice}
