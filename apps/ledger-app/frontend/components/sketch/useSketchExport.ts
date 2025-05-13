@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { ReactSketchCanvasRef } from 'react-sketch-canvas';
 import Paper from '@/assets/placeholders/paper.png';
 import { toast } from '@/components/ui/use-toast';
 import { COLLECTION_ADDRESS } from '@/constants';
@@ -10,7 +9,7 @@ export const useSketchExport = () => {
 
   const exportMergedSketch = useCallback(
     async (
-      canvasRef: React.RefObject<ReactSketchCanvasRef>,
+      canvasRef: React.RefObject<{ exportImage: (mimeType: string) => string }>,
       canvasSize: number,
       elapsedTime: number,
       drawingStartTime: number,
@@ -18,14 +17,14 @@ export const useSketchExport = () => {
       getSecurityToken: () => string
     ) => {
       try {
-        if (!canvasRef.current) {
+        if (!canvasRef.current || !canvasRef.current.exportImage) {
           throw new Error('Canvas reference is not available');
         }
 
         console.log("Exporting drawing...");
 
         // 1. Export the drawing layer (transparent background)
-        const drawingDataUrl = await canvasRef.current.exportImage("png");
+        const drawingDataUrl = canvasRef.current.exportImage("png");
 
         // --- Merging Logic Start ---
 
