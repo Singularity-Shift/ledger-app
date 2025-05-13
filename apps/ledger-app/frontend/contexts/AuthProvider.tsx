@@ -111,9 +111,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const payload = jwtoken.decode(jwtAuth?.token || (authObj?.authToken as string)) as {
         address: string;
+        exp: number;
       };
 
-      if (payload && payload.address === address && wallet) {
+      if (payload && payload.address === address && payload.exp > Date.now() / 1000 && wallet) {
         setWalletAddress(address);
       } else {
         await handleDisconnect();
