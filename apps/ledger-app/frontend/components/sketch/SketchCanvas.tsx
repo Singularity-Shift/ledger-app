@@ -107,7 +107,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         const img = new window.Image();
         img.src = traceImage;
         img.onload = () => setTraceImageObj(img);
-      } else {
+        } else {
         setTraceImageObj(null);
       }
     }, [tracingActive, traceImage]);
@@ -207,6 +207,49 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       }
     }, [drawnPaths, redoStack]);
 
+    // Unified handler for both mouse and touch events
+    const handlePointerEvent = (evt: Konva.KonvaEventObject<any>) => {
+      const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement> | TouchEvent;
+      const eventType = evt.type;
+      
+      // Forward event to parent handlers
+      if (eventType.includes('down') || eventType.includes('start')) {
+        onPointerDown(domEvent as any);
+        if (dropperMode) return;
+        
+        // Begin drawing if not in adjust mode
+        if (!isAdjustMode) {
+          const pos = stageRef.current?.getPointerPosition();
+          if (pos) {
+            const newPath: DrawnPath = { points: [pos.x, pos.y], strokeColor, strokeWidth: scaledStrokeWidth, isEraser };
+            setDrawnPaths(prev => [...prev, newPath]);
+            setIsDrawing(true);
+            setRedoStack([]);
+          }
+        }
+      } 
+      else if (eventType.includes('move')) {
+        onPointerMove(domEvent as any);
+        if (dropperMode || isAdjustMode) return;
+        
+        if (isDrawing) {
+          const pos = stageRef.current?.getPointerPosition();
+          if (pos) {
+            setDrawnPaths(prev => {
+              const paths = [...prev];
+              const last = paths[paths.length - 1];
+              if (last) last.points = [...last.points, pos.x, pos.y];
+              return paths;
+            });
+          }
+        }
+      } 
+      else if (eventType.includes('up') || eventType.includes('end')) {
+        onPointerUp(domEvent as any);
+        if (!isAdjustMode) setIsDrawing(false);
+      }
+    };
+
     return (
       <div
         ref={canvasContainerRef}
@@ -229,51 +272,27 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           ref={stageRef}
           width={canvasSize}
           height={canvasSize}
-          style={{ position: 'absolute', top: 0, left: 0, zIndex: 3 }}
-          onMouseDown={evt => {
-            const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
-            // Trigger parent pointer down (eraser or dropper)
-            onPointerDown(domEvent);
-            if (dropperMode) return;
-            // Begin drawing if not in adjust mode
-            if (!isAdjustMode) {
-              const pos = stageRef.current?.getPointerPosition();
-              if (pos) {
-                const newPath: DrawnPath = { points: [pos.x, pos.y], strokeColor, strokeWidth: scaledStrokeWidth, isEraser };
-                setDrawnPaths(prev => [...prev, newPath]);
-                setIsDrawing(true);
-                setRedoStack([]);
-              }
-            }
+          style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            zIndex: 3,
+            touchAction: 'none', // Disable browser touch handling
+            userSelect: 'none' // Prevent text selection
           }}
-          onMouseMove={evt => {
-            const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
-            // Trigger parent pointer move
-            onPointerMove(domEvent);
-            if (dropperMode || isAdjustMode) return;
-            if (isDrawing) {
-              const pos = stageRef.current?.getPointerPosition();
-              if (pos) {
-                setDrawnPaths(prev => {
-                  const paths = [...prev];
-                  const last = paths[paths.length - 1];
-                  if (last) last.points = [...last.points, pos.x, pos.y];
-                  return paths;
-                });
-              }
-            }
-          }}
-          onMouseUp={evt => {
-            const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
-            // Trigger parent pointer up
-            onPointerUp(domEvent);
-            if (!isAdjustMode) setIsDrawing(false);
-          }}
+          // Mouse events
+          onMouseDown={handlePointerEvent}
+          onMouseMove={handlePointerEvent}
+          onMouseUp={handlePointerEvent}
           onMouseLeave={evt => {
             const domEvent = evt.evt as unknown as React.PointerEvent<HTMLDivElement>;
             onPointerLeave ? onPointerLeave(domEvent) : onPointerUp(domEvent);
             if (isDrawing) setIsDrawing(false);
           }}
+          // Touch events
+          onTouchStart={handlePointerEvent}
+          onTouchMove={handlePointerEvent}
+          onTouchEnd={handlePointerEvent}
         >
           {/* Paper and Auto Image Layer */}
           <Layer>
@@ -321,8 +340,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
                   onDragMove={e => {
                     const pos = e.target.position();
                     setImagePosition({ x: pos.x - (canvasW - displayW) / 2, y: pos.y - (canvasH - displayH) / 2 });
-                  }}
-                />
+            }}
+          />
               );
             })()}
           </Layer>

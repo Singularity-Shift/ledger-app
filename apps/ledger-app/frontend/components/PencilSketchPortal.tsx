@@ -15,11 +15,6 @@ import StrokeWidthControl from "./sketch/StrokeWidthControl";
 import ActionButtons from "./sketch/ActionButtons";
 import DrawingTimer from "./sketch/DrawingTimer";
 import { Spinner } from "@/components/ui/spinner";
-
-// Import custom hooks
-import useSketchTimer from "./sketch/useSketchTimer";
-import useSketchExport from "./sketch/useSketchExport";
-import { moderateImage } from "@/utils/imageModeration";
 import { AutoPaymentModal } from "./AutoPaymentModal";
 import { useAuth } from "@/contexts/AuthProvider";
 import paperBackground from "../assets/placeholders/paper.png";
@@ -38,6 +33,11 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+
+// Import custom hooks
+import useSketchTimer from "./sketch/useSketchTimer";
+import useSketchExport from "./sketch/useSketchExport";
+import { moderateImage } from "@/utils/imageModeration";
 
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
@@ -1127,24 +1127,16 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
           {/* Canvas Container */}
           <div
             className="p-1 sm:p-2 md:p-4 flex justify-center items-center overflow-hidden bg-gray-50"
-            style={{ position: "relative" }}
+            style={{ 
+              position: "relative",
+              touchAction: 'none', // Critical for mobile drawing
+              userSelect: 'none',
+              WebkitTapHighlightColor: 'transparent' // Remove iOS tap highlight
+            }}
           >
             {/* Spinner overlay when auto-processing */}
             {isAutoProcessing && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
-                  background: "rgba(255,255,255,0.7)",
-                  zIndex: 20,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10">
                 <Spinner size="lg" />
               </div>
             )}
