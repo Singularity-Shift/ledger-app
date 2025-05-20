@@ -39,6 +39,8 @@ import useSketchTimer from "./sketch/useSketchTimer";
 import useSketchExport from "./sketch/useSketchExport";
 import { moderateImage } from "@/utils/imageModeration";
 
+type PromptChoice = 'dev' | 'cubism' | 'oil' | 'graffiti' | 'residentron';
+
 export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, onClose, onSubmit }) => {
   const { drawingState, saveDrawingState, clearDrawingState, isDrawingStateLoaded } = useDrawingState();
   const { jwt } = useAuth();
@@ -1039,7 +1041,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
     [isDropperMode, canvasSize, toast, setBaseColor, setCustomColor, setIsDropperMode],
   );
 
-  const [promptChoice, setPromptChoice] = useState<'dev' | 'cubism' | 'oil' | 'graffiti'>('dev');
+  const [promptChoice, setPromptChoice] = useState<PromptChoice>('dev');
 
   // --- Add handler for confirming undo of auto image ---
   const handleConfirmUndoAuto = useCallback(() => {
@@ -1288,7 +1290,7 @@ export const PencilSketchPortal: React.FC<PencilSketchPortalProps> = ({ isOpen, 
                 setIsDropperMode={activateDropperMode}
                 showAutoButton={true}
                 promptChoice={promptChoice}
-                setPromptChoice={setPromptChoice}
+                setPromptChoice={setPromptChoice as (c: PromptChoice) => void}
               />
 
               {/* Stroke Width Control (Pencil Size) */}

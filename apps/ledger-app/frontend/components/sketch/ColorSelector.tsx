@@ -1,6 +1,8 @@
 import React from 'react';
 import { COLORS } from './sketchConstants';
 
+type PromptChoice = 'dev' | 'cubism' | 'oil' | 'graffiti' | 'residentron';
+
 interface ColorSelectorProps {
   baseColor: string;
   setBaseColor: (color: string) => void;
@@ -9,8 +11,8 @@ interface ColorSelectorProps {
   isDropperMode?: boolean;
   setIsDropperMode?: (active: boolean) => void;
   showAutoButton?: boolean;
-  promptChoice?: 'dev' | 'cubism' | 'oil' | 'graffiti';
-  setPromptChoice?: (c: 'dev' | 'cubism' | 'oil' | 'graffiti') => void;
+  promptChoice?: PromptChoice;
+  setPromptChoice?: (c: PromptChoice) => void;
 }
 
 export const ColorSelector: React.FC<ColorSelectorProps> = ({
@@ -61,7 +63,7 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
             <select
               id="autocomplete-style-select"
               value={promptChoice}
-              onChange={e => setPromptChoice(e.target.value as 'dev' | 'cubism' | 'oil' | 'graffiti')}
+              onChange={e => setPromptChoice(e.target.value as PromptChoice)}
               className="px-2 py-1 text-xs border rounded bg-white"
               style={{ minWidth: 120, maxWidth: 180 }}
             >
@@ -69,6 +71,7 @@ export const ColorSelector: React.FC<ColorSelectorProps> = ({
               <option value="cubism">Auto Cubism</option>
               <option value="oil">Auto Oil</option>
               <option value="graffiti">Auto Graffiti</option>
+              <option value="residentron">Resident Ron</option>
             </select>
           </div>
         )}

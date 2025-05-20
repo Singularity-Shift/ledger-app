@@ -8,7 +8,7 @@ export const useSketchTimer = (
 ) => {
   const [elapsedTime, setElapsedTime] = useState(initialElapsedTime);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [drawingStartTime] = useState<number>(
+  const [drawingStartTime, setDrawingStartTime] = useState<number>(
     typeof initialDrawingStartTime === 'number' && !isNaN(initialDrawingStartTime)
       ? initialDrawingStartTime
       : Date.now()
@@ -40,6 +40,13 @@ export const useSketchTimer = (
       }
     };
   }, [isOpen, isRestored]);
+
+  // When state is restored, reset the start time to the persisted value
+  useEffect(() => {
+    if (isRestored && typeof initialDrawingStartTime === 'number' && !isNaN(initialDrawingStartTime)) {
+      setDrawingStartTime(initialDrawingStartTime);
+    }
+  }, [isRestored, initialDrawingStartTime]);
 
   // Security token generation for server validation
   const getSecurityToken = () => {

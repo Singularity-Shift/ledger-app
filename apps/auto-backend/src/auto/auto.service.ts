@@ -121,6 +121,8 @@ export class AutoService {
         promptFile = 'auto-backend-oil.json';
       } else if (promptType === 'graffiti') {
         promptFile = 'auto-backend-graffiti.json';
+      } else if (promptType === 'residentron') {
+        promptFile = 'auto-backend-residentron.json';
       }
       const promptPath = path.resolve(process.cwd(), promptFile);
       let promptText = this.PROMPT;
