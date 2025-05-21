@@ -522,16 +522,16 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
           const filledImg = new window.Image();
           filledImg.onload = () => {
-            setDrawnPaths((prev) => [
-              ...prev,
-              {
+            setDrawnPaths(prev => {
+              const next = [...prev, {
                 points: [], 
                 strokeColor: color, 
                 strokeWidth: 0,   
                 isEraser: false,  
                 fillImageDataUrl: filledAreaDataUrl,
-              },
-            ]);
+              }];
+              return next.length > 25 ? next.slice(next.length - 25) : next;
+            });
           };
           filledImg.src = filledAreaDataUrl;
         };
@@ -698,16 +698,19 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
               blankCanvas.height = canvasSize;
               if (smudgeStrokeDataUrl !== blankCanvas.toDataURL()) {
                   console.log('[SketchCanvas] Adding smudge stroke to drawnPaths.');
-                  setDrawnPaths((prev) => [
-                    ...prev,
-                    {
-                      points: [],
-                      strokeColor: '#00000000', // Smudge doesn't have a single stroke color
-                      strokeWidth: 0,
-                      isEraser: false,
-                      fillImageDataUrl: smudgeStrokeDataUrl, // Save the whole smudge stroke
-                    },
-                  ]);
+                  setDrawnPaths(prev => {
+                    const next = [
+                      ...prev,
+                      {
+                        points: [],
+                        strokeColor: '#00000000',
+                        strokeWidth: 0,
+                        isEraser: false,
+                        fillImageDataUrl: smudgeStrokeDataUrl, // Save the whole smudge stroke
+                      },
+                    ];
+                    return next.length > 25 ? next.slice(next.length - 25) : next;
+                  });
               }
               // Clear the accumulator canvas for the next stroke, and hide preview
               const accCtx = smudgeAccumulatorCanvasRef.current.getContext('2d');
@@ -736,7 +739,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           const pos = stageRef.current?.getPointerPosition();
           if (pos) {
             const newPath: DrawnPath = { points: [pos.x, pos.y], strokeColor, strokeWidth: scaledStrokeWidth, isEraser };
-            setDrawnPaths(prev => [...prev, newPath]);
+            setDrawnPaths(prev => {
+              const next = [...prev, newPath];
+              return next.length > 25 ? next.slice(next.length - 25) : next;
+            });
             setIsDrawing(true);
             setRedoStack([]);
           }
