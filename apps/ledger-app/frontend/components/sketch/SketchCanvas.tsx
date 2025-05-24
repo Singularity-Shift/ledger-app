@@ -289,7 +289,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       }
     );
 
-    // Helper: Flood fill algorithm (4-way)
+    // Helper: Improved scanline-based flood fill algorithm
     // Reads from ctxRead, writes ONLY the fill to ctxWrite
     function floodFill(
       ctxRead: CanvasRenderingContext2D,
@@ -307,68 +307,89 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
       // Create imageData for writing, initially all transparent
       const imageDataWrite = ctxWrite.createImageData(width, height);
-      const dataWrite = imageDataWrite.data; // This is a view, changes will reflect in imageDataWrite
+      const dataWrite = imageDataWrite.data;
 
-      const stack = [[x, y]];
       const pixelPos = (px: number, py: number) => (py * width + px) * 4;
+      const startIdx = pixelPos(x, y);
+      const sr = dataRead[startIdx];
+      const sg = dataRead[startIdx + 1];
+      const sb = dataRead[startIdx + 2];
+      const sa = dataRead[startIdx + 3];
 
-      const startReadIdx = pixelPos(x, y);
-      const sr = dataRead[startReadIdx];
-      const sg = dataRead[startReadIdx + 1];
-      const sb = dataRead[startReadIdx + 2];
-      const sa = dataRead[startReadIdx + 3];
-
-      // console.log(`Flood fill starting color (RGBA): ${sr}, ${sg}, ${sb}, ${sa}`); // REMOVE this debug log
-
-      if (
-        sr === fillColorRgba[0] &&
-        sg === fillColorRgba[1] &&
-        sb === fillColorRgba[2] &&
-        sa === fillColorRgba[3]
-      ) {
-        return; // Clicked on a pixel already matching the fill color
+      // Early exits
+      if (sr === fillColorRgba[0] && sg === fillColorRgba[1] && sb === fillColorRgba[2] && sa === fillColorRgba[3]) {
+        return; // Already the target color
       }
 
-      if (sa === 0 && fillColorRgba[3] === 0) {
-        return; // Trying to fill transparent with transparent
-      }
+      // Function to check if a pixel should be filled
+      const shouldFill = (px: number, py: number): boolean => {
+        if (px < 0 || py < 0 || px >= width || py >= height) return false;
+        
+        const idx = pixelPos(px, py);
+        const r = dataRead[idx];
+        const g = dataRead[idx + 1];
+        const b = dataRead[idx + 2];
+        const a = dataRead[idx + 3];
 
-      const visited = new Set<string>(); // To avoid re-processing pixels
+        // More aggressive approach: if the pixel is mostly transparent or close to starting color
+        if (sa <= 50) { // Starting from mostly transparent area
+          return a <= 100; // Fill any mostly transparent pixel
+        } else { // Starting from opaque area
+          const colorDistance = Math.abs(r - sr) + Math.abs(g - sg) + Math.abs(b - sb);
+          const alphaDistance = Math.abs(a - sa);
+          return colorDistance <= tolerance * 3 && alphaDistance <= 100;
+        }
+      };
+
+      // Function to fill a pixel
+      const fillPixel = (px: number, py: number): void => {
+        const idx = pixelPos(px, py);
+        dataWrite[idx] = fillColorRgba[0];
+        dataWrite[idx + 1] = fillColorRgba[1];
+        dataWrite[idx + 2] = fillColorRgba[2];
+        dataWrite[idx + 3] = fillColorRgba[3];
+      };
+
+      // Scanline-based flood fill
+      const stack: Array<[number, number]> = [[x, y]];
+      const filled = new Set<string>();
 
       while (stack.length > 0) {
         const [cx, cy] = stack.pop()!;
-        const currentPixelKey = `${cx},${cy}`;
-
-        if (cx < 0 || cy < 0 || cx >= width || cy >= height || visited.has(currentPixelKey)) {
-          continue;
+        const key = `${cx},${cy}`;
+        
+        if (filled.has(key) || !shouldFill(cx, cy)) continue;
+        
+        // Find the left and right bounds of this scanline
+        let left = cx;
+        let right = cx;
+        
+        // Extend left
+        while (left > 0 && shouldFill(left - 1, cy)) left--;
+        
+        // Extend right  
+        while (right < width - 1 && shouldFill(right + 1, cy)) right++;
+        
+        // Fill the scanline
+        for (let px = left; px <= right; px++) {
+          const pixelKey = `${px},${cy}`;
+          if (!filled.has(pixelKey)) {
+            fillPixel(px, cy);
+            filled.add(pixelKey);
+          }
         }
-        visited.add(currentPixelKey);
-
-        const readIdx = pixelPos(cx, cy);
-        const r = dataRead[readIdx];
-        const g = dataRead[readIdx + 1];
-        const b = dataRead[readIdx + 2];
-        const a = dataRead[readIdx + 3];
-
-        // Check with tolerance for RGB, exact match for Alpha
-        if (
-          Math.abs(r - sr) <= tolerance &&
-          Math.abs(g - sg) <= tolerance &&
-          Math.abs(b - sb) <= tolerance &&
-          a === sa // Exact match for alpha of the start pixel
-        ) {
-          // Set pixel on the write canvas to fillColorRgba
-          dataWrite[readIdx]     = fillColorRgba[0];
-          dataWrite[readIdx + 1] = fillColorRgba[1];
-          dataWrite[readIdx + 2] = fillColorRgba[2];
-          dataWrite[readIdx + 3] = fillColorRgba[3];
-
-          stack.push([cx + 1, cy]);
-          stack.push([cx - 1, cy]);
-          stack.push([cx, cy + 1]);
-          stack.push([cx, cy - 1]);
+        
+        // Check scanlines above and below
+        for (let px = left; px <= right; px++) {
+          if (cy > 0 && shouldFill(px, cy - 1) && !filled.has(`${px},${cy - 1}`)) {
+            stack.push([px, cy - 1]);
+          }
+          if (cy < height - 1 && shouldFill(px, cy + 1) && !filled.has(`${px},${cy + 1}`)) {
+            stack.push([px, cy + 1]);
+          }
         }
       }
+      
       ctxWrite.putImageData(imageDataWrite, 0, 0);
     }
 
@@ -529,9 +550,18 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
             return [(num >> 16) & 255, (num >> 8) & 255, num & 255, 255];
           };
           const fillColorRgba = hexToRgba(color);
-          const fillTolerance = 100; // Increased tolerance for testing
+          const fillTolerance = 50; // Balanced tolerance with improved alpha handling
+          
+          const fillX = Math.floor(x);
+          const fillY = Math.floor(y);
+          
+          // Debug: Check starting pixel color
+          const startPixelData = ctxRead.getImageData(fillX, fillY, 1, 1).data;
+          console.log(`[fillAt] Click at (${x}, ${y}) -> floor(${fillX}, ${fillY})`);
+          console.log(`[fillAt] Starting pixel RGBA: ${startPixelData[0]}, ${startPixelData[1]}, ${startPixelData[2]}, ${startPixelData[3]}`);
+          console.log(`[fillAt] Target fill color RGBA: ${fillColorRgba[0]}, ${fillColorRgba[1]}, ${fillColorRgba[2]}, ${fillColorRgba[3]}`);
 
-          floodFill(ctxRead, ctxWrite, Math.floor(x), Math.floor(y), fillColorRgba, fillTolerance);
+          floodFill(ctxRead, ctxWrite, fillX, fillY, fillColorRgba, fillTolerance);
 
           const filledAreaDataUrl = tempCanvasWrite.toDataURL();
           
