@@ -99,74 +99,67 @@ const createSmudgeBaseDataURL = async (
     currentCanvasSize: number,
     cacheMap: Map<string, Promise<HTMLImageElement>>
 ): Promise<string> => {
+    console.log(`[createSmudgeBaseDataURL] Creating base with ${currentDrawnPaths.length} paths`);
+    
     const tempStageNode = document.createElement('div');
-    // Note: Konva Stage needs a container in the DOM to function correctly, even if off-screen.
-    // However, for toDataURL, it might work without appending. If issues arise, append and hide.
-    // For safety, let's append it temporarily and remove it.
-    // tempStageNode.style.position = 'absolute';
-    // tempStageNode.style.left = '-9999px';
-    // tempStageNode.style.top = '-9999px';
-    // document.body.appendChild(tempStageNode);
-
     const tempStage = new Konva.Stage({
-        container: tempStageNode, // Konva requires a container element
+        container: tempStageNode,
         width: currentCanvasSize,
         height: currentCanvasSize,
     });
     const tempLayer = new Konva.Layer();
     tempStage.add(tempLayer);
 
-    // const imageLoadPromises: Promise<void>[] = []; // OLD
-    const imageElementAndNodePromises: Promise<{ konvaNode: Konva.Image, htmlImg: HTMLImageElement }>[] = [];
-
-    for (const path of currentDrawnPaths) {
+    // Process all paths in order to maintain the same layering as main canvas
+    const pathPromises: Array<Promise<void>> = [];
+    
+    for (let i = 0; i < currentDrawnPaths.length; i++) {
+        const path = currentDrawnPaths[i];
+        
         if (path.fillImageDataUrl) {
+            console.log(`[createSmudgeBaseDataURL] Processing fill path ${i}`);
             const imageUrl = path.fillImageDataUrl;
             
-            // Create the Konva.Image node first, add to layer
+            // Create placeholder for correct ordering
             const konvaImgNode = new Konva.Image({
                 width: currentCanvasSize,
                 height: currentCanvasSize,
-                image: undefined, // Will be populated after promise resolves
+                image: undefined,
             });
             tempLayer.add(konvaImgNode);
 
             let imagePromise: Promise<HTMLImageElement>;
-
             if (cacheMap.has(imageUrl)) {
                 imagePromise = cacheMap.get(imageUrl)!;
             } else {
                 imagePromise = new Promise<HTMLImageElement>((resolve, reject) => {
                     const htmlImg = new window.Image();
-                    htmlImg.onload = () => {
-                        resolve(htmlImg);
-                    };
+                    htmlImg.onload = () => resolve(htmlImg);
                     htmlImg.onerror = (err) => {
-                        console.error(`Error loading image for temp smudge base (URL: ${imageUrl.substring(0,100)}...):`, err);
+                        console.error(`[createSmudgeBaseDataURL] Failed to load fill image ${i}:`, err);
                         cacheMap.delete(imageUrl);
-                        reject(err instanceof Event ? new Error(`Image load failed for ${imageUrl.substring(0,30)}`) : err);
+                        reject(new Error(`Fill image load failed`));
                     };
                     htmlImg.src = imageUrl;
                 });
                 cacheMap.set(imageUrl, imagePromise);
             }
             
-            // Create a promise that resolves to a pair of the Konva node and its loaded HTMLImageElement
-            const pairedPromise = imagePromise.then(htmlImg => ({ konvaNode: konvaImgNode, htmlImg }))
-                                          .catch(err => {
-                                            // Ensure errors from imagePromise are propagated correctly if not already an Error object
-                                            throw err instanceof Error ? err : new Error('Image loading failed in pairedPromise'); 
-                                          });
-            imageElementAndNodePromises.push(pairedPromise);
-
+            const loadPromise = imagePromise.then(htmlImg => {
+                konvaImgNode.image(htmlImg);
+                console.log(`[createSmudgeBaseDataURL] Fill path ${i} loaded successfully`);
+            });
+            
+            pathPromises.push(loadPromise);
         } else {
-            // For lines, add them directly
+            console.log(`[createSmudgeBaseDataURL] Processing line path ${i}`);
+            // Add lines immediately to maintain order
             tempLayer.add(new Konva.Line({
                 points: path.points,
                 stroke: path.strokeColor,
                 strokeWidth: path.strokeWidth,
                 globalCompositeOperation: path.isEraser ? 'destination-out' : 'source-over',
-                tension: 0.5, // Match existing line style in main canvas
+                tension: 0.5,
                 lineCap: 'round',
                 lineJoin: 'round',
             }));
@@ -174,26 +167,21 @@ const createSmudgeBaseDataURL = async (
     }
 
     try {
-        const loadedImagePairs = await Promise.all(imageElementAndNodePromises);
-        for (const pair of loadedImagePairs) {
-            pair.konvaNode.image(pair.htmlImg);
-        }
-    } catch (error) {
-        // Error logging for individual image failures already happened in their respective promise rejections.
-        // This catch block handles the case where Promise.all itself rejects (e.g., if one promise rejects).
-        console.error("One or more images failed to load for smudge base construction:", error);
+        // Wait for all images to load
+        await Promise.all(pathPromises);
+        console.log('[createSmudgeBaseDataURL] All paths processed, drawing layer...');
+        
+        tempLayer.draw();
+        const dataURL = tempLayer.toDataURL();
+        
+        console.log(`[createSmudgeBaseDataURL] Base image created, data URL length: ${dataURL.length}`);
         tempStage.destroy();
-        // document.body.removeChild(tempStageNode); // Clean up if appended
-        throw new Error("Failed to load one or more images required for the smudge operation."); // Propagate a user-friendly error
+        return dataURL;
+    } catch (error) {
+        console.error("[createSmudgeBaseDataURL] Failed to create smudge base:", error);
+        tempStage.destroy();
+        throw new Error("Failed to create smudge base image");
     }
-    
-    tempLayer.draw(); // Synchronously draw the layer to its canvas.
-
-    const dataURL = tempLayer.toDataURL(); // Get data from the layer's canvas
-
-    tempStage.destroy(); // Clean up the temporary stage
-    // document.body.removeChild(tempStageNode); // Clean up if appended
-    return dataURL;
 };
 
 export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
@@ -264,7 +252,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       }
     }, [tracingActive, traceImage]);
 
-    const [drawnPaths, setDrawnPaths] = useState<DrawnPath[]>([]);
+    const [permanentPaths, setPermanentPaths] = useState<DrawnPath[]>([]);
+    const [undoablePaths, setUndoablePaths] = useState<DrawnPath[]>([]);
     const [redoStack, setRedoStack] = useState<DrawnPath[]>([]);
     const [isDrawing, setIsDrawing] = useState(false);
     const [isCurrentlySmudging, setIsCurrentlySmudging] = useState(false);
@@ -288,7 +277,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       }
     );
 
-    // Helper: Flood fill algorithm (4-way)
+    // Helper: Improved scanline-based flood fill algorithm
     // Reads from ctxRead, writes ONLY the fill to ctxWrite
     function floodFill(
       ctxRead: CanvasRenderingContext2D,
@@ -306,70 +295,107 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
       // Create imageData for writing, initially all transparent
       const imageDataWrite = ctxWrite.createImageData(width, height);
-      const dataWrite = imageDataWrite.data; // This is a view, changes will reflect in imageDataWrite
+      const dataWrite = imageDataWrite.data;
 
-      const stack = [[x, y]];
       const pixelPos = (px: number, py: number) => (py * width + px) * 4;
+      const startIdx = pixelPos(x, y);
+      const sr = dataRead[startIdx];
+      const sg = dataRead[startIdx + 1];
+      const sb = dataRead[startIdx + 2];
+      const sa = dataRead[startIdx + 3];
 
-      const startReadIdx = pixelPos(x, y);
-      const sr = dataRead[startReadIdx];
-      const sg = dataRead[startReadIdx + 1];
-      const sb = dataRead[startReadIdx + 2];
-      const sa = dataRead[startReadIdx + 3];
-
-      // console.log(`Flood fill starting color (RGBA): ${sr}, ${sg}, ${sb}, ${sa}`); // REMOVE this debug log
-
-      if (
-        sr === fillColorRgba[0] &&
-        sg === fillColorRgba[1] &&
-        sb === fillColorRgba[2] &&
-        sa === fillColorRgba[3]
-      ) {
-        return; // Clicked on a pixel already matching the fill color
+      // Early exits
+      if (sr === fillColorRgba[0] && sg === fillColorRgba[1] && sb === fillColorRgba[2] && sa === fillColorRgba[3]) {
+        return; // Already the target color
       }
 
-      if (sa === 0 && fillColorRgba[3] === 0) {
-        return; // Trying to fill transparent with transparent
-      }
+      // Function to check if a pixel should be filled
+      const shouldFill = (px: number, py: number): boolean => {
+        if (px < 0 || py < 0 || px >= width || py >= height) return false;
+        
+        const idx = pixelPos(px, py);
+        const r = dataRead[idx];
+        const g = dataRead[idx + 1];
+        const b = dataRead[idx + 2];
+        const a = dataRead[idx + 3];
 
-      const visited = new Set<string>(); // To avoid re-processing pixels
+        // More aggressive approach: if the pixel is mostly transparent or close to starting color
+        if (sa <= 50) { // Starting from mostly transparent area
+          return a <= 100; // Fill any mostly transparent pixel
+        } else { // Starting from opaque area
+          const colorDistance = Math.abs(r - sr) + Math.abs(g - sg) + Math.abs(b - sb);
+          const alphaDistance = Math.abs(a - sa);
+          return colorDistance <= tolerance * 3 && alphaDistance <= 100;
+        }
+      };
+
+      // Function to fill a pixel
+      const fillPixel = (px: number, py: number): void => {
+        const idx = pixelPos(px, py);
+        dataWrite[idx] = fillColorRgba[0];
+        dataWrite[idx + 1] = fillColorRgba[1];
+        dataWrite[idx + 2] = fillColorRgba[2];
+        dataWrite[idx + 3] = fillColorRgba[3];
+      };
+
+      // Scanline-based flood fill
+      const stack: Array<[number, number]> = [[x, y]];
+      const filled = new Set<string>();
 
       while (stack.length > 0) {
         const [cx, cy] = stack.pop()!;
-        const currentPixelKey = `${cx},${cy}`;
-
-        if (cx < 0 || cy < 0 || cx >= width || cy >= height || visited.has(currentPixelKey)) {
-          continue;
+        const key = `${cx},${cy}`;
+        
+        if (filled.has(key) || !shouldFill(cx, cy)) continue;
+        
+        // Find the left and right bounds of this scanline
+        let left = cx;
+        let right = cx;
+        
+        // Extend left
+        while (left > 0 && shouldFill(left - 1, cy)) left--;
+        
+        // Extend right  
+        while (right < width - 1 && shouldFill(right + 1, cy)) right++;
+        
+        // Fill the scanline
+        for (let px = left; px <= right; px++) {
+          const pixelKey = `${px},${cy}`;
+          if (!filled.has(pixelKey)) {
+            fillPixel(px, cy);
+            filled.add(pixelKey);
+          }
         }
-        visited.add(currentPixelKey);
-
-        const readIdx = pixelPos(cx, cy);
-        const r = dataRead[readIdx];
-        const g = dataRead[readIdx + 1];
-        const b = dataRead[readIdx + 2];
-        const a = dataRead[readIdx + 3];
-
-        // Check with tolerance for RGB, exact match for Alpha
-        if (
-          Math.abs(r - sr) <= tolerance &&
-          Math.abs(g - sg) <= tolerance &&
-          Math.abs(b - sb) <= tolerance &&
-          a === sa // Exact match for alpha of the start pixel
-        ) {
-          // Set pixel on the write canvas to fillColorRgba
-          dataWrite[readIdx]     = fillColorRgba[0];
-          dataWrite[readIdx + 1] = fillColorRgba[1];
-          dataWrite[readIdx + 2] = fillColorRgba[2];
-          dataWrite[readIdx + 3] = fillColorRgba[3];
-
-          stack.push([cx + 1, cy]);
-          stack.push([cx - 1, cy]);
-          stack.push([cx, cy + 1]);
-          stack.push([cx, cy - 1]);
+        
+        // Check scanlines above and below
+        for (let px = left; px <= right; px++) {
+          if (cy > 0 && shouldFill(px, cy - 1) && !filled.has(`${px},${cy - 1}`)) {
+            stack.push([px, cy - 1]);
+          }
+          if (cy < height - 1 && shouldFill(px, cy + 1) && !filled.has(`${px},${cy + 1}`)) {
+            stack.push([px, cy + 1]);
+          }
         }
       }
+      
       ctxWrite.putImageData(imageDataWrite, 0, 0);
     }
+
+    // Helper function to add a new path and manage the 25-action limit
+    const addNewPath = React.useCallback((newPath: DrawnPath) => {
+      setUndoablePaths(prevUndoable => {
+        const nextUndoablePaths = [...prevUndoable, newPath];
+        if (nextUndoablePaths.length > 25) {
+          const pathToMakePermanent = nextUndoablePaths.shift()!;
+          setPermanentPaths(prevPermanent => [...prevPermanent, pathToMakePermanent]);
+        }
+        return nextUndoablePaths;
+      });
+      setRedoStack([]);
+    }, []);
+
+    // Combine permanent and undoable paths for rendering
+    const allPaths = [...permanentPaths, ...undoablePaths];
 
     // --- SMUDGE LOGIC --- 
     const performSmudgeStep = (x: number, y: number, isContinuingStroke: boolean) => {
@@ -390,28 +416,40 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       const smudgeRadius = scaledStrokeWidth * 0.8;
       const smudgeStrength = 0.08;
       
-      const pixelData = readCtx.getImageData(
-        Math.max(0, Math.floor(x) - Math.floor(smudgeRadius)),
-        Math.max(0, Math.floor(y) - Math.floor(smudgeRadius)),
-        Math.floor(smudgeRadius) * 2,
-        Math.floor(smudgeRadius) * 2
-      ).data;
+      const sampleX = Math.max(0, Math.floor(x) - Math.floor(smudgeRadius));
+      const sampleY = Math.max(0, Math.floor(y) - Math.floor(smudgeRadius));
+      const sampleWidth = Math.floor(smudgeRadius) * 2;
+      const sampleHeight = Math.floor(smudgeRadius) * 2;
+      
+      const pixelData = readCtx.getImageData(sampleX, sampleY, sampleWidth, sampleHeight).data;
 
       let r = 0, g = 0, b = 0, count = 0;
+      let sampleColors: string[] = [];
+      
       for (let i = 0; i < pixelData.length; i += 4) {
         if (pixelData[i + 3] > 10) { 
           r += pixelData[i];
           g += pixelData[i + 1];
           b += pixelData[i + 2];
           count++;
+          
+          // Debug: collect sample colors (limit to first 5 for readability)
+          if (sampleColors.length < 5) {
+            sampleColors.push(`rgba(${pixelData[i]},${pixelData[i+1]},${pixelData[i+2]},${pixelData[i+3]})`);
+          }
         }
       }
+
+      console.log(`[performSmudgeStep] At (${Math.floor(x)}, ${Math.floor(y)}): sampled ${count} pixels from ${sampleWidth}x${sampleHeight} area`);
+      console.log(`[performSmudgeStep] Sample colors:`, sampleColors);
 
       if (count > 0) {
         const avgR = Math.floor(r / count);
         const avgG = Math.floor(g / count);
         const avgB = Math.floor(b / count);
         const color = `rgba(${avgR},${avgG},${avgB},${smudgeStrength})`;
+        
+        console.log(`[performSmudgeStep] Average color: ${color}`);
 
         accCtx.lineCap = 'round';
         accCtx.lineJoin = 'round';
@@ -442,18 +480,25 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       canvasContainerRef,
       canvasRef: compatCanvasRef,
       clearCanvas: () => {
-        setDrawnPaths([]);
+        setPermanentPaths([]);
+        setUndoablePaths([]);
         setRedoStack([]);
       },
-      exportPaths: () => drawnPaths,
+      exportPaths: () => allPaths,
       exportImage: (mimeType: string) => stageRef.current?.toDataURL({ mimeType }) || '',
       exportDrawingLayer: (mimeType: string) => drawingLayerRef.current?.toDataURL({ mimeType }) || '',
       loadPaths: (paths: DrawnPath[]) => {
-        setDrawnPaths(paths);
+        if (paths.length <= 25) {
+          setPermanentPaths([]);
+          setUndoablePaths(paths);
+        } else {
+          setPermanentPaths(paths.slice(0, paths.length - 25));
+          setUndoablePaths(paths.slice(paths.length - 25));
+        }
         setRedoStack([]);
       },
       undo: () => {
-        setDrawnPaths((prev) => {
+        setUndoablePaths((prev) => {
           if (prev.length === 0) return prev;
           const copy = [...prev];
           const removed = copy.pop() as DrawnPath;
@@ -466,7 +511,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           if (prev.length === 0) return prev;
           const copy = [...prev];
           const restored = copy.pop() as DrawnPath;
-          setDrawnPaths((d) => [...d, restored]);
+          setUndoablePaths((d) => [...d, restored]);
           return copy;
         });
       },
@@ -505,9 +550,18 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
             return [(num >> 16) & 255, (num >> 8) & 255, num & 255, 255];
           };
           const fillColorRgba = hexToRgba(color);
-          const fillTolerance = 100; // Increased tolerance for testing
+          const fillTolerance = 50; // Balanced tolerance with improved alpha handling
+          
+          const fillX = Math.floor(x);
+          const fillY = Math.floor(y);
+          
+          // Debug: Check starting pixel color
+          const startPixelData = ctxRead.getImageData(fillX, fillY, 1, 1).data;
+          console.log(`[fillAt] Click at (${x}, ${y}) -> floor(${fillX}, ${fillY})`);
+          console.log(`[fillAt] Starting pixel RGBA: ${startPixelData[0]}, ${startPixelData[1]}, ${startPixelData[2]}, ${startPixelData[3]}`);
+          console.log(`[fillAt] Target fill color RGBA: ${fillColorRgba[0]}, ${fillColorRgba[1]}, ${fillColorRgba[2]}, ${fillColorRgba[3]}`);
 
-          floodFill(ctxRead, ctxWrite, Math.floor(x), Math.floor(y), fillColorRgba, fillTolerance);
+          floodFill(ctxRead, ctxWrite, fillX, fillY, fillColorRgba, fillTolerance);
 
           const filledAreaDataUrl = tempCanvasWrite.toDataURL();
           
@@ -522,15 +576,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
           const filledImg = new window.Image();
           filledImg.onload = () => {
-            setDrawnPaths(prev => {
-              const next = [...prev, {
-                points: [], 
-                strokeColor: color, 
-                strokeWidth: 0,   
-                isEraser: false,  
-                fillImageDataUrl: filledAreaDataUrl,
-              }];
-              return next.length > 25 ? next.slice(next.length - 25) : next;
+            addNewPath({
+              points: [], 
+              strokeColor: color, 
+              strokeWidth: 0,   
+              isEraser: false,  
+              fillImageDataUrl: filledAreaDataUrl,
             });
           };
           filledImg.src = filledAreaDataUrl;
@@ -540,23 +591,30 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         }
         img.src = dataUrlDrawingLayer;
       },
-    }), [canvasSize, drawnPaths, setDrawnPaths, setRedoStack, compatCanvasRef, stageRef, drawingLayerRef, fileInputRef, canvasContainerRef]);
+    }), [canvasSize, addNewPath, setUndoablePaths, setRedoStack, compatCanvasRef, stageRef, drawingLayerRef, fileInputRef, canvasContainerRef, allPaths]);
 
     // Initialize compatCanvasRef.current to match our API
     useEffect(() => {
       if (compatCanvasRef.current) {
         compatCanvasRef.current.clearCanvas = () => {
-          setDrawnPaths([]);
+          setPermanentPaths([]);
+          setUndoablePaths([]);
           setRedoStack([]);
         };
-        compatCanvasRef.current.exportPaths = () => drawnPaths;
+        compatCanvasRef.current.exportPaths = () => allPaths;
         compatCanvasRef.current.exportImage = (mimeType: string) => stageRef.current?.toDataURL({ mimeType }) || '';
         compatCanvasRef.current.loadPaths = (paths: DrawnPath[]) => {
-          setDrawnPaths(paths);
+          if (paths.length <= 25) {
+            setPermanentPaths([]);
+            setUndoablePaths(paths);
+          } else {
+            setPermanentPaths(paths.slice(0, paths.length - 25));
+            setUndoablePaths(paths.slice(paths.length - 25));
+          }
           setRedoStack([]);
         };
         compatCanvasRef.current.undo = () => {
-          setDrawnPaths((prev) => {
+          setUndoablePaths((prev) => {
             if (prev.length === 0) return prev;
             const copy = [...prev];
             const removed = copy.pop() as DrawnPath;
@@ -569,12 +627,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
             if (prev.length === 0) return prev;
             const copy = [...prev];
             const restored = copy.pop() as DrawnPath;
-            setDrawnPaths((d) => [...d, restored]);
+            setUndoablePaths((d) => [...d, restored]);
             return copy;
           });
         };
       }
-    }, [drawnPaths, redoStack]);
+    }, [allPaths, redoStack, addNewPath]);
 
     // Unified handler for both mouse and touch events
     const handlePointerEvent = (evt: Konva.KonvaEventObject<any>) => {
@@ -588,8 +646,16 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           console.log('[SketchCanvas] No pointer position in smudge mode.');
           return;
         }
+        
+        // Debug: Log all event types to see what we're actually getting
+        if (evt.type !== 'mousemove' && evt.type !== 'touchmove') {
+          console.log(`[SketchCanvas] NON-MOVE EVENT DETECTED: ${evt.type}`);
+        }
+
         if (evt.type === 'mousedown' || evt.type === 'touchstart') {
-          console.log('[SketchCanvas] Smudge pointer DOWN recognized.');
+          console.log('[SketchCanvas] Smudge pointer DOWN recognized. Event type:', evt.type);
+          console.log('[SketchCanvas] Current isCurrentlySmudging state:', isCurrentlySmudging);
+          console.log('[SketchCanvas] Position:', pos);
 
           // Asynchronously create the smudge base and then initialize smudge
           (async () => {
@@ -603,7 +669,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
               }
               
               console.log('[SketchCanvas] Creating smudge base data URL...');
-              const smudgeBaseDataUrl = await createSmudgeBaseDataURL(drawnPaths, canvasSize, fillImagePromiseCacheRef.current);
+              const smudgeBaseDataUrl = await createSmudgeBaseDataURL(allPaths, canvasSize, fillImagePromiseCacheRef.current);
               baseDrawingForSmudgeDataUrlRef.current = smudgeBaseDataUrl;
               console.log('[SketchCanvas] Smudge base data URL created, length:', smudgeBaseDataUrl.length);
               
@@ -683,6 +749,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           if (isCurrentlySmudging) {
             console.log('[SketchCanvas] Smudge pointer MOVE, performing step.');
             performSmudgeStep(pos.x, pos.y, true); // true: continuing stroke
+          } else {
+            console.log('[SketchCanvas] Smudge pointer MOVE but not currently smudging. State:', isCurrentlySmudging);
           }
           onPointerMove(domEvent as any);
         } else if (evt.type === 'mouseup' || evt.type === 'touchend') {
@@ -698,18 +766,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
               blankCanvas.height = canvasSize;
               if (smudgeStrokeDataUrl !== blankCanvas.toDataURL()) {
                   console.log('[SketchCanvas] Adding smudge stroke to drawnPaths.');
-                  setDrawnPaths(prev => {
-                    const next = [
-                      ...prev,
-                      {
-                        points: [],
-                        strokeColor: '#00000000',
-                        strokeWidth: 0,
-                        isEraser: false,
-                        fillImageDataUrl: smudgeStrokeDataUrl, // Save the whole smudge stroke
-                      },
-                    ];
-                    return next.length > 25 ? next.slice(next.length - 25) : next;
+                  addNewPath({
+                    points: [],
+                    strokeColor: '#00000000',
+                    strokeWidth: 0,
+                    isEraser: false,
+                    fillImageDataUrl: smudgeStrokeDataUrl, // Save the whole smudge stroke
                   });
               }
               // Clear the accumulator canvas for the next stroke, and hide preview
@@ -739,12 +801,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           const pos = stageRef.current?.getPointerPosition();
           if (pos) {
             const newPath: DrawnPath = { points: [pos.x, pos.y], strokeColor, strokeWidth: scaledStrokeWidth, isEraser };
-            setDrawnPaths(prev => {
-              const next = [...prev, newPath];
-              return next.length > 25 ? next.slice(next.length - 25) : next;
-            });
+            addNewPath(newPath);
             setIsDrawing(true);
-            setRedoStack([]);
           }
         }
       } 
@@ -755,7 +813,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         if (isDrawing) {
           const pos = stageRef.current?.getPointerPosition();
           if (pos) {
-            setDrawnPaths(prev => {
+            setUndoablePaths(prev => {
               const paths = [...prev];
               const last = paths[paths.length - 1];
               if (last) last.points = [...last.points, pos.x, pos.y];
@@ -773,10 +831,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     return (
       <div
         ref={canvasContainerRef}
-        onPointerDown={isAdjustMode || dropperMode ? undefined : onPointerDown}
-        onPointerMove={isAdjustMode || dropperMode ? undefined : onPointerMove}
-        onPointerUp={isAdjustMode || dropperMode ? undefined : onPointerUp}
-        onPointerLeave={isAdjustMode || dropperMode ? undefined : (onPointerLeave || onPointerUp)}
+        onPointerDown={isAdjustMode || dropperMode || isSmudgeActive ? undefined : onPointerDown}
+        onPointerMove={isAdjustMode || dropperMode || isSmudgeActive ? undefined : onPointerMove}
+        onPointerUp={isAdjustMode || dropperMode || isSmudgeActive ? undefined : onPointerUp}
+        onPointerLeave={isAdjustMode || dropperMode || isSmudgeActive ? undefined : (onPointerLeave || onPointerUp)}
         style={{
           width: `${canvasSize}px`,
           height: `${canvasSize}px`,
@@ -879,7 +937,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           <Layer ref={smudgePreviewLayerRef} listening={false} />
           {/* Drawing Layer */}
           <Layer ref={drawingLayerRef}>
-            {drawnPaths.map((path, i) =>
+            {allPaths.map((path, i) =>
               path.fillImageDataUrl ? (
                 <KonvaImageFromUrl key={`fill-${i}`} src={path.fillImageDataUrl} width={canvasSize} height={canvasSize} />
               ) : (
