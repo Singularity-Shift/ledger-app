@@ -264,7 +264,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       }
     }, [tracingActive, traceImage]);
 
-    const [drawnPaths, setDrawnPaths] = useState<DrawnPath[]>([]);
+    const [permanentPaths, setPermanentPaths] = useState<DrawnPath[]>([]);
+    const [undoablePaths, setUndoablePaths] = useState<DrawnPath[]>([]);
     const [redoStack, setRedoStack] = useState<DrawnPath[]>([]);
     const [isDrawing, setIsDrawing] = useState(false);
     const [isCurrentlySmudging, setIsCurrentlySmudging] = useState(false);
@@ -371,6 +372,22 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       ctxWrite.putImageData(imageDataWrite, 0, 0);
     }
 
+    // Helper function to add a new path and manage the 25-action limit
+    const addNewPath = React.useCallback((newPath: DrawnPath) => {
+      setUndoablePaths(prevUndoable => {
+        const nextUndoablePaths = [...prevUndoable, newPath];
+        if (nextUndoablePaths.length > 25) {
+          const pathToMakePermanent = nextUndoablePaths.shift()!;
+          setPermanentPaths(prevPermanent => [...prevPermanent, pathToMakePermanent]);
+        }
+        return nextUndoablePaths;
+      });
+      setRedoStack([]);
+    }, []);
+
+    // Combine permanent and undoable paths for rendering
+    const allPaths = [...permanentPaths, ...undoablePaths];
+
     // --- SMUDGE LOGIC --- 
     const performSmudgeStep = (x: number, y: number, isContinuingStroke: boolean) => {
       if (!smudgeAccumulatorCanvasRef.current || !smudgeReadCanvasRef.current) {
@@ -442,18 +459,25 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       canvasContainerRef,
       canvasRef: compatCanvasRef,
       clearCanvas: () => {
-        setDrawnPaths([]);
+        setPermanentPaths([]);
+        setUndoablePaths([]);
         setRedoStack([]);
       },
-      exportPaths: () => drawnPaths,
+      exportPaths: () => allPaths,
       exportImage: (mimeType: string) => stageRef.current?.toDataURL({ mimeType }) || '',
       exportDrawingLayer: (mimeType: string) => drawingLayerRef.current?.toDataURL({ mimeType }) || '',
       loadPaths: (paths: DrawnPath[]) => {
-        setDrawnPaths(paths);
+        if (paths.length <= 25) {
+          setPermanentPaths([]);
+          setUndoablePaths(paths);
+        } else {
+          setPermanentPaths(paths.slice(0, paths.length - 25));
+          setUndoablePaths(paths.slice(paths.length - 25));
+        }
         setRedoStack([]);
       },
       undo: () => {
-        setDrawnPaths((prev) => {
+        setUndoablePaths((prev) => {
           if (prev.length === 0) return prev;
           const copy = [...prev];
           const removed = copy.pop() as DrawnPath;
@@ -466,7 +490,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           if (prev.length === 0) return prev;
           const copy = [...prev];
           const restored = copy.pop() as DrawnPath;
-          setDrawnPaths((d) => [...d, restored]);
+          setUndoablePaths((d) => [...d, restored]);
           return copy;
         });
       },
@@ -522,15 +546,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
           const filledImg = new window.Image();
           filledImg.onload = () => {
-            setDrawnPaths(prev => {
-              const next = [...prev, {
-                points: [], 
-                strokeColor: color, 
-                strokeWidth: 0,   
-                isEraser: false,  
-                fillImageDataUrl: filledAreaDataUrl,
-              }];
-              return next.length > 25 ? next.slice(next.length - 25) : next;
+            addNewPath({
+              points: [], 
+              strokeColor: color, 
+              strokeWidth: 0,   
+              isEraser: false,  
+              fillImageDataUrl: filledAreaDataUrl,
             });
           };
           filledImg.src = filledAreaDataUrl;
@@ -540,23 +561,30 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         }
         img.src = dataUrlDrawingLayer;
       },
-    }), [canvasSize, drawnPaths, setDrawnPaths, setRedoStack, compatCanvasRef, stageRef, drawingLayerRef, fileInputRef, canvasContainerRef]);
+    }), [canvasSize, addNewPath, setUndoablePaths, setRedoStack, compatCanvasRef, stageRef, drawingLayerRef, fileInputRef, canvasContainerRef, allPaths]);
 
     // Initialize compatCanvasRef.current to match our API
     useEffect(() => {
       if (compatCanvasRef.current) {
         compatCanvasRef.current.clearCanvas = () => {
-          setDrawnPaths([]);
+          setPermanentPaths([]);
+          setUndoablePaths([]);
           setRedoStack([]);
         };
-        compatCanvasRef.current.exportPaths = () => drawnPaths;
+        compatCanvasRef.current.exportPaths = () => allPaths;
         compatCanvasRef.current.exportImage = (mimeType: string) => stageRef.current?.toDataURL({ mimeType }) || '';
         compatCanvasRef.current.loadPaths = (paths: DrawnPath[]) => {
-          setDrawnPaths(paths);
+          if (paths.length <= 25) {
+            setPermanentPaths([]);
+            setUndoablePaths(paths);
+          } else {
+            setPermanentPaths(paths.slice(0, paths.length - 25));
+            setUndoablePaths(paths.slice(paths.length - 25));
+          }
           setRedoStack([]);
         };
         compatCanvasRef.current.undo = () => {
-          setDrawnPaths((prev) => {
+          setUndoablePaths((prev) => {
             if (prev.length === 0) return prev;
             const copy = [...prev];
             const removed = copy.pop() as DrawnPath;
@@ -569,12 +597,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
             if (prev.length === 0) return prev;
             const copy = [...prev];
             const restored = copy.pop() as DrawnPath;
-            setDrawnPaths((d) => [...d, restored]);
+            setUndoablePaths((d) => [...d, restored]);
             return copy;
           });
         };
       }
-    }, [drawnPaths, redoStack]);
+    }, [allPaths, redoStack, addNewPath]);
 
     // Unified handler for both mouse and touch events
     const handlePointerEvent = (evt: Konva.KonvaEventObject<any>) => {
@@ -603,7 +631,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
               }
               
               console.log('[SketchCanvas] Creating smudge base data URL...');
-              const smudgeBaseDataUrl = await createSmudgeBaseDataURL(drawnPaths, canvasSize, fillImagePromiseCacheRef.current);
+              const smudgeBaseDataUrl = await createSmudgeBaseDataURL(allPaths, canvasSize, fillImagePromiseCacheRef.current);
               baseDrawingForSmudgeDataUrlRef.current = smudgeBaseDataUrl;
               console.log('[SketchCanvas] Smudge base data URL created, length:', smudgeBaseDataUrl.length);
               
@@ -698,18 +726,12 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
               blankCanvas.height = canvasSize;
               if (smudgeStrokeDataUrl !== blankCanvas.toDataURL()) {
                   console.log('[SketchCanvas] Adding smudge stroke to drawnPaths.');
-                  setDrawnPaths(prev => {
-                    const next = [
-                      ...prev,
-                      {
-                        points: [],
-                        strokeColor: '#00000000',
-                        strokeWidth: 0,
-                        isEraser: false,
-                        fillImageDataUrl: smudgeStrokeDataUrl, // Save the whole smudge stroke
-                      },
-                    ];
-                    return next.length > 25 ? next.slice(next.length - 25) : next;
+                  addNewPath({
+                    points: [],
+                    strokeColor: '#00000000',
+                    strokeWidth: 0,
+                    isEraser: false,
+                    fillImageDataUrl: smudgeStrokeDataUrl, // Save the whole smudge stroke
                   });
               }
               // Clear the accumulator canvas for the next stroke, and hide preview
@@ -739,12 +761,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           const pos = stageRef.current?.getPointerPosition();
           if (pos) {
             const newPath: DrawnPath = { points: [pos.x, pos.y], strokeColor, strokeWidth: scaledStrokeWidth, isEraser };
-            setDrawnPaths(prev => {
-              const next = [...prev, newPath];
-              return next.length > 25 ? next.slice(next.length - 25) : next;
-            });
+            addNewPath(newPath);
             setIsDrawing(true);
-            setRedoStack([]);
           }
         }
       } 
@@ -755,7 +773,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         if (isDrawing) {
           const pos = stageRef.current?.getPointerPosition();
           if (pos) {
-            setDrawnPaths(prev => {
+            setUndoablePaths(prev => {
               const paths = [...prev];
               const last = paths[paths.length - 1];
               if (last) last.points = [...last.points, pos.x, pos.y];
@@ -879,7 +897,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           <Layer ref={smudgePreviewLayerRef} listening={false} />
           {/* Drawing Layer */}
           <Layer ref={drawingLayerRef}>
-            {drawnPaths.map((path, i) =>
+            {allPaths.map((path, i) =>
               path.fillImageDataUrl ? (
                 <KonvaImageFromUrl key={`fill-${i}`} src={path.fillImageDataUrl} width={canvasSize} height={canvasSize} />
               ) : (
