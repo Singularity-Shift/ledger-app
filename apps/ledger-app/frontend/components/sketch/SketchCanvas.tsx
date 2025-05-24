@@ -99,74 +99,67 @@ const createSmudgeBaseDataURL = async (
     currentCanvasSize: number,
     cacheMap: Map<string, Promise<HTMLImageElement>>
 ): Promise<string> => {
+    console.log(`[createSmudgeBaseDataURL] Creating base with ${currentDrawnPaths.length} paths`);
+    
     const tempStageNode = document.createElement('div');
-    // Note: Konva Stage needs a container in the DOM to function correctly, even if off-screen.
-    // However, for toDataURL, it might work without appending. If issues arise, append and hide.
-    // For safety, let's append it temporarily and remove it.
-    // tempStageNode.style.position = 'absolute';
-    // tempStageNode.style.left = '-9999px';
-    // tempStageNode.style.top = '-9999px';
-    // document.body.appendChild(tempStageNode);
-
     const tempStage = new Konva.Stage({
-        container: tempStageNode, // Konva requires a container element
+        container: tempStageNode,
         width: currentCanvasSize,
         height: currentCanvasSize,
     });
     const tempLayer = new Konva.Layer();
     tempStage.add(tempLayer);
 
-    // const imageLoadPromises: Promise<void>[] = []; // OLD
-    const imageElementAndNodePromises: Promise<{ konvaNode: Konva.Image, htmlImg: HTMLImageElement }>[] = [];
-
-    for (const path of currentDrawnPaths) {
+    // Process all paths in order to maintain the same layering as main canvas
+    const pathPromises: Array<Promise<void>> = [];
+    
+    for (let i = 0; i < currentDrawnPaths.length; i++) {
+        const path = currentDrawnPaths[i];
+        
         if (path.fillImageDataUrl) {
+            console.log(`[createSmudgeBaseDataURL] Processing fill path ${i}`);
             const imageUrl = path.fillImageDataUrl;
             
-            // Create the Konva.Image node first, add to layer
+            // Create placeholder for correct ordering
             const konvaImgNode = new Konva.Image({
                 width: currentCanvasSize,
                 height: currentCanvasSize,
-                image: undefined, // Will be populated after promise resolves
+                image: undefined,
             });
             tempLayer.add(konvaImgNode);
 
             let imagePromise: Promise<HTMLImageElement>;
-
             if (cacheMap.has(imageUrl)) {
                 imagePromise = cacheMap.get(imageUrl)!;
             } else {
                 imagePromise = new Promise<HTMLImageElement>((resolve, reject) => {
                     const htmlImg = new window.Image();
-                    htmlImg.onload = () => {
-                        resolve(htmlImg);
-                    };
+                    htmlImg.onload = () => resolve(htmlImg);
                     htmlImg.onerror = (err) => {
-                        console.error(`Error loading image for temp smudge base (URL: ${imageUrl.substring(0,100)}...):`, err);
+                        console.error(`[createSmudgeBaseDataURL] Failed to load fill image ${i}:`, err);
                         cacheMap.delete(imageUrl);
-                        reject(err instanceof Event ? new Error(`Image load failed for ${imageUrl.substring(0,30)}`) : err);
+                        reject(new Error(`Fill image load failed`));
                     };
                     htmlImg.src = imageUrl;
                 });
                 cacheMap.set(imageUrl, imagePromise);
             }
             
-            // Create a promise that resolves to a pair of the Konva node and its loaded HTMLImageElement
-            const pairedPromise = imagePromise.then(htmlImg => ({ konvaNode: konvaImgNode, htmlImg }))
-                                          .catch(err => {
-                                            // Ensure errors from imagePromise are propagated correctly if not already an Error object
-                                            throw err instanceof Error ? err : new Error('Image loading failed in pairedPromise'); 
-                                          });
-            imageElementAndNodePromises.push(pairedPromise);
-
+            const loadPromise = imagePromise.then(htmlImg => {
+                konvaImgNode.image(htmlImg);
+                console.log(`[createSmudgeBaseDataURL] Fill path ${i} loaded successfully`);
+            });
+            
+            pathPromises.push(loadPromise);
         } else {
-            // For lines, add them directly
+            console.log(`[createSmudgeBaseDataURL] Processing line path ${i}`);
+            // Add lines immediately to maintain order
             tempLayer.add(new Konva.Line({
                 points: path.points,
                 stroke: path.strokeColor,
                 strokeWidth: path.strokeWidth,
                 globalCompositeOperation: path.isEraser ? 'destination-out' : 'source-over',
-                tension: 0.5, // Match existing line style in main canvas
+                tension: 0.5,
                 lineCap: 'round',
                 lineJoin: 'round',
             }));
@@ -174,26 +167,21 @@ const createSmudgeBaseDataURL = async (
     }
 
     try {
-        const loadedImagePairs = await Promise.all(imageElementAndNodePromises);
-        for (const pair of loadedImagePairs) {
-            pair.konvaNode.image(pair.htmlImg);
-        }
-    } catch (error) {
-        // Error logging for individual image failures already happened in their respective promise rejections.
-        // This catch block handles the case where Promise.all itself rejects (e.g., if one promise rejects).
-        console.error("One or more images failed to load for smudge base construction:", error);
+        // Wait for all images to load
+        await Promise.all(pathPromises);
+        console.log('[createSmudgeBaseDataURL] All paths processed, drawing layer...');
+        
+        tempLayer.draw();
+        const dataURL = tempLayer.toDataURL();
+        
+        console.log(`[createSmudgeBaseDataURL] Base image created, data URL length: ${dataURL.length}`);
         tempStage.destroy();
-        // document.body.removeChild(tempStageNode); // Clean up if appended
-        throw new Error("Failed to load one or more images required for the smudge operation."); // Propagate a user-friendly error
+        return dataURL;
+    } catch (error) {
+        console.error("[createSmudgeBaseDataURL] Failed to create smudge base:", error);
+        tempStage.destroy();
+        throw new Error("Failed to create smudge base image");
     }
-    
-    tempLayer.draw(); // Synchronously draw the layer to its canvas.
-
-    const dataURL = tempLayer.toDataURL(); // Get data from the layer's canvas
-
-    tempStage.destroy(); // Clean up the temporary stage
-    // document.body.removeChild(tempStageNode); // Clean up if appended
-    return dataURL;
 };
 
 export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
@@ -428,28 +416,40 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       const smudgeRadius = scaledStrokeWidth * 0.8;
       const smudgeStrength = 0.08;
       
-      const pixelData = readCtx.getImageData(
-        Math.max(0, Math.floor(x) - Math.floor(smudgeRadius)),
-        Math.max(0, Math.floor(y) - Math.floor(smudgeRadius)),
-        Math.floor(smudgeRadius) * 2,
-        Math.floor(smudgeRadius) * 2
-      ).data;
+      const sampleX = Math.max(0, Math.floor(x) - Math.floor(smudgeRadius));
+      const sampleY = Math.max(0, Math.floor(y) - Math.floor(smudgeRadius));
+      const sampleWidth = Math.floor(smudgeRadius) * 2;
+      const sampleHeight = Math.floor(smudgeRadius) * 2;
+      
+      const pixelData = readCtx.getImageData(sampleX, sampleY, sampleWidth, sampleHeight).data;
 
       let r = 0, g = 0, b = 0, count = 0;
+      let sampleColors: string[] = [];
+      
       for (let i = 0; i < pixelData.length; i += 4) {
         if (pixelData[i + 3] > 10) { 
           r += pixelData[i];
           g += pixelData[i + 1];
           b += pixelData[i + 2];
           count++;
+          
+          // Debug: collect sample colors (limit to first 5 for readability)
+          if (sampleColors.length < 5) {
+            sampleColors.push(`rgba(${pixelData[i]},${pixelData[i+1]},${pixelData[i+2]},${pixelData[i+3]})`);
+          }
         }
       }
+
+      console.log(`[performSmudgeStep] At (${Math.floor(x)}, ${Math.floor(y)}): sampled ${count} pixels from ${sampleWidth}x${sampleHeight} area`);
+      console.log(`[performSmudgeStep] Sample colors:`, sampleColors);
 
       if (count > 0) {
         const avgR = Math.floor(r / count);
         const avgG = Math.floor(g / count);
         const avgB = Math.floor(b / count);
         const color = `rgba(${avgR},${avgG},${avgB},${smudgeStrength})`;
+        
+        console.log(`[performSmudgeStep] Average color: ${color}`);
 
         accCtx.lineCap = 'round';
         accCtx.lineJoin = 'round';
@@ -646,8 +646,16 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           console.log('[SketchCanvas] No pointer position in smudge mode.');
           return;
         }
+        
+        // Debug: Log all event types to see what we're actually getting
+        if (evt.type !== 'mousemove' && evt.type !== 'touchmove') {
+          console.log(`[SketchCanvas] NON-MOVE EVENT DETECTED: ${evt.type}`);
+        }
+
         if (evt.type === 'mousedown' || evt.type === 'touchstart') {
-          console.log('[SketchCanvas] Smudge pointer DOWN recognized.');
+          console.log('[SketchCanvas] Smudge pointer DOWN recognized. Event type:', evt.type);
+          console.log('[SketchCanvas] Current isCurrentlySmudging state:', isCurrentlySmudging);
+          console.log('[SketchCanvas] Position:', pos);
 
           // Asynchronously create the smudge base and then initialize smudge
           (async () => {
@@ -741,6 +749,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           if (isCurrentlySmudging) {
             console.log('[SketchCanvas] Smudge pointer MOVE, performing step.');
             performSmudgeStep(pos.x, pos.y, true); // true: continuing stroke
+          } else {
+            console.log('[SketchCanvas] Smudge pointer MOVE but not currently smudging. State:', isCurrentlySmudging);
           }
           onPointerMove(domEvent as any);
         } else if (evt.type === 'mouseup' || evt.type === 'touchend') {
@@ -821,10 +831,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     return (
       <div
         ref={canvasContainerRef}
-        onPointerDown={isAdjustMode || dropperMode ? undefined : onPointerDown}
-        onPointerMove={isAdjustMode || dropperMode ? undefined : onPointerMove}
-        onPointerUp={isAdjustMode || dropperMode ? undefined : onPointerUp}
-        onPointerLeave={isAdjustMode || dropperMode ? undefined : (onPointerLeave || onPointerUp)}
+        onPointerDown={isAdjustMode || dropperMode || isSmudgeActive ? undefined : onPointerDown}
+        onPointerMove={isAdjustMode || dropperMode || isSmudgeActive ? undefined : onPointerMove}
+        onPointerUp={isAdjustMode || dropperMode || isSmudgeActive ? undefined : onPointerUp}
+        onPointerLeave={isAdjustMode || dropperMode || isSmudgeActive ? undefined : (onPointerLeave || onPointerUp)}
         style={{
           width: `${canvasSize}px`,
           height: `${canvasSize}px`,
