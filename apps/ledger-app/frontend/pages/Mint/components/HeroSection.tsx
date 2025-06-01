@@ -220,7 +220,7 @@ export const HeroSection: React.FC<HeroSectionProps> = () => {
             description: (
               <div>
                 <a href={`https://explorer.aptoslabs.com/txn/${tx?.hash}`} target="_blank">
-                  {tx?.hash}
+                  {truncateAddress(tx?.hash as string)}
                 </a>
               </div>
             ),
